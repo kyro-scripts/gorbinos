@@ -1,0 +1,7 @@
+.godot/
+*.import.tmp
+tools/_music_tmp/
+__pycache__/
+export/
+build/*
+!build/GorbinosQuest-Windows.zip

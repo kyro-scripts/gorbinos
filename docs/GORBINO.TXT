@@ -1,0 +1,45 @@
+================================================================================
+                         G O R B I N O ' S   Q U E S T
+                     THE FIRST-PERSON GORB EXPERIENCE  v1.9.6
+                   (C) 1996 GLANDCORE SOFTWARE. ALL GORB RESERVED.
+================================================================================
+
+ THANK YOU FOR PURCHASING GORBINO'S QUEST!
+
+ TO PLAY:      Double-click GORBINOSQUEST.EXE. No installation required.
+               Your saves live in %APPDATA%\Godot\app_userdata\Gorbino's Quest
+
+ SYSTEM REQUIREMENTS
+   - Any 64-bit Windows PC with an OpenGL 3.3 capable video card
+   - A mouse (two buttons recommended, three buttons decadent)
+   - Sound card (recommended; the Gorbinos have a lot to say)
+
+ CONTROLS
+   W A S D ........ MOVE              MOUSE ........... LOOK
+   LEFT CLICK ..... FIRE              E / RIGHT CLICK . USE (DOORS, SWITCHES)
+   SPACE .......... JUMP              SHIFT ........... SPRINT
+   R .............. RELOAD / VENT     1-6 / WHEEL ..... WEAPONS
+   Q .............. LAST WEAPON       TAB ............. AUTOMAP
+   F5 / F9 ........ QUICK SAVE/LOAD   ESC ............. MENU
+   (everything can be rebound in OPTIONS > CONTROLS)
+
+ HINTS FROM THE GLANDCORE HOTLINE
+   * Walls that look a little different usually ARE different. Press USE.
+   * Gorb Juice can push your health past 100. So can the Gorb Orb.
+   * Red Gorbinos do not shoot. They do not need to.
+   * The SNIRB-O-TRON overheats. Press RELOAD to vent it early.
+   * Rockets hurt you too. Rockets also make you fly. Do with this what you will.
+   * Barrels of GORB-COLA are not for drinking.
+   * The spinning green heads are checkpoints. They save your game.
+   * Feeling lost? Press TAB.
+
+ THE GORB OF ALL KNOWLEDGE (DIFFICULTY)
+   BABY GORB ...... half damage, double ammo
+   GORB ENJOYER ... the way Gorbino intended
+   ULTRA-GORB ..... faster, angrier Gorbinos
+   GORB HELL ...... not even remotely fair
+
+ Gorbino's Quest is a work of fiction. Any resemblance to real Gorbinos,
+ living or dead, is purely coincidental. No Snirbies were harmed. Several
+ hundred were.
+================================================================================

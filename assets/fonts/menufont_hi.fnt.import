@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://cghunlhcmj2ba"
+path="res://.godot/imported/menufont_hi.fnt-de83cea6a50cc18ef566b327f16434e0.fontdata"
+
+[deps]
+
+source_file="res://assets/fonts/menufont_hi.fnt"
+dest_files=["res://.godot/imported/menufont_hi.fnt-de83cea6a50cc18ef566b327f16434e0.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2

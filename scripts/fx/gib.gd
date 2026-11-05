@@ -1,0 +1,39 @@
+class_name Gib
+extends Node3D
+## A chunk that flies, bounces on the level floor and settles.
+
+var vel := Vector3.ZERO
+var spin := Vector3.ZERO
+var level: Node = null
+var life := -1.0      # < 0: stays forever (until culled)
+var _rest := false
+
+
+func _process(delta: float) -> void:
+	if life >= 0.0:
+		life -= delta
+		if life <= 0.0:
+			queue_free()
+			return
+	if _rest or level == null:
+		return
+	vel.y -= 20.0 * delta
+	var p := global_position + vel * delta
+	var fl: float = level.floor_at(p)
+	var ci: int = level.idx_of(level.cell_of(p))
+	if ci < 0 or level.solid[ci] == 1:
+		vel.x *= -0.4
+		vel.z *= -0.4
+		p.x = global_position.x
+		p.z = global_position.z
+	if p.y <= fl + 0.05:
+		p.y = fl + 0.05
+		if abs(vel.y) < 1.5:
+			_rest = true
+			rotation.x = 0.0
+			rotation.z = 0.0
+		vel.y = -vel.y * 0.35
+		vel.x *= 0.6
+		vel.z *= 0.6
+	global_position = p
+	rotation += spin * delta
