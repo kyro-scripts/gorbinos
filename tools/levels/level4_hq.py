@@ -180,7 +180,7 @@ emit("level4_hq", {
     "music": "hq", "ambience": "amb_hq", "sky": "sky_night",
     "fog": Color(0.08, 0.02, 0.12, 0.6), "fog_start": 18.0, "fog_end": 80.0,
     "light_boost": 1.45, "diminish": 0.024,
-    "start_angle": 0.0, "par": 360,
+    "start_angle": 0.0, "par": 251,
     "wall": "h_wallpaper", "side": "h_panel",
     "test_views": [[18, 51, 0, 5], [40, 47, 90, 0], [18, 27, 0, 0], [30, 20, -90, -10], [55, 27, 180, 0], [32, 10, 0, 0], [50, 6, -90, 5]],
 }, L, m)

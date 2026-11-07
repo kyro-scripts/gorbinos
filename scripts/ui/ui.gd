@@ -17,9 +17,8 @@ static func font(fname: String) -> Font:
 		return _fonts[fname]
 	var f: Font
 	match fname:
-		"menu", "menu_hi", "menu_dim", "big", "hud":
-			var file: String = {"menu": "menufont", "menu_hi": "menufont_hi", "menu_dim": "menufont_dim", "big": "bigfont", "hud": "hudfont"}[fname]
-			f = load("res://assets/fonts/%s.fnt" % file)
+		"menu", "menu_hi", "menu_dim", "big", "hud", "anton":
+			f = load("res://assets/fonts/Anton-Regular.ttf")
 		"small":
 			f = _pixel_ttf("res://assets/fonts/Silkscreen-Regular.ttf")
 		"small_bold":
@@ -32,6 +31,24 @@ static func font(fname: String) -> Font:
 	return f
 
 
+## Default colours for the named styles (used when a caller passes WHITE).
+static func style_color(fname: String, c: Color) -> Color:
+	if c != Color.WHITE:
+		return c
+	match fname:
+		"menu_hi":
+			return ACID
+		"menu_dim":
+			return Color(0.5, 0.45, 0.5)
+		"menu", "big", "hud", "anton":
+			return BONE
+	return c
+
+
+static func is_heavy(fname: String) -> bool:
+	return fname in ["menu", "menu_hi", "menu_dim", "big", "hud", "anton"]
+
+
 static func _pixel_ttf(path: String) -> Font:
 	var f: FontFile = load(path)
 	f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
@@ -41,7 +58,7 @@ static func _pixel_ttf(path: String) -> Font:
 
 
 static func native_size(fname: String) -> int:
-	return {"menu": 20, "menu_hi": 20, "menu_dim": 20, "big": 32, "hud": 28, "small": 8, "small_bold": 8, "term": 16}.get(fname, 16)
+	return {"menu": 22, "menu_hi": 22, "menu_dim": 22, "big": 40, "hud": 32, "anton": 22, "small": 8, "small_bold": 8, "term": 16}.get(fname, 16)
 
 
 static func text_width(fname: String, text: String, size := -1) -> float:
@@ -54,9 +71,14 @@ static func text(ci: CanvasItem, fname: String, pos: Vector2, s: String, color :
 	var f := font(fname)
 	var fs := size if size > 0 else native_size(fname)
 	var asc := f.get_ascent(fs)
-	if shadow:
-		ci.draw_string(f, pos + Vector2(1, 1 + asc), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, color.a * 0.8))
-	ci.draw_string(f, pos + Vector2(0, asc), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
+	var c := style_color(fname, color)
+	if is_heavy(fname):
+		# heavy condensed type with a hard dark outline and offset shadow
+		ci.draw_string_outline(f, pos + Vector2(2, 2 + asc), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, maxi(2, fs / 7), Color(0, 0, 0, c.a * 0.85))
+		ci.draw_string_outline(f, pos + Vector2(0, asc), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, maxi(2, fs / 7), Color(0.05, 0.0, 0.03, c.a))
+	elif shadow:
+		ci.draw_string(f, pos + Vector2(1, 1 + asc), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, c.a * 0.8))
+	ci.draw_string(f, pos + Vector2(0, asc), s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, c)
 
 
 static func text_centered(ci: CanvasItem, fname: String, center_x: float, y: float, s: String, color := Color.WHITE, size := -1, shadow := false) -> void:

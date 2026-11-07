@@ -13,6 +13,8 @@ uniform float origin_light = 0.0;   // 1 = sample light at the object's origin
 uniform float wobble = 0.0;         // liquids: UV warp
 uniform float flash = 0.0;          // hit flash (enemies)
 uniform vec2 uv_scale = vec2(1.0);
+uniform float shade = 0.0;          // creatures: fake key light on the normals
+uniform float gloss = 0.0;          // creatures: wet specular glint
 
 global uniform sampler2D level_light : filter_nearest;
 global uniform vec4 level_info;   // x: cell size, y: grid w, z: grid h
@@ -75,7 +77,16 @@ void fragment() {
 	lit = mix(lit, 1.0, fullbright);
 	vec3 dyn = pl(wpos, dl_p0, dl_c0) + pl(wpos, dl_p1, dl_c1) + pl(wpos, dl_p2, dl_c2)
 		+ pl(wpos, dl_p3, dl_c3) + pl(wpos, dl_p4, dl_c4) + pl(wpos, dl_p5, dl_c5);
-	vec3 col = c.rgb * (lit + min(dyn, vec3(1.2)));
+	float spec = 0.0;
+	if (shade > 0.0) {
+		vec3 L = normalize(vec3(-0.35, 0.8, 0.5));
+		float wrap = 0.5 + 0.5 * dot(NORMAL, L);
+		lit *= mix(1.0, 0.3 + 1.0 * wrap * wrap, shade);
+		spec = pow(max(dot(NORMAL, normalize(L + vec3(0.0, 0.0, 1.0))), 0.0), 26.0) * gloss * min(light * 1.6, 1.0);
+		float rim = pow(1.0 - max(dot(NORMAL, vec3(0.0, 0.0, 1.0)), 0.0), 3.0);
+		lit += rim * 0.25 * shade * light;
+	}
+	vec3 col = c.rgb * (lit + min(dyn, vec3(1.2))) + vec3(spec);
 	col = mix(col, vec3(1.0, 1.0, 1.0), flash);
 	float f = clamp((depth - fog_params.x) / max(fog_params.y - fog_params.x, 0.01), 0.0, 1.0) * fog_color.a;
 	col = mix(col, fog_color.rgb, f * (1.0 - fullbright * 0.5));

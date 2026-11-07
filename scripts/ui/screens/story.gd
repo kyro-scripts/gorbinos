@@ -39,7 +39,7 @@ func _process(delta: float) -> void:
 	if Game.autoplay and t > 0.3:
 		_finish()
 	if lines.is_empty() and size.x > 0:
-		lines = UI.wrap("small", text, minf(size.x - 80, 480))
+		lines = UI.wrap("term", text, minf(size.x - 80, 480), 18)
 	queue_redraw()
 
 
@@ -60,7 +60,7 @@ func _input(event: InputEvent) -> void:
 func _draw() -> void:
 	draw_texture_rect_region(bg, Rect2(Vector2.ZERO, size), Rect2(Vector2(t * 6.0, t * 3.0), size / 3.0), Color(0.45, 0.4, 0.5))
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.45))
-	UI.text_centered(self, "small_bold", size.x * 0.5, 22, "NOW ENTERING", UI.ACID, 8, true)
+	UI.text_centered(self, "term", size.x * 0.5, 18, "NOW ENTERING", UI.ACID, 16)
 	UI.text_centered(self, "big", size.x * 0.5, 36, title, Color.WHITE)
 	var y := 92.0
 	var remaining := int(shown)
@@ -69,7 +69,7 @@ func _draw() -> void:
 			break
 		var part := ln.substr(0, remaining)
 		remaining -= ln.length() + 1
-		UI.text_centered(self, "small", size.x * 0.5, y, part, UI.BONE, 8, true)
-		y += 13
+		UI.text_centered(self, "term", size.x * 0.5, y, part, UI.BONE, 18)
+		y += 18
 	if shown >= text.length() and fmod(t, 1.0) < 0.7:
-		UI.text_centered(self, "menu", size.x * 0.5, size.y - 40, "PRESS ANY KEY", Color.WHITE)
+		UI.text_centered(self, "term", size.x * 0.5, size.y - 34, "PRESS ANY KEY", UI.BONE, 18)

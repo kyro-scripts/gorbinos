@@ -23,7 +23,7 @@ L = {
     "F": {"wall": "f_alert"},
     "v": {"wall": "f_dark"},
     "S": {"wall": "exit_panel", "use": "exit", "above": "f_dark"},
-    "N": {"wall": "switch_off", "use": "switch", "tag": 3, "above": "f_stencil1", "msg": "OVERFLOW LAB UNSEALED."},
+    "N": {"wall": "switch_off", "use": "switch", "tag": 3, "above": "f_stencil1", "msg": "LAB OPEN"},
     ".": lab(0.0, 7.0, light=0.75),
     ",": lab(0.0, 3.5, ftex="f_tile", light=0.72),
     "'": lab(0.0, 3.5, ftex="f_tile", ctex="f_glow", light=0.85),
@@ -172,7 +172,7 @@ emit("level5_facility", {
     "music": "facility", "ambience": "amb_facility", "sky": "",
     "fog": Color(0.55, 0.85, 0.65, 0.35), "fog_start": 10.0, "fog_end": 60.0,
     "light_boost": 1.45, "diminish": 0.026,
-    "start_angle": 0.0, "par": 420,
+    "start_angle": 0.0, "par": 294,
     "wall": "f_tile", "side": "f_alert",
     "test_views": [[31, 50, 0, 0], [31, 44, 0, 0], [11, 44, 0, 10], [47, 38, -90, 0], [52, 34, 0, 10], [31, 19, 0, 0], [50, 48, -90, 0]],
 }, L, m)

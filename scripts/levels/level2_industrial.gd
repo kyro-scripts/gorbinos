@@ -12,7 +12,7 @@ const DATA := {
 	"light_boost": 1.5,
 	"diminish": 0.028,
 	"start_angle": 0.0,
-	"par": 300,
+	"par": 210,
 	"wall": "i_concrete",
 	"side": "i_hazard",
 	"test_views": [[6, 48, 0, 0], [12, 34, 0, 0], [36, 30, 0, -10], [30, 26, 90, 0], [10, 21, 0, 10], [38, 8, 90, 0], [55, 25, 90, 0]],
@@ -51,7 +51,7 @@ const DATA := {
 			"use": "switch",
 			"tag": 4,
 			"above": "i_teal",
-			"msg": "THE ARMORY BARS RISE."
+			"msg": "ARMORY OPEN"
 		},
 		".": {
 			"floor": 0.0,

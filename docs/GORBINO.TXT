@@ -1,45 +1,33 @@
 ================================================================================
                          G O R B I N O ' S   Q U E S T
-                     THE FIRST-PERSON GORB EXPERIENCE  v1.9.6
-                   (C) 1996 GLANDCORE SOFTWARE. ALL GORB RESERVED.
+                                    v1.9.6
+                        (C) 1996 GLANDCORE SOFTWARE
 ================================================================================
 
- THANK YOU FOR PURCHASING GORBINO'S QUEST!
+ TO PLAY:      Run GORBINOSQUEST.EXE. No installation required.
+               Saves are kept in %APPDATA%\Godot\app_userdata\Gorbino's Quest
 
- TO PLAY:      Double-click GORBINOSQUEST.EXE. No installation required.
-               Your saves live in %APPDATA%\Godot\app_userdata\Gorbino's Quest
-
- SYSTEM REQUIREMENTS
-   - Any 64-bit Windows PC with an OpenGL 3.3 capable video card
-   - A mouse (two buttons recommended, three buttons decadent)
-   - Sound card (recommended; the Gorbinos have a lot to say)
+ REQUIREMENTS: 64-bit Windows, a video card with OpenGL 3.3, a mouse.
 
  CONTROLS
    W A S D ........ MOVE              MOUSE ........... LOOK
-   LEFT CLICK ..... FIRE              E / RIGHT CLICK . USE (DOORS, SWITCHES)
+   LEFT CLICK ..... FIRE              E / RIGHT CLICK . USE (DOORS, SWITCHES, LIFTS)
    SPACE .......... JUMP              SHIFT ........... SPRINT
    R .............. RELOAD / VENT     1-6 / WHEEL ..... WEAPONS
    Q .............. LAST WEAPON       TAB ............. AUTOMAP
    F5 / F9 ........ QUICK SAVE/LOAD   ESC ............. MENU
-   (everything can be rebound in OPTIONS > CONTROLS)
+   All keys can be rebound in OPTIONS > CONTROLS.
 
- HINTS FROM THE GLANDCORE HOTLINE
-   * Walls that look a little different usually ARE different. Press USE.
-   * Gorb Juice can push your health past 100. So can the Gorb Orb.
-   * Red Gorbinos do not shoot. They do not need to.
-   * The SNIRB-O-TRON overheats. Press RELOAD to vent it early.
-   * Rockets hurt you too. Rockets also make you fly. Do with this what you will.
-   * Barrels of GORB-COLA are not for drinking.
-   * The spinning green heads are checkpoints. They save your game.
-   * Feeling lost? Press TAB.
+ NOTES
+   * Walls with a slightly different texture can often be opened. Press USE.
+   * Health can go above 100.
+   * The plasma rifle overheats. Press RELOAD to vent it early.
+   * Rockets damage you too, and push you.
+   * Checkpoints save your progress when you touch them.
 
- THE GORB OF ALL KNOWLEDGE (DIFFICULTY)
-   BABY GORB ...... half damage, double ammo
-   GORB ENJOYER ... the way Gorbino intended
-   ULTRA-GORB ..... faster, angrier Gorbinos
-   GORB HELL ...... not even remotely fair
-
- Gorbino's Quest is a work of fiction. Any resemblance to real Gorbinos,
- living or dead, is purely coincidental. No Snirbies were harmed. Several
- hundred were.
+ DIFFICULTY
+   MERCY .......... less damage taken, double ammo
+   STANDARD ....... the intended difficulty
+   CRUELTY ........ faster enemies, heavier damage
+   HELL ........... no room for error
 ================================================================================

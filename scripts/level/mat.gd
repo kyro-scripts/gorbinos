@@ -58,6 +58,10 @@ static func make(tname: String, opts := {}) -> ShaderMaterial:
 		m.set_shader_parameter("alpha_cut", float(opts["alpha_cut"]))
 	if opts.has("uv"):
 		m.set_shader_parameter("uv_scale", opts["uv"])
+	if opts.has("shade"):
+		m.set_shader_parameter("shade", float(opts["shade"]))
+	if opts.has("gloss"):
+		m.set_shader_parameter("gloss", float(opts["gloss"]))
 	return m
 
 

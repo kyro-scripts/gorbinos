@@ -30,6 +30,11 @@ func _ready() -> void:
 				paths.append(Game.LEVELS[int(s) - 1])
 	await get_tree().process_frame
 	var ok := true
+	if args.has("--mousetest"):
+		ok = await _mouse_test()
+		print("TEST RESULT: ", "PASS" if ok else "FAIL")
+		get_tree().quit(0 if ok else 1)
+		return
 	if args.has("--savetest"):
 		ok = await _save_test()
 		print("TEST RESULT: ", "PASS" if ok else "FAIL")
@@ -163,6 +168,8 @@ func _validate_path(lv: Level) -> bool:
 ## Save/load round trip: change level state, save, rebuild from the save and
 ## compare.
 func _save_test() -> bool:
+	# enemies may attack during the wait below; this test is about the save itself
+	Game.cheats["god"] = true
 	Game.inventory = Game.new_inventory()
 	Game.level_index = 0
 	var gw := GameWorld.new()
@@ -225,3 +232,27 @@ func _save_test() -> bool:
 		ok = ok and checks[k]
 	gw2.queue_free()
 	return ok
+
+
+## Real input path: inject mouse motion through Input like the OS would and
+## check that the camera turns.
+func _mouse_test() -> bool:
+	Game.inventory = Game.new_inventory()
+	Game.level_index = 0
+	var gw := GameWorld.new()
+	Game.main.layer.add_child(gw)
+	await get_tree().process_frame
+	var yaw0: float = gw.player.yaw
+	var pitch0: float = gw.player.pitch
+	for k in 10:
+		var ev := InputEventMouseMotion.new()
+		ev.relative = Vector2(20, 6)
+		ev.screen_relative = Vector2(20, 6)
+		ev.position = Vector2(640, 360)
+		Input.parse_input_event(ev)
+		await get_tree().process_frame
+	var dy := absf(angle_difference(yaw0, gw.player.yaw))
+	var dp := absf(gw.player.pitch - pitch0)
+	print("  yaw changed by %.3f rad, pitch by %.3f rad" % [dy, dp])
+	gw.queue_free()
+	return dy > 0.1 and dp > 0.02

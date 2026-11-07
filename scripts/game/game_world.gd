@@ -24,7 +24,8 @@ var autopilot: Node = null
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	# must not swallow mouse events: look input is read in _input below
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vp = SubViewport.new()
 	vp.own_world_3d = true
 	vp.audio_listener_enable_3d = true
@@ -66,7 +67,7 @@ func _ready() -> void:
 	add_child(hud)
 	menu_bg = ColorRect.new()
 	menu_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	menu_bg.color = Color(0.03, 0.0, 0.05, 0.72)
+	menu_bg.color = Color(0.02, 0.0, 0.03, 0.78)
 	menu_bg.visible = false
 	menu_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(menu_bg)
@@ -75,7 +76,7 @@ func _ready() -> void:
 	menu.allow_empty_back = true
 	menu.emptied.connect(_resume)
 	add_child(menu)
-	_death_stamp = load("res://assets/ui/stamp_gorbed.png")
+	_death_stamp = load("res://assets/ui/death.png")
 	if Game.pending_restore != null:
 		_restore(Game.pending_restore)
 		Game.pending_restore = null
@@ -142,11 +143,26 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	if player and player.dead and dead_t > 0.4:
-		var k := clampf((dead_t - 0.4) * 2.0, 0.0, 1.0)
-		var s := _death_stamp.get_size() * lerpf(3.0, 1.0, k)
-		var c := Vector2(size.x * 0.5, size.y * 0.2 + 20)
-		draw_texture_rect(_death_stamp, Rect2(c - s * 0.5, s), false, Color(1, 1, 1, k))
+	pass
+
+
+## Mouse look is handled before the GUI so no Control can swallow it.
+func _input(event: InputEvent) -> void:
+	if paused or player == null or player.dead or completed:
+		return
+	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or DisplayServer.get_name() == "headless"
+	if event is InputEventMouseMotion:
+		if captured:
+			player.look(event.screen_relative)
+	elif event is InputEventMouseButton and event.pressed and not captured:
+		_capture(true)
+		get_viewport().set_input_as_handled()
+
+
+func _notification(what: int) -> void:
+	# regain the mouse when the window gets focus back (alt-tab etc.)
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN and not paused and player and not player.dead:
+		_capture(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -155,11 +171,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	if player.dead or completed:
 		return
 	if event is InputEventMouseMotion:
-		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			player.look(event.screen_relative)
-		return
-	if event is InputEventMouseButton and event.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		_capture(true)
 		return
 	if event.is_action_pressed("pause"):
 		open_pause()
@@ -208,14 +219,15 @@ func open_pause() -> void:
 
 
 func _pause_page() -> Dictionary:
-	return {"title": "PAUSED", "items": [
-		{"label": "RESUME", "cb": func(): _resume()},
-		{"label": "SAVE QUEST", "cb": func(): menu.push(MenuView.save_page(menu, func(slot): save_to(slot)))},
-		{"label": "LOAD QUEST", "cb": func(): menu.push(MenuView.load_page(menu, func(d): _load(d)))},
-		{"label": "OPTIONS", "cb": func(): menu.push(MenuView.options_page(menu, _apply_settings))},
-		{"label": "RESTART LEVEL", "cb": func(): _unpause(); Game.restart_level()},
-		{"label": "QUIT TO MENU", "cb": func(): _unpause(); Game.goto_menu()},
-	], "footer": "%s  -  %s" % [String(level.data.get("name", "")), Game.diff()["name"]]}
+	var st := level.stats
+	return {"title": "PAUSED", "tiles": true, "cols": 3, "items": [
+		{"label": "RESUME", "icon": "tile_resume", "cb": func(): _resume()},
+		{"label": "SAVE", "icon": "tile_save", "cb": func(): menu.push(MenuView.save_page(menu, func(slot): save_to(slot)))},
+		{"label": "LOAD", "icon": "tile_load", "cb": func(): menu.push(MenuView.load_page(menu, func(d): _load(d)))},
+		{"label": "OPTIONS", "icon": "tile_options", "cb": func(): menu.push(MenuView.options_page(menu, _apply_settings))},
+		{"label": "RESTART LEVEL", "icon": "tile_retry", "cb": func(): _unpause(); Game.restart_level()},
+		{"label": "QUIT TO MENU", "icon": "tile_quit", "cb": func(): _unpause(); Game.goto_menu()},
+	], "footer": "%s   KILLS %d/%d   SECRETS %d/%d   %s" % [String(level.data.get("name", "")), st["kills"], st["kills_total"], st["secrets"], st["secrets_total"], Game.diff()["name"]]}
 
 
 func _resume() -> void:
@@ -245,12 +257,12 @@ func _show_death_menu() -> void:
 	menu.visible = true
 	menu.allow_empty_back = false
 	var latest = Game.latest_save()
-	menu.top_y = 190.0
-	menu.push({"title": "", "items": [
-		{"label": "LOAD LAST SAVE", "enabled": latest != null, "cb": func(): Game.load_from_save(Game.latest_save())},
-		{"label": "RESTART LEVEL", "cb": func(): Game.restart_level()},
-		{"label": "QUIT TO MENU", "cb": func(): Game.goto_menu()},
-	], "back": func(): pass, "footer": "THE GORBINOS SEND THEIR REGARDS."})
+	menu.top_y = 180.0
+	menu.push({"title": "", "tiles": true, "cols": 3, "items": [
+		{"label": "RESTART LEVEL", "icon": "tile_retry", "cb": func(): Game.restart_level()},
+		{"label": "LOAD LAST SAVE", "icon": "tile_load", "enabled": latest != null, "cb": func(): Game.load_from_save(Game.latest_save())},
+		{"label": "QUIT TO MENU", "icon": "tile_quit", "cb": func(): Game.goto_menu()},
+	], "back": func(): pass})
 
 
 # ------------------------------------------------------------------ events
@@ -271,7 +283,7 @@ func level_complete() -> void:
 func checkpoint() -> void:
 	save_to("auto", " (CHECKPOINT)")
 	Audio.play("checkpoint")
-	message("CHECKPOINT. YOUR GORB HAS BEEN SAVED.", true)
+	message("PROGRESS SAVED", true)
 
 
 func boss_started(en: Node) -> void:
@@ -282,7 +294,7 @@ func boss_started(en: Node) -> void:
 func on_boss_killed() -> void:
 	hud.boss = null
 	Audio.play_music(String(level.data.get("music", "")))
-	message("THE GREAT SNIRBY HAS FALLEN. THE WAY HOME IS OPEN.", true)
+	message("THE WAY OUT IS OPEN", true)
 	level.fire_tag(99)
 
 

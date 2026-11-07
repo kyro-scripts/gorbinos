@@ -3,42 +3,42 @@ extends AnimatableBody3D
 ## Gorbinos and Snirbies. One script, data-driven variants.
 
 const TYPES := {
-	"green": {"model": "gorbino", "color": Color(0.45, 0.95, 0.15), "hp": 60, "speed": 4.0, "radius": 0.55, "height": 1.6,
-		"attack": "proj", "proj": "green", "proj_speed": 15.0, "dmg": 10, "count": 1, "spread": 0.0, "cooldown": [1.6, 3.2],
-		"windup": 0.5, "range": 45.0, "pain": 0.75, "sight": "gorb_sight", "pain_snd": "gorb_pain", "death": "gorb_death",
-		"idle": "gorb_idle", "name": "GREEN GORBINO", "drop": ""},
-	"yellow": {"model": "gorbino", "color": Color(1.0, 0.85, 0.1), "hp": 45, "speed": 4.4, "radius": 0.55, "height": 1.6,
-		"attack": "hitscan", "dmg": 5, "count": 3, "spread": 0.07, "cooldown": [1.3, 2.6], "windup": 0.55, "range": 40.0,
+	"green": {"model": "gorbino", "color": Color(1.0, 0.48, 0.1), "hp": 51, "speed": 5.4, "radius": 0.55, "height": 1.6,
+		"attack": "proj", "proj": "green", "proj_speed": 19.5, "dmg": 10, "count": 1, "spread": 0.0, "cooldown": [1.12, 2.24],
+		"windup": 0.40, "range": 45.0, "pain": 0.75, "sight": "gorb_sight", "pain_snd": "gorb_pain", "death": "gorb_death",
+		"idle": "gorb_idle", "name": "GORBINO", "drop": ""},
+	"yellow": {"model": "gorbino", "color": Color(1.0, 0.85, 0.1), "hp": 38, "speed": 5.9, "radius": 0.55, "height": 1.6,
+		"attack": "hitscan", "dmg": 5, "count": 3, "spread": 0.07, "cooldown": [0.91, 1.82], "windup": 0.40, "range": 40.0,
 		"pain": 0.8, "sight": "gorb_sight2", "pain_snd": "gorb_pain", "death": "gorb_death", "idle": "gorb_idle",
 		"gun": true, "name": "YELLOW GORBINO", "drop": "bullets", "keep_range": 9.0},
-	"red": {"model": "gorbino", "color": Color(1.0, 0.18, 0.12), "hp": 130, "speed": 7.2, "radius": 0.6, "height": 1.6,
-		"attack": "melee", "dmg": 16, "cooldown": [0.6, 1.0], "windup": 0.28, "range": 1.9, "pain": 0.5,
+	"red": {"model": "gorbino", "color": Color(1.0, 0.18, 0.12), "hp": 110, "speed": 9.7, "radius": 0.6, "height": 1.6,
+		"attack": "melee", "dmg": 16, "cooldown": [0.42, 0.70], "windup": 0.20, "range": 1.9, "pain": 0.5,
 		"sight": "gorb_attack", "pain_snd": "gorb_pain", "death": "gorb_death", "idle": "gorb_idle", "name": "RED GORBINO", "drop": ""},
-	"blue": {"model": "gorbino", "color": Color(0.2, 0.45, 1.0), "hp": 260, "speed": 3.0, "radius": 0.62, "height": 1.7, "scale": 1.12,
-		"attack": "proj", "proj": "ice", "proj_speed": 17.0, "dmg": 11, "count": 3, "spread": 0.18, "cooldown": [2.0, 3.4],
-		"windup": 0.65, "range": 40.0, "pain": 0.35, "sight": "gorb_sight", "pain_snd": "gorb_pain", "death": "gorb_death",
+	"blue": {"model": "gorbino", "color": Color(0.2, 0.45, 1.0), "hp": 221, "speed": 4.1, "radius": 0.62, "height": 1.7, "scale": 1.12,
+		"attack": "proj", "proj": "ice", "proj_speed": 22.1, "dmg": 11, "count": 3, "spread": 0.18, "cooldown": [1.40, 2.38],
+		"windup": 0.50, "range": 40.0, "pain": 0.35, "sight": "gorb_sight", "pain_snd": "gorb_pain", "death": "gorb_death",
 		"idle": "gorb_idle", "name": "BLUE GORBINO", "drop": "shells", "pitch": 0.85},
-	"purple": {"model": "gorbino", "color": Color(0.7, 0.2, 1.0), "hp": 170, "speed": 4.6, "radius": 0.55, "height": 1.6,
-		"attack": "proj", "proj": "purple", "proj_speed": 11.0, "homing": 2.2, "dmg": 15, "count": 1, "spread": 0.0,
-		"cooldown": [1.8, 3.0], "windup": 0.6, "range": 50.0, "pain": 0.55, "fly": true, "hover": 1.6,
+	"purple": {"model": "gorbino", "color": Color(0.7, 0.2, 1.0), "hp": 144, "speed": 6.2, "radius": 0.55, "height": 1.6,
+		"attack": "proj", "proj": "purple", "proj_speed": 14.3, "homing": 2.2, "dmg": 15, "count": 1, "spread": 0.0,
+		"cooldown": [1.26, 2.10], "windup": 0.40, "range": 50.0, "pain": 0.55, "fly": true, "hover": 1.6,
 		"sight": "gorb_sight2", "pain_snd": "gorb_pain", "death": "gorb_death", "idle": "gorb_idle", "name": "PURPLE GORBINO",
 		"drop": "cells", "pitch": 1.25},
-	"black": {"model": "gorbino", "color": Color(0.12, 0.1, 0.14), "hp": 750, "speed": 3.6, "radius": 0.9, "height": 2.5, "scale": 1.55,
-		"attack": "proj", "proj": "fire", "proj_speed": 20.0, "dmg": 25, "splash": 55.0, "splash_r": 3.5, "count": 1, "spread": 0.0,
-		"cooldown": [1.4, 2.6], "windup": 0.55, "range": 60.0, "pain": 0.2, "glow_eyes": true, "launcher": true,
+	"black": {"model": "gorbino", "color": Color(0.12, 0.1, 0.14), "hp": 638, "speed": 4.9, "radius": 0.9, "height": 2.5, "scale": 1.55,
+		"attack": "proj", "proj": "fire", "proj_speed": 26.0, "dmg": 25, "splash": 55.0, "splash_r": 3.5, "count": 1, "spread": 0.0,
+		"cooldown": [0.98, 1.82], "windup": 0.40, "range": 60.0, "pain": 0.2, "glow_eyes": true, "launcher": true,
 		"sight": "gorb_big_sight", "pain_snd": "gorb_pain", "death": "gorb_big_death", "idle": "gorb_idle",
 		"name": "BLACK GORBINO", "drop": "rockets_box", "pitch": 0.7, "burst": 2},
-	"snirby": {"model": "snirby", "hp": 40, "speed": 7.0, "radius": 0.42, "height": 1.6,
-		"attack": "mixed", "proj": "spit", "proj_speed": 18.0, "dmg": 7, "melee_dmg": 9, "count": 1, "spread": 0.0,
-		"cooldown": [0.9, 2.0], "windup": 0.3, "range": 30.0, "pain": 0.9, "sight": "snirb_sight", "pain_snd": "snirb_pain",
+	"snirby": {"model": "snirby", "hp": 34, "speed": 9.5, "radius": 0.42, "height": 1.6,
+		"attack": "mixed", "proj": "spit", "proj_speed": 23.4, "dmg": 7, "melee_dmg": 9, "count": 1, "spread": 0.0,
+		"cooldown": [0.63, 1.40], "windup": 0.20, "range": 30.0, "pain": 0.9, "sight": "snirb_sight", "pain_snd": "snirb_pain",
 		"death": "snirb_death", "idle": "snirb_sniff", "name": "SNIRBY", "drop": ""},
-	"skysnirby": {"model": "snirby", "hp": 65, "speed": 6.0, "radius": 0.45, "height": 1.6, "fly": true, "hover": 2.4,
-		"attack": "mixed", "proj": "spit", "proj_speed": 20.0, "dmg": 8, "melee_dmg": 10, "count": 2, "spread": 0.08,
-		"cooldown": [1.1, 2.2], "windup": 0.35, "range": 35.0, "pain": 0.8, "sight": "snirb_sight", "pain_snd": "snirb_pain",
-		"death": "snirb_death", "idle": "snirb_sniff", "name": "SKY SNIRBY", "drop": "", "tint": Color(0.75, 1.0, 0.85), "propeller": true},
-	"boss": {"model": "snirby", "hp": 5200, "speed": 3.4, "radius": 1.9, "height": 6.4, "scale": 4.2, "boss": true,
-		"attack": "boss", "proj": "spit", "proj_speed": 19.0, "dmg": 12, "count": 1, "spread": 0.0, "cooldown": [1.0, 1.8],
-		"windup": 0.7, "range": 90.0, "pain": 0.0, "sight": "boss_roar", "pain_snd": "snirb_pain", "death": "boss_death",
+	"skysnirby": {"model": "snirby", "hp": 55, "speed": 8.1, "radius": 0.45, "height": 1.6, "fly": true, "hover": 2.4,
+		"attack": "mixed", "proj": "spit", "proj_speed": 26.0, "dmg": 8, "melee_dmg": 10, "count": 2, "spread": 0.08,
+		"cooldown": [0.77, 1.54], "windup": 0.30, "range": 35.0, "pain": 0.8, "sight": "snirb_sight", "pain_snd": "snirb_pain",
+		"death": "snirb_death", "idle": "snirb_sniff", "name": "SKY SNIRBY", "drop": "", "tint": Color(1.0, 0.86, 0.96), "propeller": true},
+	"boss": {"model": "snirby", "hp": 4420, "speed": 4.6, "radius": 1.9, "height": 6.4, "scale": 4.2, "boss": true,
+		"attack": "boss", "proj": "spit", "proj_speed": 24.7, "dmg": 12, "count": 1, "spread": 0.0, "cooldown": [0.70, 1.26],
+		"windup": 0.50, "range": 90.0, "pain": 0.0, "sight": "boss_roar", "pain_snd": "snirb_pain", "death": "boss_death",
 		"idle": "snirb_sniff", "name": "THE GREAT SNIRBY", "drop": "", "tint": Color(1.0, 0.75, 0.85), "glow": true, "pitch": 0.45},
 }
 
@@ -108,7 +108,7 @@ func setup(t: String, lvl: Level, pos: Vector3, p_yaw: float) -> void:
 	if def["model"] == "gorbino":
 		model = Models.gorbino(def["color"], {"gun": def.get("gun", false), "glow_eyes": def.get("glow_eyes", false), "launcher": def.get("launcher", false)})
 	else:
-		model = Models.snirby({"tint": def.get("tint", Color(1, 1, 1)), "glow": def.get("glow", false)})
+		model = Models.snirby({"tint": def.get("tint", Color(1, 1, 1)), "glow": def.get("glow", false), "fly": def.get("fly", false)})
 	model.scale = Vector3.ONE * sc
 	add_child(model)
 	parts = model.get_meta("parts")
@@ -137,7 +137,11 @@ func alert() -> void:
 	alerted = true
 	state = "chase"
 	attack_timer = randf_range(0.6, 1.6) / Game.diff()["aggro"]
-	Audio.play_at(def["sight"], center_point(), 2.0 if def.get("boss", false) else 0.0, float(def.get("pitch", 1.0)) * randf_range(0.92, 1.08))
+	var spoke := false
+	if not def.get("boss", false) and randf() < 0.45:
+		spoke = Audio.voice_line(center_point(), 0.9 if def["model"] == "gorbino" else 1.12)
+	if not spoke:
+		Audio.play_at(def["sight"], center_point(), 2.0 if def.get("boss", false) else 0.0, float(def.get("pitch", 1.0)) * randf_range(0.92, 1.08))
 	if def.get("boss", false) and level.world:
 		level.world.boss_started(self)
 
@@ -168,7 +172,7 @@ func _physics_process(delta: float) -> void:
 	if not alerted:
 		look_timer -= delta
 		if look_timer <= 0.0:
-			look_timer = 0.3 + randf() * 0.2
+			look_timer = 0.15 + randf() * 0.1
 			if not player_dead and dist < 70.0:
 				var fwd := -global_transform.basis.z
 				var facing := fwd.dot(Vector3(to_p.x, 0, to_p.z).normalized()) > -0.2
@@ -482,7 +486,7 @@ func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") ->
 	var kb := amount * (0.06 if kind != "explosion" else 0.12) / sqrt(max_hp / 60.0)
 	if not def.get("boss", false):
 		knock += Vector3(dir.x, 0, dir.z) * minf(kb, 9.0)
-	var bc := Color(1.0, 0.45, 0.1) if def["model"] == "gorbino" else Color(0.35, 0.5, 1.0)
+	var bc := Color(0.8, 0.25, 0.04) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
 	Fx.blood(level, center_point() - dir * 0.2, bc, clampi(int(amount / 6.0), 2, 10))
 	if not alerted:
 		alert()
@@ -500,11 +504,11 @@ func _die(amount: float, kind: String, dir: Vector3) -> void:
 	dead = true
 	state = "dead"
 	col_shape.disabled = true
-	var bc := Color(1.0, 0.45, 0.1) if def["model"] == "gorbino" else Color(0.35, 0.5, 1.0)
+	var bc := Color(0.8, 0.25, 0.04) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
 	if not def.get("boss", false) and (hp < -max_hp * 0.6 or (kind == "explosion" and hp < -15.0) or amount >= max_hp * 1.4):
 		gibbed = true
 		model.visible = false
-		var skin: Color = def.get("color", Color(0.75, 0.6, 0.85))
+		var skin: Color = def.get("color", Color(1.0, 0.6, 0.7))
 		Fx.gibs(level, center_point(), skin, bc, 9 if def["model"] == "gorbino" else 7)
 		Audio.play_at("hit_flesh", center_point(), 4.0, 0.6)
 	Audio.play_at(def["death"], center_point(), 2.0 if def.get("boss", false) else 0.0, float(def.get("pitch", 1.0)) * randf_range(0.95, 1.05))
@@ -532,16 +536,7 @@ func _animate_death(delta: float) -> void:
 	if flying and global_position.y > level.floor_at(global_position) + 0.05:
 		yv -= 20.0 * delta
 		global_position.y = maxf(level.floor_at(global_position), global_position.y + yv * delta)
-	if def["model"] == "gorbino":
-		model.rotation.x = lerpf(0.0, deg_to_rad(80), k * k)
-		model.position.y = lerpf(0.0, 0.25 * float(def.get("scale", 1.0)), k)
-		var b: Node3D = parts["body"]
-		b.scale.y = lerpf(1.0, 0.75, k)
-		parts["mouth"].scale.y = 2.4
-	else:
-		model.rotation.z = lerpf(0.0, deg_to_rad(85), k * k)
-		model.position.y = lerpf(0.0, 0.2 * float(def.get("scale", 1.0)), k)
-		parts["ears"].rotation.x = lerpf(0.0, 0.8, k)
+	Creatures.death_pose(model, k)
 	if def.get("boss", false) and death_t < 2.5 and fmod(death_t, 0.35) < delta:
 		Fx.explosion(level, global_position + Vector3(randf_range(-3, 3), randf_range(1, 6), randf_range(-3, 3)), false)
 	if death_t > 3.0:
@@ -550,76 +545,16 @@ func _animate_death(delta: float) -> void:
 
 # ------------------------------------------------------------------ animation
 func _animate(delta: float, ppos: Vector3) -> void:
-	var m := move_amount
-	var spd := 9.0 if def["model"] == "gorbino" else 13.0
-	var ph := anim_t * spd
-	var body: Node3D = parts["body"]
-	var windup := state == "windup"
-	var pain := state == "pain"
 	blink_t -= delta
 	var blink := false
 	if blink_t < 0.0:
 		blink = true
 		if blink_t < -0.12:
 			blink_t = randf_range(1.5, 5.0)
-	if def["model"] == "gorbino":
-		body.position.y = 0.32 + abs(sin(ph)) * 0.09 * m + sin(anim_t * 2.0) * 0.015
-		body.rotation.z = sin(ph) * 0.14 * m
-		body.rotation.x = -0.35 if windup else (0.25 if pain else 0.0)
-		var legs: Array = parts["legs"]
-		var arms: Array = parts["arms"]
-		if flying:
-			legs[0].rotation.x = sin(anim_t * 3.0) * 0.3
-			legs[1].rotation.x = -sin(anim_t * 3.0 + 0.5) * 0.3
-			model.position.y = sin(anim_t * 2.2) * 0.1
-		else:
-			legs[0].rotation.x = sin(ph) * 0.7 * m
-			legs[1].rotation.x = -sin(ph) * 0.7 * m
-		var arm_up := -2.2 if windup else 0.0
-		arms[0].rotation.x = arm_up - sin(ph) * 0.6 * m
-		arms[1].rotation.x = (arm_up if def["attack"] != "hitscan" else -1.4 if windup else -0.6) + sin(ph) * 0.6 * m
-		var mouth: Node3D = parts["mouth"]
-		mouth.scale.y = lerpf(mouth.scale.y, 2.6 if windup else (1.8 if pain else 1.0), clampf(delta * 14.0, 0, 1))
-		parts["sprout"].rotation.z = sin(anim_t * 6.0) * 0.25 + body.rotation.z
-		for e in parts["eyes"]:
-			e.scale.y = 0.12 if blink else (0.8 if pain else 1.0)
-		# pupils track the player
-		var lp := to_local(ppos + Vector3(0, 1.4, 0))
-		var look := Vector2(clampf(lp.x * 0.03, -0.05, 0.05), clampf(lp.y * 0.02, -0.04, 0.05))
-		for pu in parts["pupils"]:
-			pu.position = Vector3(look.x, look.y, -0.12)
-	else:
-		var hop := absf(sin(ph)) * 0.2 * m
-		body.position.y = 0.55 + hop
-		model.position.y = 0.0 if not flying else sin(anim_t * 2.6) * 0.15
-		body.rotation.x = (-0.15 * m) + (0.3 if pain else 0.0)
-		var legs: Array = parts["legs"]
-		var arms: Array = parts["arms"]
-		if flying:
-			legs[0].rotation.x = 0.3 + sin(anim_t * 4.0) * 0.2
-			legs[1].rotation.x = 0.3 - sin(anim_t * 4.0) * 0.2
-		else:
-			legs[0].rotation.x = sin(ph) * 0.9 * m
-			legs[1].rotation.x = -sin(ph) * 0.9 * m
-		arms[0].rotation.x = sin(ph + 1.0) * 1.0 * m + (-1.0 if windup else 0.0)
-		arms[1].rotation.x = -sin(ph + 1.0) * 1.0 * m + (-1.0 if windup else 0.0)
-		arms[0].rotation.z = -0.2 - abs(sin(ph)) * 0.3 * m
-		arms[1].rotation.z = 0.2 + abs(sin(ph)) * 0.3 * m
-		var head: Node3D = parts["head"]
-		head.rotation.x = (0.45 if windup else 0.0) + sin(anim_t * 1.7) * 0.05
-		# sniffing: rapid nose twitches in bursts
-		var sniff := fmod(anim_t, 3.0) < 0.6
-		var nose: Node3D = parts["nose"]
-		nose.scale = Vector3.ONE * (1.0 + (0.35 * abs(sin(anim_t * 30.0)) if sniff else 0.0))
-		parts["snout"].rotation.y = sin(anim_t * 25.0) * 0.04 if sniff else 0.0
-		var ears: Node3D = parts["ears"]
-		if def.get("propeller", false):
-			ears.rotation.y += delta * 28.0
-			ears.rotation.x = 0.0
-		else:
-			ears.rotation.x = sin(ph) * 0.25 * m - (0.4 if pain else 0.0)
-		for e in parts["eyes"]:
-			e.scale.y = 0.15 if blink else 1.0
+	var sc := float(def.get("scale", 1.0))
+	var look := model.to_local(ppos + Vector3(0, 1.5, 0)) / sc
+	Creatures.animate(model, anim_t, delta, {"move": move_amount, "windup": state == "windup", "pain": state == "pain",
+		"blink": blink, "fly": flying, "look": look})
 
 
 # ------------------------------------------------------------------ save

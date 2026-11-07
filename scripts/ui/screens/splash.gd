@@ -13,7 +13,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	if t > 3.2:
+	if t > 2.2:
 		Game.main.show_menu()
 	queue_redraw()
 
@@ -25,8 +25,7 @@ func _input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0))
-	var a := clampf(t * 2.0, 0.0, 1.0) * clampf((3.2 - t) * 2.0, 0.0, 1.0)
+	var a := clampf(t * 2.0, 0.0, 1.0) * clampf((2.2 - t) * 2.0, 0.0, 1.0)
 	var s := logo.get_size()
 	draw_texture(logo, (size * 0.5 - s * 0.5 - Vector2(0, 20)).round(), Color(1, 1, 1, a))
-	UI.text_centered(self, "small", size.x * 0.5, size.y * 0.5 + 40, "PRESENTS", Color(1, 1, 1, a), 8)
-	UI.text_centered(self, "small", size.x * 0.5, size.y - 24, "A GLANDCORE SOFTWARE PRODUCTION - LICENSED FOR HOME USE ONLY", Color(0.5, 0.4, 0.6, a), 8)
+

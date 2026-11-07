@@ -136,7 +136,7 @@ emit("level6_dimension", {
     "music": "dimension", "ambience": "amb_dimension", "sky": "sky_void",
     "fog": Color(0.45, 0.0, 0.5, 0.45), "fog_start": 20.0, "fog_end": 110.0,
     "light_boost": 1.35, "diminish": 0.015,
-    "start_angle": 0.0, "par": 420,
+    "start_angle": 0.0, "par": 294,
     "wall": "d_void", "side": "d_meat", "tree_tex": "d_flesh",
     "test_views": [[32, 58, 0, 5], [32, 46, 0, 0], [10, 44, 90, 0], [54, 44, -90, 0], [32, 30, 0, 0], [32, 22, 0, 8]],
 }, L, m)

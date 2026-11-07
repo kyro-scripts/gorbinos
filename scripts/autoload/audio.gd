@@ -15,6 +15,26 @@ var music_player: AudioStreamPlayer
 var amb_player: AudioStreamPlayer
 var current_music := ""
 var _music_tween: Tween
+var _voice_cool := 4.0
+const VOICES := ["voice_canthide", "voice_runpig", "voice_seeyou"]
+var _last_voice := ""
+
+
+func _process(delta: float) -> void:
+	_voice_cool -= delta
+
+
+## A whispered line from an enemy. Rate limited so it stays unsettling
+## rather than repetitive. Returns true if a line was played.
+func voice_line(pos: Vector3, pitch := 1.0, force := false) -> bool:
+	if _voice_cool > 0.0 and not force:
+		return false
+	_voice_cool = randf_range(9.0, 16.0)
+	var choices := VOICES.filter(func(v): return v != _last_voice)
+	var v: String = choices[randi() % choices.size()]
+	_last_voice = v
+	play_at(v, pos, 8.0, pitch)
+	return true
 
 
 func _ready() -> void:

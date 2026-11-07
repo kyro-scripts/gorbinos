@@ -12,7 +12,7 @@ var secret := false
 var remote := false      # cannot be opened by "use", only by a trigger
 var y_closed := 0.0      # body origin y when closed / raised
 var travel := 2.0        # distance moved
-var speed := 3.2
+var speed := 6.0
 var state := 0           # 0 closed/raised, 1 opening, 2 open/lowered, 3 closing
 var t := 0.0             # 0..1 position along travel
 var wait := 0.0
@@ -127,7 +127,7 @@ func try_use(user: Node) -> String:
 			if _snd_cool <= 0.0:
 				Audio.play_at("door_locked", global_position + Vector3(0, 1, 0))
 				_snd_cool = 0.6
-			return "YOU NEED THE %s KEYCARD" % key.to_upper()
+			return "%s KEYCARD REQUIRED" % key.to_upper()
 	_start(1)
 	return ""
 

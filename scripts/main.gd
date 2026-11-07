@@ -9,6 +9,8 @@ var layer: CanvasLayer
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	Game.main = self
+	if DisplayServer.get_name() != "headless":
+		Input.set_custom_mouse_cursor(load("res://assets/ui/cursor_hand.png"), Input.CURSOR_ARROW, Vector2(13, 1))
 	layer = CanvasLayer.new()
 	add_child(layer)
 	_set_neutral_globals()

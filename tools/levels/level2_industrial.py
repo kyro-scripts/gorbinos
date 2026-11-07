@@ -16,7 +16,7 @@ L = {
     "K": {"wall": "i_warning"},
     "G": {"wall": "i_sign"},
     "S": {"wall": "exit_panel", "use": "exit", "above": "i_teal"},
-    "N": {"wall": "switch_off", "use": "switch", "tag": 4, "above": "i_teal", "msg": "THE ARMORY BARS RISE."},
+    "N": {"wall": "switch_off", "use": "switch", "tag": 4, "above": "i_teal", "msg": "ARMORY OPEN"},
     ".": dict(YARD),
     ",": dict(HALL),
     "F": dict(HALL, ctex="i_light", light=0.85),
@@ -181,7 +181,7 @@ emit("level2_industrial", {
     "music": "industrial", "ambience": "amb_industrial", "sky": "sky_smog",
     "fog": Color(0.45, 0.28, 0.15, 0.55), "fog_start": 14.0, "fog_end": 70.0,
     "light_boost": 1.5, "diminish": 0.028,
-    "start_angle": 0.0, "par": 300,
+    "start_angle": 0.0, "par": 210,
     "wall": "i_concrete", "side": "i_hazard",
     "test_views": [[6, 48, 0, 0], [12, 34, 0, 0], [36, 30, 0, -10], [30, 26, 90, 0], [10, 21, 0, 10], [38, 8, 90, 0], [55, 25, 90, 0]],
 }, L, m)

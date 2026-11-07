@@ -12,7 +12,7 @@ const DATA := {
 	"light_boost": 1.35,
 	"diminish": 0.015,
 	"start_angle": 0.0,
-	"par": 420,
+	"par": 294,
 	"wall": "d_void",
 	"side": "d_meat",
 	"tree_tex": "d_flesh",

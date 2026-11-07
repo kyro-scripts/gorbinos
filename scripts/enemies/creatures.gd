@@ -1,0 +1,383 @@
+class_name Creatures
+extends RefCounted
+## The two creatures of Gorbino's Quest, built from generated meshes:
+##  - Gorbino: an orange, octopus-like crawler on six wriggling tentacles,
+##    bulging bloodshot slit-pupil eyes and a human mouth.
+##  - Snirby: a pink, lumpy, snot-nosed blob on two maroon feet.
+## Each model stores its animatable parts in the "parts" metadata, and
+## animate() / death_pose() drive them.
+
+const TENTACLE_HEADINGS := [-35.0, 35.0, -95.0, 95.0, -150.0, 150.0]
+const SEG_LEN := [0.24, 0.22, 0.2, 0.18]
+const SEG_RAD := [0.1, 0.075, 0.055, 0.036, 0.016]
+
+static var _mesh_cache := {}
+
+
+# ================================================================== meshes
+## Lumpy ellipsoid. UV u = 0.5 faces -Z (the creature's front), v = 0 at top.
+static func blob_mesh(radius: float, stretch: Vector3, seed: int, lumpiness := 0.08, rings := 12, segs := 18) -> ArrayMesh:
+	var key := "blob%s%s%d%s%d%d" % [radius, stretch, seed, lumpiness, rings, segs]
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	var rnd := RandomNumberGenerator.new()
+	rnd.seed = seed
+	var lumps := []
+	for k in 6:
+		var d := Vector3(rnd.randf_range(-1, 1), rnd.randf_range(-1, 1), rnd.randf_range(-1, 1)).normalized()
+		lumps.append([d, rnd.randf_range(0.5, 1.0) * lumpiness, rnd.randf_range(2.0, 5.0), rnd.randf() * TAU])
+	var pos := []
+	var uvs := []
+	for i in rings + 1:
+		var v := float(i) / rings
+		var theta := v * PI
+		var row_p := []
+		var row_uv := []
+		for j in segs + 1:
+			var u := float(j) / segs
+			var phi := (u - 0.5) * TAU
+			var dir := Vector3(sin(theta) * sin(phi), cos(theta), -sin(theta) * cos(phi))
+			var r := radius
+			for L in lumps:
+				r *= 1.0 + float(L[1]) * sin(dir.dot(L[0]) * float(L[2]) + float(L[3]))
+			row_p.append(dir * r * stretch)
+			row_uv.append(Vector2(u, v))
+		pos.append(row_p)
+		uvs.append(row_uv)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in rings:
+		for j in segs:
+			var quad := [[i, j], [i, j + 1], [i + 1, j], [i + 1, j + 1]]
+			for tri in [[0, 2, 1], [1, 2, 3]]:
+				for q in tri:
+					var a: Array = quad[q]
+					var p: Vector3 = pos[a[0]][a[1]]
+					var n := p.normalized() if p.length() > 0.0001 else Vector3.UP
+					st.set_normal(Vector3(n.x / stretch.x, n.y / stretch.y, n.z / stretch.z).normalized())
+					st.set_uv(uvs[a[0]][a[1]])
+					st.add_vertex(p)
+	var mesh := st.commit()
+	_mesh_cache[key] = mesh
+	return mesh
+
+
+## Sphere with a planar UV projection on its front (-Z) face, for eyes and
+## mouths drawn as flat images.
+static func face_mesh(rings := 8, segs := 12) -> ArrayMesh:
+	var key := "face%d%d" % [rings, segs]
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pts := []
+	for i in rings + 1:
+		var theta := float(i) / rings * PI
+		var row := []
+		for j in segs + 1:
+			var phi := (float(j) / segs - 0.5) * TAU
+			row.append(Vector3(sin(theta) * sin(phi), cos(theta), -sin(theta) * cos(phi)))
+		pts.append(row)
+	for i in rings:
+		for j in segs:
+			var quad := [pts[i][j], pts[i][j + 1], pts[i + 1][j], pts[i + 1][j + 1]]
+			for tri in [[0, 2, 1], [1, 2, 3]]:
+				for q in tri:
+					var p: Vector3 = quad[q]
+					st.set_normal(p)
+					st.set_uv(Vector2(0.5 - p.x * 0.5, 0.5 - p.y * 0.5))
+					st.add_vertex(p * 0.5)
+	var mesh := st.commit()
+	_mesh_cache[key] = mesh
+	return mesh
+
+
+static func _skin(tex: String, tint: Color, extra := {}) -> ShaderMaterial:
+	var o := {"tint": tint, "origin": true, "shade": 0.85, "gloss": 0.45}
+	for k in extra.keys():
+		o[k] = extra[k]
+	return Mat.make(tex, o)
+
+
+static func _part(mesh: Mesh, mat: Material, pos := Vector3.ZERO, scl := Vector3.ONE, rot := Vector3.ZERO) -> MeshInstance3D:
+	return Models.mi(mesh, mat, pos, rot, scl)
+
+
+# ================================================================== GORBINO
+static func gorbino(color: Color, opts := {}) -> Node3D:
+	var root := Node3D.new()
+	var parts := {"kind": "gorbino"}
+	var skin := _skin("cr_gorbino_skin", color)
+	var darker := _skin("cr_gorbino_skin", color.darkened(0.35))
+	var eye_tex := "cr_gorbino_eye_red" if opts.get("glow_eyes", false) else "cr_gorbino_eye"
+	var eye_m := Mat.make(eye_tex, {"origin": true, "shade": 0.6, "gloss": 0.9, "fullbright": 0.7 if opts.get("glow_eyes", false) else 0.0})
+	var mouth_m := Mat.make("cr_gorbino_mouth", {"origin": true, "shade": 0.5, "gloss": 0.6})
+	parts["skin_mat"] = skin
+	var body := Models.pivot()
+	root.add_child(body)
+	parts["body"] = body
+	# mantle: tall lumpy bulb leaning back
+	var mantle := _part(blob_mesh(0.5, Vector3(1.0, 1.28, 0.95), 4101, 0.09), skin, Vector3(0, 1.0, 0.08), Vector3.ONE, Vector3(12, 0, 0))
+	body.add_child(mantle)
+	parts["mantle"] = mantle
+	# brow ridge and cheek lumps
+	body.add_child(_part(blob_mesh(0.5, Vector3(0.8, 0.13, 0.35), 4102, 0.12), darker, Vector3(0, 1.02, -0.33), Vector3.ONE, Vector3(-14, 0, 0)))
+	for sx in [-1.0, 1.0]:
+		body.add_child(_part(blob_mesh(0.18, Vector3(1, 0.8, 0.9), 4103 + int(sx), 0.15), skin, Vector3(0.27 * sx, 0.66, -0.3)))
+	# eyes with lids
+	var eyes := []
+	var lids := []
+	for sx in [-1.0, 1.0]:
+		var e := Models.pivot(Vector3(0.2 * sx, 0.84, -0.42))
+		body.add_child(e)
+		e.add_child(_part(face_mesh(), eye_m, Vector3.ZERO, Vector3(0.34, 0.34, 0.3)))
+		var lid := _part(blob_mesh(0.18, Vector3(1.0, 0.5, 1.0), 4110, 0.05, 6, 10), darker, Vector3(0, 0.1, 0.01))
+		e.add_child(lid)
+		eyes.append(e)
+		lids.append(lid)
+	parts["eyes"] = eyes
+	parts["lids"] = lids
+	# mouth
+	var mouth := Models.pivot(Vector3(0, 0.55, -0.42))
+	body.add_child(mouth)
+	mouth.add_child(_part(face_mesh(), mouth_m, Vector3.ZERO, Vector3(0.46, 0.17, 0.12)))
+	parts["mouth"] = mouth
+	# tentacles
+	var tentacles := []
+	for ti in TENTACLE_HEADINGS.size():
+		var h: float = TENTACLE_HEADINGS[ti]
+		var a := deg_to_rad(h)
+		var rootp := Models.pivot(Vector3(-sin(a) * 0.3, 0.6, -cos(a) * 0.3 + 0.06), Vector3(0, h, 0))
+		body.add_child(rootp)
+		var segs := []
+		var parent: Node3D = rootp
+		for k in SEG_LEN.size():
+			var j := Models.pivot(Vector3(0, 0 if k == 0 else -SEG_LEN[k - 1], 0))
+			parent.add_child(j)
+			var c := Models.cyl(SEG_RAD[k + 1], SEG_RAD[k], SEG_LEN[k] + 0.04, 7)
+			j.add_child(_part(c, skin if k < 3 else darker, Vector3(0, -SEG_LEN[k] * 0.5, 0)))
+			segs.append(j)
+			parent = j
+		tentacles.append(segs)
+	parts["tentacles"] = tentacles
+	# gun held by the front-right tentacle
+	if opts.get("gun", false):
+		var tip: Node3D = tentacles[0][3]
+		var g := Models.pivot(Vector3(0, -0.2, 0), Vector3(90, 0, 0))
+		tip.add_child(g)
+		g.add_child(Models.mi(Models.box(0.07, 0.09, 0.3), Mat.world("gun_dark", {"origin": true})))
+		g.add_child(Models.mi(Models.box(0.05, 0.12, 0.06), Mat.world("gun_wood", {"origin": true}), Vector3(0, -0.08, 0.08)))
+		parts["gun"] = true
+	if opts.get("launcher", false):
+		var l := Models.pivot(Vector3(0.36, 1.25, 0.05))
+		body.add_child(l)
+		l.add_child(Models.mi(Models.cyl(0.11, 0.11, 0.8, 8), Mat.world("gun_red", {"origin": true}), Vector3.ZERO, Vector3(90, 0, 0)))
+		l.add_child(Models.mi(Models.cyl(0.08, 0.08, 0.05, 8), Mat.world("black", {"origin": true}), Vector3(0, 0, -0.41), Vector3(90, 0, 0)))
+		parts["launcher"] = l
+	root.set_meta("parts", parts)
+	animate(root, 0.0, 0.016, {})
+	return root
+
+
+# ================================================================== SNIRBY
+static func snirby(opts := {}) -> Node3D:
+	var root := Node3D.new()
+	var parts := {"kind": "snirby"}
+	var tint: Color = opts.get("tint", Color(1, 1, 1))
+	var skin := _skin("cr_snirby_skin", tint, {"gloss": 0.35})
+	var lidm := _skin("cr_snirby_skin", tint.darkened(0.15), {"gloss": 0.2})
+	var glow: bool = opts.get("glow", false)
+	var eye_m := Mat.make("cr_snirby_eye_red" if glow else "cr_snirby_eye_h", {"origin": true, "shade": 0.5, "gloss": 1.0, "fullbright": 0.8 if glow else 0.0})
+	var foot_m := _skin("cr_snirby_foot", Color(1, 1, 1), {"gloss": 0.3})
+	var mouth_m := Mat.make("cr_gorbino_mouth", {"origin": true, "shade": 0.5, "gloss": 0.6})
+	var hole_m := Mat.make("white", {"origin": true, "tint": Color(0.18, 0.02, 0.04), "shade": 0.3})
+	var snot_m := Mat.make("cr_snot", {"origin": true, "fullbright": 0.35, "gloss": 1.0, "shade": 0.5, "scroll": Vector2(0, -0.4)})
+	parts["skin_mat"] = skin
+	var body := Models.pivot()
+	root.add_child(body)
+	parts["body"] = body
+	var puff := Models.pivot(Vector3(0, 0.55, 0))
+	body.add_child(puff)
+	parts["puff"] = puff
+	puff.add_child(_part(blob_mesh(0.5, Vector3(1.06, 0.93, 1.0), 4201, 0.06, 12, 20), skin))
+	# droopy eyes under heavy lids
+	var eyes := []
+	var lids := []
+	for sx in [-1.0, 1.0]:
+		var big := 1.0 if sx < 0 else 0.78
+		var e := Models.pivot(Vector3(0.15 * sx, 0.15 + (0.0 if sx < 0 else -0.02), -0.44), Vector3(0, -12 * sx, 0))
+		puff.add_child(e)
+		e.add_child(_part(face_mesh(), eye_m, Vector3.ZERO, Vector3(0.21, 0.19, 0.12) * big))
+		var lid := _part(blob_mesh(0.125 * big, Vector3(1.0, 0.6, 0.8), 4210, 0.05, 6, 10), lidm, Vector3(0, 0.1, -0.005))
+		e.add_child(lid)
+		eyes.append(e)
+		lids.append(lid)
+	parts["eyes"] = eyes
+	parts["lids"] = lids
+	var mouth := Models.pivot(Vector3(0, -0.11, -0.46))
+	puff.add_child(mouth)
+	mouth.add_child(_part(face_mesh(), mouth_m, Vector3.ZERO, Vector3(0.32, 0.13, 0.08)))
+	for sx in [-1.0, 1.0]:
+		puff.add_child(_part(Models.sphere(0.022, 6, 4), hole_m, Vector3(0.035 * sx, 0.03, -0.495)))
+	var rb := RandomNumberGenerator.new()
+	rb.seed = 4250
+	for k in 7:
+		var d := Vector3(rb.randf_range(-1, 1), rb.randf_range(-0.6, 1), rb.randf_range(-0.2, 1)).normalized()
+		puff.add_child(_part(blob_mesh(rb.randf_range(0.04, 0.08), Vector3.ONE, 4260 + k, 0.1, 5, 8), skin, d * 0.5 * Vector3(1.06, 0.93, 1.0)))
+	parts["mouth"] = mouth
+	# runny nose
+	var snot := Models.pivot(Vector3(0.03, 0.02, -0.495))
+	puff.add_child(snot)
+	snot.add_child(_part(Models.cyl(0.012, 0.02, 1.0, 5), snot_m, Vector3(0, -0.5, 0)))
+	var drop := _part(Models.sphere(0.03, 6, 4), snot_m, Vector3(0, -1.0, 0))
+	snot.add_child(drop)
+	parts["snot"] = snot
+	parts["snot_drop"] = drop
+	# stubby arms
+	var arms := []
+	for sx in [-1.0, 1.0]:
+		var a := Models.pivot(Vector3(0.45 * sx, 0.0, 0.0))
+		puff.add_child(a)
+		a.add_child(_part(blob_mesh(0.16, Vector3(1.0, 0.72, 0.85), 4220, 0.08, 6, 10), skin, Vector3(0.09 * sx, -0.04, 0)))
+		arms.append(a)
+	parts["arms"] = arms
+	# feet
+	var feet := []
+	for sx in [-1.0, 1.0]:
+		var f := Models.pivot(Vector3(0.21 * sx, 0.1, -0.04))
+		body.add_child(f)
+		f.add_child(_part(blob_mesh(0.18, Vector3(0.95, 0.55, 1.45), 4230, 0.05, 6, 10), foot_m))
+		feet.append(f)
+	parts["feet"] = feet
+	parts["fly"] = opts.get("fly", false)
+	root.set_meta("parts", parts)
+	animate(root, 0.0, 0.016, {})
+	return root
+
+
+# ================================================================== animation
+## st keys: move (0..1), windup, pain, blink, fly, look (Vector3, model local)
+static func animate(root: Node3D, t: float, delta: float, st: Dictionary) -> void:
+	var p: Dictionary = root.get_meta("parts")
+	if p.get("kind", "") == "gorbino":
+		_anim_gorbino(p, t, delta, st)
+	else:
+		_anim_snirby(p, t, delta, st)
+
+
+static func _anim_gorbino(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
+	var m := float(st.get("move", 0.0))
+	var windup: bool = st.get("windup", false)
+	var pain: bool = st.get("pain", false)
+	var body: Node3D = p["body"]
+	var crawl := t * (7.0 + 5.0 * m)
+	body.position.y = 0.05 * sin(crawl * 2.0) * m + 0.02 * sin(t * 1.7) + (0.3 if st.get("fly", false) else 0.0)
+	body.rotation.x = (-0.3 if windup else (0.35 if pain else 0.0)) + 0.06 * sin(crawl) * m
+	body.rotation.z = 0.08 * sin(crawl * 0.5) * m
+	p["mantle"].scale = Vector3.ONE * (1.0 + 0.03 * sin(t * 2.3)) + Vector3(0, 0.04 * sin(t * 2.3 + 1.0), 0)
+	var tents: Array = p["tentacles"]
+	for ti in tents.size():
+		var segs: Array = tents[ti]
+		var ph := float(ti) * 1.7
+		var lift := sin(crawl + ph) * (0.35 * m + 0.06)
+		for k in segs.size():
+			var j: Node3D = segs[k]
+			var base := deg_to_rad(68.0) if k == 0 else deg_to_rad(-26.0)
+			if p.has("gun") and ti == 0:
+				base = deg_to_rad(105.0) if k == 0 else deg_to_rad(-6.0)
+				if windup:
+					base += deg_to_rad(10.0)
+				j.rotation = Vector3(base + sin(t * 3.0 + k) * 0.04, 0, 0)
+				continue
+			var wig := sin(t * 3.2 + ph + k * 0.9) * 0.12 + sin(crawl + ph + k * 0.6) * 0.25 * m
+			if windup:
+				wig += 0.25 * (1.0 if k == 0 else -0.5)
+			j.rotation = Vector3(base + wig + (lift if k == 0 else 0.0), sin(t * 2.0 + ph) * 0.1 * (1.0 if k > 0 else 0.0), 0)
+	var mouth: Node3D = p["mouth"]
+	mouth.scale.y = lerpf(mouth.scale.y, 2.4 if windup else (1.8 if pain else 1.0 + 0.15 * sin(t * 5.0)), clampf(delta * 14.0, 0.0, 1.0))
+	var blink: bool = st.get("blink", false)
+	var look = st.get("look", null)
+	for i in p["eyes"].size():
+		var e: Node3D = p["eyes"][i]
+		var lid: Node3D = p["lids"][i]
+		lid.position.y = 0.0 if blink else (0.04 if pain else 0.1)
+		lid.scale.y = 1.6 if blink else 1.0
+		if look is Vector3:
+			var d: Vector3 = (look - e.position).normalized()
+			e.rotation = Vector3(clampf(asin(d.y), -0.4, 0.4), clampf(atan2(-d.x, -d.z), -0.6, 0.6), 0)
+
+
+static func _anim_snirby(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
+	var m := float(st.get("move", 0.0))
+	var windup: bool = st.get("windup", false)
+	var pain: bool = st.get("pain", false)
+	var fly: bool = st.get("fly", false) or p.get("fly", false)
+	var body: Node3D = p["body"]
+	var puff: Node3D = p["puff"]
+	var step := t * (9.0 + 6.0 * m)
+	var breathe := 1.0 + 0.04 * sin(t * 2.0)
+	if fly:
+		puff.scale = Vector3(1.3, 1.25, 1.3) * breathe
+		body.position.y = 0.2 + sin(t * 2.4) * 0.12
+	else:
+		puff.scale = Vector3(breathe + 0.04 * absf(sin(step)) * m, breathe - 0.06 * absf(sin(step)) * m, breathe)
+		body.position.y = absf(sin(step)) * 0.12 * m
+	body.rotation.x = (0.3 if pain else 0.0) - (0.25 if windup else 0.0)
+	body.rotation.z = sin(step * 0.5) * 0.1 * m
+	var arms: Array = p["arms"]
+	for i in arms.size():
+		var sx := -1.0 if i == 0 else 1.0
+		var a: Node3D = arms[i]
+		if fly:
+			a.rotation.z = sx * (0.6 + sin(t * 14.0) * 0.6)
+		elif windup:
+			a.rotation.z = sx * 1.1
+		else:
+			a.rotation.z = sx * (0.15 + sin(step + i * PI) * 0.35 * m + sin(t * 1.3) * 0.05)
+	var feet: Array = p["feet"]
+	for i in feet.size():
+		var f: Node3D = feet[i]
+		if fly:
+			f.rotation.x = 0.5 + sin(t * 3.0 + i) * 0.2
+			f.position.z = -0.04
+		else:
+			f.rotation.x = 0.0
+			f.position.z = -0.04 + sin(step + i * PI) * 0.16 * m
+			f.position.y = 0.1 + maxf(0.0, sin(step + i * PI)) * 0.08 * m
+	var mouth: Node3D = p["mouth"]
+	var open := 3.0 if windup else (2.2 if pain else 1.0 + 0.3 * maxf(0.0, sin(t * 4.0)))
+	mouth.scale = mouth.scale.lerp(Vector3(1.0 + (open - 1.0) * 0.3, open, 1.0), clampf(delta * 12.0, 0.0, 1.0))
+	# snot: stretches, drips, snaps back
+	var cyc := fmod(t * 0.45, 1.0)
+	var L := 0.05 + cyc * cyc * 0.32
+	var snot: Node3D = p["snot"]
+	snot.scale = Vector3(1.0 + 0.3 * sin(t * 6.0), L, 1.0)
+	p["snot_drop"].scale = Vector3(1.0, 1.0 / maxf(L, 0.01), 1.0) * (0.6 + cyc)
+	var blink: bool = st.get("blink", false)
+	for i in p["eyes"].size():
+		var lid: Node3D = p["lids"][i]
+		lid.position.y = -0.01 if blink else (0.03 if pain else 0.055)
+		lid.scale.y = 1.9 if blink else 1.15
+
+
+## k: 0..1 death progress
+static func death_pose(root: Node3D, k: float) -> void:
+	var p: Dictionary = root.get_meta("parts")
+	var body: Node3D = p["body"]
+	if p.get("kind", "") == "gorbino":
+		body.position.y = lerpf(0.0, -0.45, k * k)
+		body.rotation.x = lerpf(0.0, 0.5, k)
+		p["mouth"].scale.y = 2.6
+		for segs in p["tentacles"]:
+			for j in segs.size():
+				var s: Node3D = segs[j]
+				s.rotation.x = lerpf(s.rotation.x, deg_to_rad(88.0) if j == 0 else deg_to_rad(8.0), k)
+		for lid in p["lids"]:
+			lid.position.y = 0.02
+	else:
+		body.rotation.z = lerpf(0.0, deg_to_rad(80), k * k)
+		body.position.y = lerpf(0.0, 0.05, k)
+		p["puff"].scale = Vector3(1.0 + 0.2 * k, 1.0 - 0.35 * k, 1.0 + 0.2 * k)
+		p["mouth"].scale = Vector3(1.5, 3.0, 1.0)
+		for lid in p["lids"]:
+			lid.position.y = 0.0

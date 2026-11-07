@@ -1,0 +1,399 @@
+"""'Pre-rendered clay' UI art: shiny lumpy sculptures shaded from height
+fields (metaballs, bevelled text). Produces the HUD health lump, the DEATH
+sculpture, menu tiles, rank letters, the logo, cursor and the app icon.
+
+Run: python3 tools/gen_clay.py -> assets/ui/*.png, icon.png
+"""
+import os
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from texlib import value_noise, worley, gradmap, rng, ROOT, font
+
+UI = os.path.join(ROOT, "assets", "ui")
+os.makedirs(UI, exist_ok=True)
+
+
+# ------------------------------------------------------------------ core shading
+def shade_height(h, base_rgb, mask=None, light=(-0.45, -0.6, 0.66), spec=0.9, shin=30, amb=0.32, rim=0.35, scale=1.0, sss=None):
+    """h: height field (H,W) >= 0. base_rgb: (H,W,3) or tuple. Returns RGBA float."""
+    H, W = h.shape
+    gy, gx = np.gradient(h * scale)
+    n = np.dstack([-gx, -gy, np.ones_like(h)])
+    n /= np.linalg.norm(n, axis=-1, keepdims=True)
+    L = np.array(light, np.float32)
+    L /= np.linalg.norm(L)
+    ndl = np.clip((n * L).sum(-1), 0, 1)
+    Hv = L + np.array([0, 0, 1.0])
+    Hv /= np.linalg.norm(Hv)
+    sp = np.clip((n * Hv).sum(-1), 0, 1) ** shin * spec
+    rm = (1 - np.clip(n[..., 2], 0, 1)) ** 2 * rim
+    if not isinstance(base_rgb, np.ndarray):
+        base_rgb = np.ones((H, W, 3), np.float32) * np.array(base_rgb, np.float32) / 255.0
+    col = base_rgb * (amb + ndl[..., None] * 0.85) + sp[..., None] + rm[..., None] * np.array([0.6, 0.7, 0.9])
+    if sss is not None:
+        col += sss
+    a = (h > 0.001).astype(np.float32) if mask is None else mask
+    return np.dstack([np.clip(col, 0, 1), a])
+
+
+def metaballs(W, H, balls, noise_amp=0.0, seed=0, thresh=1.0):
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    f = np.zeros((H, W), np.float32)
+    for (cx, cy, r) in balls:
+        f += r * r / ((xx - cx) ** 2 + (yy - cy) ** 2 + 1e-3)
+    if noise_amp:
+        f *= 1.0 + (value_noise(max(W, H), 8, seed, 4)[:H, :W] - 0.5) * noise_amp
+    h = np.sqrt(np.clip(f - thresh, 0, None))
+    return h
+
+
+def text_mask(W, H, text, fname, size, pos=None, spacing=0):
+    im = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(im)
+    f = font(fname, size)
+    bb = d.multiline_textbbox((0, 0), text, font=f, spacing=spacing, align="center")
+    if pos is None:
+        pos = ((W - (bb[2] - bb[0])) // 2 - bb[0], (H - (bb[3] - bb[1])) // 2 - bb[1])
+    d.multiline_text(pos, text, font=f, fill=255, spacing=spacing, align="center")
+    return np.asarray(im).astype(np.float32) / 255.0
+
+
+def bevel(mask, radius=6.0):
+    """Height field that rises smoothly inside a mask (a rounded bevel)."""
+    m = Image.fromarray((mask * 255).astype(np.uint8))
+    acc = np.zeros(mask.shape, np.float32)
+    for r in np.linspace(1, radius, 6):
+        acc += np.asarray(m.filter(ImageFilter.GaussianBlur(float(r)))).astype(np.float32) / 255.0
+    acc /= 6.0
+    return acc * mask * radius * 0.35
+
+
+def save(arr, name, size=None):
+    im = Image.fromarray((np.clip(arr, 0, 1) * 255).astype(np.uint8), "RGBA")
+    if size:
+        im = im.resize(size, Image.LANCZOS)
+    path = os.path.join(UI, name) if not name.startswith("/") else name
+    im.save(path)
+    return im
+
+
+def flesh_base(W, H, seed, stops):
+    n = value_noise(max(W, H), 6, seed, 5)[:H, :W]
+    d1, _, _ = worley(max(W, H), 30, seed + 1)
+    t = np.clip(n * 0.8 + (d1[:H, :W] < 2.5) * -0.2 + 0.1, 0, 1)
+    return gradmap(t, stops)
+
+
+# ------------------------------------------------------------------ HUD health lump
+def hp_lump():
+    """A pulsing grey-pink lump; 16 frames. Tinted in game by health."""
+    W = H = 128
+    frames = []
+    r = rng(7000)
+    base_balls = [(64 + r.uniform(-30, 30), 64 + r.uniform(-28, 28), r.uniform(9, 22)) for _ in range(9)]
+    phases = r.uniform(0, 2 * np.pi, len(base_balls))
+    stops = [(0, (110, 60, 70)), (0.5, (205, 150, 150)), (1, (245, 215, 205))]
+    base = flesh_base(W, H, 7001, stops)
+    for f in range(16):
+        t = f / 16 * 2 * np.pi
+        balls = []
+        for (cx, cy, rr), ph in zip(base_balls, phases):
+            k = 1.0 + 0.12 * np.sin(t + ph)
+            balls.append((cx + 3 * np.cos(t + ph), cy + 3 * np.sin(t * 2 + ph), rr * k))
+        h = metaballs(W, H, balls, 0.25, 7002) * 9
+        # a stitched vein running across
+        frames.append(shade_height(h, base, spec=1.0, shin=40))
+    strip = np.concatenate(frames, 1)
+    save(strip, "hp_lump.png")
+
+
+# ------------------------------------------------------------------ DEATH sculpture
+def death():
+    W, H = 360, 240
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    cx, cy = W / 2, H / 2
+    ang = np.arctan2(yy - cy, (xx - cx) * 0.7)
+    rr = np.hypot((xx - cx) * 0.7, yy - cy)
+    spikes = 0.62 + 0.38 * np.abs(np.cos(ang * 6.5)) ** 6
+    radius = 95 * spikes * (1 + (value_noise(W, 6, 7100, 3)[:H, :W] - 0.5) * 0.25)
+    h = np.sqrt(np.clip(1 - (rr / radius) ** 2, 0, None)) * 40
+    tm = text_mask(W, H, "DEATH", "Anton-Regular.ttf", 74)
+    h = h - bevel(tm, 5) * 4.0
+    base = flesh_base(W, H, 7101, [(0, (170, 160, 165)), (1, (245, 240, 238))])
+    base = base * (1 - tm[..., None] * 0.85) + np.array([0.42, 0.02, 0.03]) * tm[..., None] * 0.85
+    out = shade_height(np.clip(h, 0, None), base, mask=(rr < radius).astype(np.float32), spec=1.0, shin=36)
+    save(out, "death.png")
+
+
+# ------------------------------------------------------------------ rank letters / stamps
+def clay_text(text, name, W, H, size, color, fname="Anton-Regular.ttf", pad_noise=True):
+    tm = text_mask(W, H, text, fname, size)
+    h = bevel(tm, 7)
+    if pad_noise:
+        h *= 1 + (value_noise(max(W, H), 16, 7200 + len(text), 3)[:H, :W] - 0.5) * 0.4
+    base = flesh_base(W, H, 7201 + len(name), [(0, tuple(int(c * 0.5) for c in color)), (1, color)])
+    out = shade_height(h * 3, base, mask=(tm > 0.5).astype(np.float32), spec=0.9, shin=28)
+    # dark drop shadow
+    sh = np.zeros_like(out)
+    a = (tm > 0.5).astype(np.float32)
+    a2 = np.roll(np.roll(a, 4, 0), 4, 1)
+    sh[..., 3] = a2 * 0.7
+    comp = sh.copy()
+    comp[..., :3] = out[..., :3] * out[..., 3:4] + sh[..., :3] * (1 - out[..., 3:4])
+    comp[..., 3] = np.maximum(out[..., 3], sh[..., 3])
+    return save(comp, name)
+
+
+def ranks():
+    cols = {"S": (255, 220, 60), "A": (140, 255, 60), "B": (80, 200, 255), "C": (255, 140, 190), "D": (190, 180, 170)}
+    for k, c in cols.items():
+        clay_text(k, "rank_%s.png" % k, 120, 140, 120, c)
+    clay_text("COMPLETE", "stamp_cleared.png", 300, 90, 64, (170, 255, 80))
+
+
+# ------------------------------------------------------------------ logo
+def logo():
+    W, H = 640, 220
+    tm = text_mask(W, H, "GORBINO'S\nQUEST", "Anton-Regular.ttf", 92, spacing=-12)
+    h = bevel(tm, 8) * 3
+    h *= 1 + (value_noise(W, 24, 7300, 3)[:H, :W] - 0.5) * 0.5
+    base = flesh_base(W, H, 7301, [(0, (120, 40, 0)), (0.5, (255, 120, 20)), (1, (255, 210, 120))])
+    # sucker spots on the letters
+    d1, _, _ = worley(W, 120, 7302)
+    spots = (d1[:H, :W] < 2.2)
+    base[spots] *= 0.6
+    out = shade_height(h, base, mask=(tm > 0.5).astype(np.float32), spec=1.0, shin=34)
+    a = (tm > 0.5).astype(np.float32)
+    outline = np.zeros_like(a)
+    for dy in range(-3, 4):
+        for dx in range(-3, 4):
+            outline = np.maximum(outline, np.roll(np.roll(a, dy, 0), dx, 1))
+    comp = np.zeros((H, W, 4), np.float32)
+    comp[..., 3] = outline
+    comp[..., :3] = np.array([0.06, 0.0, 0.02])
+    comp[..., :3] = out[..., :3] * a[..., None] + comp[..., :3] * (1 - a[..., None])
+    save(comp, "logo.png")
+
+
+# ------------------------------------------------------------------ menu tiles
+def organic_bg(W, H, kind, seed):
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    if kind == "worms":
+        n = value_noise(max(W, H), 6, seed, 4)[:H, :W]
+        t = 0.5 + 0.5 * np.sin(n * 22 + xx * 0.05)
+        base = gradmap(t, [(0, (20, 40, 10)), (0.5, (110, 150, 30)), (1, (230, 240, 120))])
+        h = (t ** 3) * 6
+    elif kind == "flesh":
+        base = flesh_base(W, H, seed, [(0, (70, 10, 20)), (0.5, (190, 60, 70)), (1, (255, 170, 150))])
+        h = value_noise(max(W, H), 10, seed + 5, 4)[:H, :W] * 8
+    elif kind == "veins":
+        n = value_noise(max(W, H), 5, seed, 5)[:H, :W]
+        t = np.abs(np.sin(n * 18))
+        base = gradmap(t, [(0, (10, 20, 60)), (0.6, (40, 90, 200)), (1, (200, 230, 255))])
+        h = (1 - t) * 5
+    else:
+        n = value_noise(max(W, H), 8, seed, 5)[:H, :W]
+        base = gradmap(n, [(0, (60, 40, 10)), (1, (220, 170, 60))])
+        h = n * 6
+    return shade_height(h, base, mask=np.ones((H, W), np.float32), spec=0.5, shin=20)
+
+
+def icon_height(kind, W, H):
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    cx, cy = W / 2, H / 2 - 6
+    if kind == "arrow":
+        m = Image.new("L", (W, H), 0)
+        d = ImageDraw.Draw(m)
+        d.polygon([(cx - 30, cy - 12), (cx + 4, cy - 12), (cx + 4, cy - 28), (cx + 36, cy), (cx + 4, cy + 28), (cx + 4, cy + 12), (cx - 30, cy + 12)], fill=255)
+        mk = np.asarray(m).astype(np.float32) / 255
+        return bevel(mk, 8) * 3, mk
+    if kind == "x":
+        m = Image.new("L", (W, H), 0)
+        d = ImageDraw.Draw(m)
+        d.line([cx - 26, cy - 26, cx + 26, cy + 26], fill=255, width=17)
+        d.line([cx - 26, cy + 26, cx + 26, cy - 26], fill=255, width=17)
+        mk = np.asarray(m).astype(np.float32) / 255
+        return bevel(mk, 8) * 3, mk
+    if kind == "ring":
+        r = np.hypot(xx - cx, yy - cy)
+        mk = ((r > 18) & (r < 34)).astype(np.float32)
+        h = np.sqrt(np.clip(64 - (r - 26) ** 2, 0, None)) * 1.3 * mk
+        return h, mk
+    if kind == "gear":
+        ang = np.arctan2(yy - cy, xx - cx)
+        r = np.hypot(xx - cx, yy - cy)
+        rad = 28 + 7 * (np.cos(ang * 8) > 0.2)
+        mk = ((r < rad) & (r > 11)).astype(np.float32)
+        return bevel(mk, 7) * 3, mk
+    if kind == "eye":
+        r = np.hypot((xx - cx) / 1.6, yy - cy)
+        mk = (r < 22).astype(np.float32)
+        h = np.sqrt(np.clip(484 - r ** 2, 0, None)) * 0.9
+        return h, mk
+    if kind == "disk":
+        mk = ((np.abs(xx - cx) < 28) & (np.abs(yy - cy) < 28)).astype(np.float32)
+        return bevel(mk, 6) * 3, mk
+    if kind == "face":
+        # a lumpy grimacing face
+        h = metaballs(W, H, [(cx, cy, 30), (cx - 16, cy - 10, 12), (cx + 16, cy - 10, 12), (cx, cy + 16, 14)], 0.3, 7400) * 8
+        return h, (h > 0).astype(np.float32)
+    raise ValueError(kind)
+
+
+def tile(name, label, kind, bgkind, seed, icon_col):
+    W = H = 128
+    bg = organic_bg(W, H, bgkind, seed)
+    h, mk = icon_height(kind, W, H)
+    base = flesh_base(W, H, seed + 3, [(0, tuple(int(c * 0.45) for c in icon_col)), (1, icon_col)])
+    ic = shade_height(h, base, mask=mk, spec=1.0, shin=36)
+    out = bg.copy()
+    # icon drop shadow
+    sh = np.roll(np.roll(mk, 5, 0), 5, 1)
+    out[..., :3] *= 1 - sh[..., None] * 0.6
+    out[..., :3] = ic[..., :3] * mk[..., None] + out[..., :3] * (1 - mk[..., None])
+    if kind == "eye":
+        yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+        r = np.hypot(xx - W / 2, yy - (H / 2 - 6))
+        out[r < 10, :3] = np.array([0.05, 0.0, 0.0])
+        out[(r < 14) & (r >= 10), :3] = np.array([0.8, 0.5, 0.0])
+    if kind == "face":
+        yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+        for ex in (-13, 13):
+            r = np.hypot(xx - (W / 2 + ex), yy - (H / 2 - 15))
+            out[r < 8, :3] = np.array([0.95, 0.75, 0.1])
+            out[(r < 8) & (np.abs(yy - (H / 2 - 15)) < 2), :3] = np.array([0.02, 0.0, 0.0])
+            out[(r >= 8) & (r < 9.5), :3] = np.array([0.6, 0.05, 0.05])
+        my = H / 2 + 10
+        out[(np.abs(yy - my) < 6) & (np.abs(xx - W / 2) < 17), :3] = np.array([0.18, 0.0, 0.03])
+        for tx in range(int(W / 2 - 15), int(W / 2 + 15), 5):
+            out[(yy > my - 6) & (yy < my - 1) & (xx >= tx) & (xx < tx + 4), :3] = np.array([0.9, 0.85, 0.55])
+            out[(yy > my + 1) & (yy < my + 5) & (xx >= tx + 2) & (xx < tx + 5), :3] = np.array([0.85, 0.8, 0.5])
+    # label: embossed text at the bottom
+    lm = text_mask(W, H, label, "Anton-Regular.ttf", 22, pos=None)
+    lm = np.roll(lm, int(H * 0.36), 0)
+    lh = bevel(lm, 3) * 2
+    lab = shade_height(lh, (245, 240, 220), mask=(lm > 0.5).astype(np.float32), spec=0.6)
+    a = (lm > 0.5).astype(np.float32)
+    outl = np.zeros_like(a)
+    for dy in range(-2, 3):
+        for dx in range(-2, 3):
+            outl = np.maximum(outl, np.roll(np.roll(a, dy, 0), dx, 1))
+    out[..., :3] = out[..., :3] * (1 - outl[..., None]) + np.array([0.04, 0.0, 0.03]) * outl[..., None]
+    out[..., :3] = lab[..., :3] * a[..., None] + out[..., :3] * (1 - a[..., None])
+    # hard frame
+    out[:3, :, :3] = 0.04
+    out[-3:, :, :3] = 0.04
+    out[:, :3, :3] = 0.04
+    out[:, -3:, :3] = 0.04
+    out[..., 3] = 1
+    save(out, "tile_%s.png" % name)
+
+
+def tiles():
+    tile("new", "NEW QUEST", "face", "flesh", 7500, (255, 140, 40))
+    tile("continue", "CONTINUE", "arrow", "veins", 7510, (120, 255, 60))
+    tile("options", "OPTIONS", "gear", "worms", 7520, (120, 180, 255))
+    tile("exit", "EXIT", "x", "flesh", 7530, (130, 255, 60))
+    tile("resume", "RESUME", "arrow", "worms", 7540, (255, 120, 40))
+    tile("save", "SAVE", "disk", "veins", 7550, (255, 220, 60))
+    tile("load", "LOAD", "eye", "gold", 7560, (240, 230, 220))
+    tile("retry", "RESTART", "ring", "gold", 7570, (200, 120, 90))
+    tile("quit", "QUIT", "x", "veins", 7580, (255, 60, 60))
+
+
+# ------------------------------------------------------------------ backgrounds, border
+def menu_bg():
+    W = 128
+    out = organic_bg(W, W, "worms", 7600)
+    out[..., :3] *= 0.55
+    save(out, "menu_bg.png")
+    out = organic_bg(W, W, "flesh", 7601)
+    out[..., :3] *= 0.45
+    save(out, "menu_bg2.png")
+
+
+def border():
+    """Thin noisy multicolour frame drawn around the game view."""
+    W, H = 256, 144
+    r = rng(7700)
+    a = np.zeros((H, W, 4), np.float32)
+    yy, xx = np.mgrid[0:H, 0:W]
+    edge = np.minimum(np.minimum(xx, W - 1 - xx), np.minimum(yy, H - 1 - yy))
+    thick = 3 + (value_noise(256, 16, 7701, 2)[:H, :W] * 4)
+    m = edge < thick
+    cols = np.array([[1, 0.2, 0.3], [0.2, 1, 0.3], [0.3, 0.4, 1], [1, 0.9, 0.2], [0.05, 0.05, 0.05]])
+    pick = r.integers(0, len(cols), (H, W))
+    a[m, :3] = cols[pick[m]]
+    a[m, 3] = 0.9
+    save(a, "border.png")
+
+
+# ------------------------------------------------------------------ cursor & icon
+def cursor():
+    """A green pointing hand, drawn pixel by pixel."""
+    rows = [
+        "......GG........",
+        ".....GwwG.......",
+        ".....GwwG.......",
+        ".....GwwG.......",
+        ".....GwwGGG.....",
+        ".....GwwGwwGG...",
+        "..GG.GwwGwwGwG..",
+        ".GwwGGwwGwwGwwG.",
+        ".GwwwGwwwwwwwwG.",
+        "..GwwwwwwwwwwwG.",
+        "...GwwwwwwwwwwG.",
+        "...GwwwwwwwwwG..",
+        "....GwwwwwwwwG..",
+        "....GwwwwwwwG...",
+        ".....GwwwwwwG...",
+        ".....GGGGGGGG...",
+    ]
+    S = 2
+    im = Image.new("RGBA", (16 * S, 16 * S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    for y, row in enumerate(rows):
+        for x, c in enumerate(row):
+            if c == "G":
+                d.rectangle([x * S, y * S, x * S + S - 1, y * S + S - 1], fill=(10, 60, 0, 255))
+            elif c == "w":
+                g = 200 + (x * 7 + y * 3) % 50
+                d.rectangle([x * S, y * S, x * S + S - 1, y * S + S - 1], fill=(40, g, 30, 255))
+    im.save(os.path.join(UI, "cursor_hand.png"))
+
+
+def app_icon():
+    """Orange octopus head for the window / taskbar icon."""
+    W = H = 256
+    balls = [(128, 100, 70), (100, 70, 30), (160, 75, 28)]
+    for k in range(6):
+        a = np.pi * (0.15 + 0.7 * k / 5)
+        for s in range(4):
+            balls.append((128 + np.cos(a) * (60 + s * 22), 140 + np.sin(a) * (50 + s * 18), 16 - s * 3))
+    h = metaballs(W, H, balls, 0.2, 7800) * 10
+    base = flesh_base(W, H, 7801, [(0, (110, 35, 0)), (0.5, (255, 120, 20)), (1, (255, 210, 130))])
+    out = shade_height(h, base, spec=1.0, shin=36)
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    for ex in (-30, 30):
+        r = np.hypot(xx - (128 + ex), yy - 112)
+        out[r < 20, :3] = np.array([0.95, 0.9, 0.75])
+        out[(np.abs(yy - 112) < 4) & (np.abs(xx - (128 + ex)) < 13), :3] = np.array([0.02, 0.0, 0.0])
+        out[np.hypot(xx - (122 + ex), yy - 104) < 4, :3] = 1.0
+    out[(np.abs(yy - 150) < 6) & (np.abs(xx - 128) < 26), :3] = np.array([0.25, 0.0, 0.05])
+    for tx in range(106, 150, 9):
+        out[(yy > 145) & (yy < 151) & (xx >= tx) & (xx < tx + 6), :3] = np.array([0.9, 0.85, 0.6])
+    save(out, os.path.join(ROOT, "icon.png"), (128, 128))
+    save(out, "app_icon_256.png")
+
+
+if __name__ == "__main__":
+    hp_lump()
+    death()
+    ranks()
+    logo()
+    tiles()
+    menu_bg()
+    border()
+    cursor()
+    app_icon()
+    print("clay ui written")

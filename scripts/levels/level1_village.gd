@@ -12,7 +12,7 @@ const DATA := {
 	"light_boost": 1.4,
 	"diminish": 0.018,
 	"start_angle": 0.0,
-	"par": 240,
+	"par": 168,
 	"wall": "v_stonewall",
 	"side": "v_stonewall",
 	"tree_tex": "v_hedge",

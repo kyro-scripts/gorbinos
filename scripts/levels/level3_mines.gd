@@ -12,7 +12,7 @@ const DATA := {
 	"light_boost": 1.7,
 	"diminish": 0.04,
 	"start_angle": -90.0,
-	"par": 330,
+	"par": 230,
 	"wall": "m_rock",
 	"side": "m_rock",
 	"lamp_color": Color(1.0, 0.7, 0.3, 1.0),

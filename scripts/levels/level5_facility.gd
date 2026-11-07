@@ -12,7 +12,7 @@ const DATA := {
 	"light_boost": 1.45,
 	"diminish": 0.026,
 	"start_angle": 0.0,
-	"par": 420,
+	"par": 294,
 	"wall": "f_tile",
 	"side": "f_alert",
 	"test_views": [[31, 50, 0, 0], [31, 44, 0, 0], [11, 44, 0, 10], [47, 38, -90, 0], [52, 34, 0, 10], [31, 19, 0, 0], [50, 48, -90, 0]],
@@ -60,7 +60,7 @@ const DATA := {
 			"use": "switch",
 			"tag": 3,
 			"above": "f_stencil1",
-			"msg": "OVERFLOW LAB UNSEALED."
+			"msg": "LAB OPEN"
 		},
 		".": {
 			"floor": 0.0,

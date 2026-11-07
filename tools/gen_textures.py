@@ -173,12 +173,19 @@ def grime(img, seed, amt=0.35, size=N):
 
 
 def gorb_face_mask(cx, cy, r, size=N):
-    """Mask of a small Gorbino silhouette (round body + eye holes)."""
-    body = ((XX - cx) ** 2 + ((YY - cy) * 1.1) ** 2) < r * r
-    eye1 = ((XX - (cx - r * 0.35)) ** 2 + (YY - (cy - r * 0.2)) ** 2) < (r * 0.18) ** 2
-    eye2 = ((XX - (cx + r * 0.35)) ** 2 + (YY - (cy - r * 0.2)) ** 2) < (r * 0.18) ** 2
-    mouth = (np.abs(YY - (cy + r * 0.35)) < r * 0.08) & (np.abs(XX - cx) < r * 0.45)
-    return body.astype(np.float32), (eye1 | eye2 | mouth).astype(np.float32)
+    """Mask of a Gorbino emblem: tall octopus mantle, slit eyes, tentacles."""
+    body = ((XX - cx) ** 2 / (r * 0.8) ** 2 + (YY - (cy - r * 0.25)) ** 2 / (r * 0.95) ** 2) < 1
+    for k in range(5):
+        tx = cx + (k - 2) * r * 0.36
+        wav = np.sin((YY - cy) * 0.6 + k) * r * 0.08
+        tent = (np.abs(XX - tx - wav) < r * 0.11) & (YY > cy + r * 0.3) & (YY < cy + r * 1.05)
+        body = body | tent
+    eyes = np.zeros_like(body)
+    for sx in (-1, 1):
+        ex, ey = cx + sx * r * 0.32, cy - r * 0.18
+        eyes = eyes | ((np.abs(YY - ey) < max(r * 0.07, 0.6)) & (np.abs(XX - ex) < r * 0.22))
+    mouth = (np.abs(YY - (cy + r * 0.2)) < max(r * 0.06, 0.6)) & (np.abs(XX - cx) < r * 0.3)
+    return body.astype(np.float32), (mouth | eyes).astype(np.float32), eyes.astype(np.float32)
 
 
 # ================================================================ common
@@ -190,7 +197,7 @@ def common():
         base[y + 2, :] = np.clip(base[y + 2, :] * 1.3, 0, 1)
     base[:, 0:3] *= 0.6
     base[:, N - 3:] *= 0.6
-    body, holes = gorb_face_mask(32, 30, 12)
+    body, holes, _eyes = gorb_face_mask(32, 30, 12)
     emb = paste_mask(base.copy(), body, (170, 176, 60))
     emb = paste_mask(emb, holes, (30, 30, 20))
     emb = paste_mask(emb, outline(body), (30, 30, 20))
@@ -249,7 +256,7 @@ def common():
     c[:, 0:4] = col(80, 60, 30); c[:, -4:] = col(80, 60, 30)
     for i in range(N):
         c[i, max(0, i - 2):i + 2] = col(110, 80, 40)
-    c = text_panel("GORB", "Anton-Regular.ttf", 15, None, (40, 20, 10), base=c)
+    c = text_panel("FRAGILE", "Anton-Regular.ttf", 13, None, (40, 20, 10), base=c)
     save("crate", c)
     # support beam
     sb = metal(180, (90, 70, 50), seams=(), rivets=False)
@@ -276,7 +283,7 @@ def common():
     save("teleport_pad", tp)
     # checkpoint totem
     ck = fill((30, 30, 40))
-    ck = text_panel("SAVE\nGORB", "Silkscreen-Bold.ttf", 16, None, (120, 255, 120), base=ck, spacing=2)
+    ck = text_panel("SAVE", "Silkscreen-Bold.ttf", 16, None, (120, 255, 120), base=ck)
     save("checkpoint", ck)
     # skin textures (greyscale, tinted at runtime)
     n = value_noise(N, 8, 300, 4)
@@ -298,7 +305,7 @@ def common():
     for y in (6, 7, 56, 57):
         b[y, :] = col(20, 60, 20)
     b[20:44, 4:60] = col(240, 230, 210)
-    b = text_panel("GORB\nCOLA", "Anton-Regular.ttf", 11, None, (200, 20, 20), base=b, spacing=-2)
+    b = text_panel("TOXIC", "Anton-Regular.ttf", 13, None, (200, 20, 20), base=b)
     b[20:44, :] = np.where(np.abs(np.arange(N) - 32)[None, :, None] < 28, b[20:44, :], col(40, 140, 40))
     b = grime(b, 321, 0.35)
     save("barrel", b)
@@ -323,11 +330,11 @@ def pickups():
     # stim / gorb juice can
     j = fill((240, 120, 30))
     j[:, :] = shade(j, 0.75 + 0.35 * np.cos((XX - 20) * 0.09))
-    j = text_panel("GORB\nJUICE", "Anton-Regular.ttf", 12, None, (255, 255, 230), outline_c=(90, 20, 0), base=j, spacing=-2)
+    j = text_panel("VITAL", "Anton-Regular.ttf", 14, None, (255, 255, 230), outline_c=(90, 20, 0), base=j)
     save("pk_juice", j)
     # ammo boxes
     for name, base, label, fg in [
-        ("pk_bullets", (110, 120, 50), "9MM\nGORB", (250, 240, 200)),
+        ("pk_bullets", (110, 120, 50), "9MM", (250, 240, 200)),
         ("pk_shells", (170, 40, 30), "SHELLS", (255, 220, 60)),
         ("pk_rockets", (60, 70, 60), "ROCKET", (255, 140, 20)),
         ("pk_cells", (30, 60, 110), "CELL", (100, 255, 255)),
@@ -341,7 +348,7 @@ def pickups():
         k = fill(c)
         k = shade(k, 0.8 + 0.3 * value_noise(N, 8, 420))
         k[6:20, 6:58] = col(250, 250, 240)
-        body, holes = gorb_face_mask(32, 42, 14)
+        body, holes, _eyes = gorb_face_mask(32, 42, 14)
         k = paste_mask(k, body, (255, 255, 255))
         k = paste_mask(k, holes, (20, 20, 20))
         k[10:14, 10:54] = col(20, 20, 20)
@@ -442,11 +449,11 @@ def village():
     save("v_flowers", fb)
     # signage
     s = fill((250, 230, 60))
-    s = text_panel("WELCOME\nTO\nGORBVILLE", "Anton-Regular.ttf", 15, None, (140, 20, 120), base=s, spacing=-3)
+    s = text_panel("GORB\nVILLE", "Anton-Regular.ttf", 17, None, (140, 20, 120), base=s, spacing=-3)
     s[0:3, :] = col(110, 50, 70); s[-3:, :] = col(110, 50, 70); s[:, 0:3] = col(110, 50, 70); s[:, -3:] = col(110, 50, 70)
     save("v_sign", s)
     p = fill((30, 160, 220))
-    body, holes = gorb_face_mask(32, 28, 16)
+    body, holes, _eyes = gorb_face_mask(32, 28, 16)
     p = paste_mask(p, body, (120, 230, 40))
     p = paste_mask(p, holes, (20, 20, 20))
     p = paste_mask(p, text_layer((N, N), "VOTE", font("Bungee-Regular.ttf", 12), anchor_xy=(10, 46)), (255, 255, 255))
@@ -519,7 +526,7 @@ def industrial():
     sg = text_panel("SNIRBY\nINDUSTRIAL", "Anton-Regular.ttf", 13, None, (255, 230, 60), outline_c=(10, 30, 30), base=sg, spacing=-2)
     save("i_sign", sg)
     wn = fill((250, 210, 20))
-    wn = text_panel("DANGER\nSNIRBIES", "Silkscreen-Bold.ttf", 8, None, (20, 20, 20), base=wn, spacing=4)
+    wn = text_panel("NO\nENTRY", "Silkscreen-Bold.ttf", 8, None, (20, 20, 20), base=wn, spacing=4)
     wn[0:4, :] = col(20, 20, 20); wn[-4:, :] = col(20, 20, 20)
     save("i_warning", grime(wn, 617, 0.25))
     tp = metal(618, (30, 120, 120), seams=(0, 32))
@@ -568,7 +575,7 @@ def mines():
     lt[20:22, 24:40] = col(40, 30, 20); lt[40:42, 24:40] = col(40, 30, 20)
     save("m_lantern", lt)
     sg = planks(712, (130, 90, 50), n=4, vertical=False)
-    sg = text_panel("DIG\nFOR\nGORB", "Anton-Regular.ttf", 15, None, (250, 240, 200), outline_c=(40, 20, 10), base=sg, spacing=-4)
+    sg = text_panel("DIG\nDEEPER", "Anton-Regular.ttf", 15, None, (250, 240, 200), outline_c=(40, 20, 10), base=sg, spacing=-4)
     save("m_sign", sg)
 
 
@@ -595,7 +602,7 @@ def hq():
     save("h_panel", pn)
     wp = fill((180, 140, 170))
     for (cx, cy) in [(16, 16), (48, 48)]:
-        body, holes = gorb_face_mask(cx, cy, 8)
+        body, holes, _eyes = gorb_face_mask(cx, cy, 8)
         wp = paste_mask(wp, body * 0.6, (150, 100, 140))
     wp = shade(wp, 0.85 + 0.2 * value_noise(N, 8, 805))
     for x in range(0, N, 16):
@@ -612,7 +619,7 @@ def hq():
     save("h_ceilinglight", cl, q=False)
     for name, txt, bg, fg, fs in [("h_poster1", "CONSUME", (255, 30, 150), (255, 255, 0), 11),
                                   ("h_poster2", "OBEY\nTHE\nBOARD", (20, 20, 20), (0, 255, 120), 14),
-                                  ("h_poster3", "GORB\nIS\nGOOD", (250, 240, 220), (200, 0, 30), 14),
+                                  ("h_poster3", "SUBMIT", (250, 240, 220), (200, 0, 30), 15),
                                   ("h_poster4", "WORK\nHARDER", (40, 60, 220), (255, 255, 255), 13)]:
         p = text_panel(txt, "Anton-Regular.ttf", fs, bg, fg, spacing=-3)
         p[0:2, :] = col(30, 20, 20); p[-2:, :] = col(30, 20, 20); p[:, 0:2] = col(30, 20, 20); p[:, -2:] = col(30, 20, 20)
@@ -665,7 +672,7 @@ def facility():
     vat = np.abs(XX - 32) < 22
     vg = np.clip(1 - np.abs(XX - 32) / 22, 0, 1)
     v[vat] = (col(40, 200, 90) * (0.4 + 0.6 * vg[vat])[:, None])
-    body, holes = gorb_face_mask(32, 34, 13)
+    body, holes, _eyes = gorb_face_mask(32, 34, 13)
     v = paste_mask(v, body * 0.8, (20, 90, 40))
     v = paste_mask(v, holes * body * 0.8, (200, 255, 200))
     bub = (white(N, 906) > 0.97) & vat
@@ -780,14 +787,6 @@ def skies():
     cl = noise_wide(1101, 8, 5)
     sky = paste_mask(sky, np.clip((cl - 0.55) * 4, 0, 1) * (yy < 70), (255, 255, 240))
     sky, h = hills(sky, 1102, (60, 140, 60), 110, 18, 3)
-    # gorbino-shaped hill
-    for cx in (60, 190):
-        body = (((xx - cx) / 26) ** 2 + ((yy - 100) / 30) ** 2) < 1
-        sky[body] = col(90, 170, 40)
-        for ex in (-8, 8):
-            eye = ((xx - cx - ex) ** 2 + (yy - 88) ** 2) < 9
-            sky[eye] = col(250, 250, 240)
-            sky[((xx - cx - ex) ** 2 + (yy - 88) ** 2) < 3] = col(10, 10, 10)
     sky, _ = hills(sky, 1103, (40, 100, 40), 124, 10, 5)
     to_image(sky).save(os.path.join(OUT, "sky_village.png"))
     # industrial smog

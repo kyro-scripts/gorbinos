@@ -169,7 +169,7 @@ emit("level1_village", {
     "music": "village", "ambience": "amb_village", "sky": "sky_village",
     "fog": Color(0.85, 0.9, 0.55, 0.35), "fog_start": 25.0, "fog_end": 110.0,
     "light_boost": 1.4, "diminish": 0.018,
-    "start_angle": 0.0, "par": 240,
+    "start_angle": 0.0, "par": 168,
     "wall": "v_stonewall", "side": "v_stonewall", "tree_tex": "v_hedge",
     "test_views": [[6, 37, 0, 0], [27, 27, 0, 5], [46, 18, 0, 0], [46, 10, 0, 10], [45, 31, 180, 0], [10, 27, 0, 0], [55, 29, -90, 0]],
 }, L, m)

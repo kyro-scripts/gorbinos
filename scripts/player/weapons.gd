@@ -4,19 +4,19 @@ extends Node3D
 
 const ORDER := ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma"]
 const DATA := {
-	"pistol": {"slot": 1, "name": "GORB-9 PISTOL", "ammo": "bullets", "mag": 12, "use": 1, "auto": false, "rate": 0.19,
-		"dmg": 15.0, "pellets": 1, "spread": 0.010, "reload": 1.05, "style": "mag", "snd": "pistol_fire", "kick": 1.2, "vkick": 0.05},
-	"shotgun": {"slot": 2, "name": "PUMPER SHOTGUN", "ammo": "shells", "mag": 6, "use": 1, "auto": false, "rate": 0.82,
-		"dmg": 9.0, "pellets": 9, "spread": 0.065, "reload": 0.42, "style": "shell", "snd": "shotgun_fire", "kick": 4.5, "vkick": 0.11},
-	"ssg": {"slot": 3, "name": "GORBINATOR", "ammo": "shells", "mag": 2, "use": 2, "auto": false, "rate": 0.3,
-		"dmg": 9.0, "pellets": 20, "spread": 0.12, "spread_v": 0.05, "reload": 1.4, "style": "break", "snd": "ssg_fire", "kick": 8.0, "vkick": 0.16},
-	"mg": {"slot": 4, "name": "GORB-O-MATIC", "ammo": "bullets", "mag": 60, "use": 1, "auto": true, "rate": 0.072,
-		"dmg": 12.0, "pellets": 1, "spread": 0.016, "spread_max": 0.055, "reload": 1.75, "style": "mag", "snd": "mg_fire", "kick": 0.9, "vkick": 0.03},
-	"rocket": {"slot": 5, "name": "GORB-POPPER", "ammo": "rockets", "mag": 4, "use": 1, "auto": false, "rate": 0.78,
-		"dmg": 90.0, "splash": 125.0, "splash_r": 5.2, "proj": "rocket", "speed": 30.0, "reload": 1.9, "style": "mag",
+	"pistol": {"slot": 1, "name": "PISTOL", "ammo": "bullets", "mag": 12, "use": 1, "auto": false, "rate": 0.14,
+		"dmg": 18.0, "pellets": 1, "spread": 0.010, "reload": 0.75, "style": "mag", "snd": "pistol_fire", "kick": 1.2, "vkick": 0.05},
+	"shotgun": {"slot": 2, "name": "SHOTGUN", "ammo": "shells", "mag": 6, "use": 1, "auto": false, "rate": 0.6,
+		"dmg": 10.0, "pellets": 9, "spread": 0.065, "reload": 0.3, "style": "shell", "snd": "shotgun_fire", "kick": 4.5, "vkick": 0.11},
+	"ssg": {"slot": 3, "name": "DOUBLE SHOTGUN", "ammo": "shells", "mag": 2, "use": 2, "auto": false, "rate": 0.25,
+		"dmg": 10.0, "pellets": 20, "spread": 0.12, "spread_v": 0.05, "reload": 1.0, "style": "break", "snd": "ssg_fire", "kick": 8.0, "vkick": 0.16},
+	"mg": {"slot": 4, "name": "MACHINE GUN", "ammo": "bullets", "mag": 60, "use": 1, "auto": true, "rate": 0.06,
+		"dmg": 13.0, "pellets": 1, "spread": 0.016, "spread_max": 0.055, "reload": 1.2, "style": "mag", "snd": "mg_fire", "kick": 0.9, "vkick": 0.03},
+	"rocket": {"slot": 5, "name": "ROCKET LAUNCHER", "ammo": "rockets", "mag": 4, "use": 1, "auto": false, "rate": 0.6,
+		"dmg": 90.0, "splash": 125.0, "splash_r": 5.2, "proj": "rocket", "speed": 42.0, "reload": 1.3, "style": "mag",
 		"snd": "rocket_fire", "kick": 5.5, "vkick": 0.12},
-	"plasma": {"slot": 6, "name": "SNIRB-O-TRON", "ammo": "cells", "mag": 0, "use": 1, "auto": true, "rate": 0.085,
-		"dmg": 21.0, "proj": "plasma", "speed": 62.0, "heat": 5.5, "style": "heat", "snd": "plasma_fire", "kick": 0.7, "vkick": 0.025},
+	"plasma": {"slot": 6, "name": "PLASMA RIFLE", "ammo": "cells", "mag": 0, "use": 1, "auto": true, "rate": 0.07,
+		"dmg": 21.0, "proj": "plasma", "speed": 80.0, "heat": 5.5, "style": "heat", "snd": "plasma_fire", "kick": 0.7, "vkick": 0.025},
 }
 const MAX_AMMO := {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300}
 const BASE_POS := Vector3(0.07, -0.082, -0.19)
@@ -195,7 +195,7 @@ func _process(delta: float) -> void:
 	match state:
 		"lower":
 			state_t += delta
-			if state_t >= 0.16:
+			if state_t >= 0.09:
 				last = current
 				current = pending
 				pending = ""
@@ -204,7 +204,7 @@ func _process(delta: float) -> void:
 				state_t = 0.0
 		"raise":
 			state_t += delta
-			if state_t >= 0.2:
+			if state_t >= 0.12:
 				state = "idle"
 		"reload":
 			state_t += delta
@@ -289,14 +289,14 @@ func _reload_tick() -> void:
 					Audio.play("shotgun_pump", -3.0)
 					cooldown = 0.3
 		"break":
-			if reload_step == 0 and state_t > 0.45:
+			if reload_step == 0 and state_t > float(d["reload"]) * 0.32:
 				reload_step = 1
 				var n := mini(int(d["mag"]) - mag_count(), int(ammo[t]))
 				mags[current] = mag_count() + n
 				ammo[t] -= n
 				Audio.play("ssg_load", -2.0)
 				vm_parts["shells"].visible = true
-			if reload_step == 1 and state_t > 1.05:
+			if reload_step == 1 and state_t > float(d["reload"]) * 0.75:
 				reload_step = 2
 				Audio.play("ssg_close", -2.0)
 			if state_t >= float(d["reload"]):
@@ -463,9 +463,9 @@ func _animate(delta: float) -> void:
 	var d := cur()
 	match state:
 		"lower":
-			pos.y -= state_t / 0.16 * 0.12
+			pos.y -= state_t / 0.09 * 0.12
 		"raise":
-			pos.y -= (1.0 - state_t / 0.2) * 0.12
+			pos.y -= (1.0 - state_t / 0.12) * 0.12
 		"reload":
 			var dur := float(d["reload"])
 			var style := String(d["style"])

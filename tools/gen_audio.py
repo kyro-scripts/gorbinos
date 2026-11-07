@@ -18,7 +18,13 @@ def t_(d):
     return np.arange(int(SR * d)) / SR
 
 
+# These come from the user's own recordings (tools/import_user_audio.py).
+USER_SOUNDS = {"pistol_fire", "mg_fire", "shotgun_fire", "ssg_fire", "enemy_gun"}
+
+
 def save(name, x, gain=0.9, crush=None):
+    if name in USER_SOUNDS:
+        return
     x = np.asarray(x, np.float64)
     if crush:
         q = 2 ** crush

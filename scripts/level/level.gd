@@ -460,7 +460,7 @@ func _build_movers() -> void:
 				m.setup(self, m.kind, Vector2i(x, z), floor_h[i], top, String(sec.get("side", "support")), String(sec.get("top_tex", sec.get("ftex", "metal_floor"))), S)
 				m.position.y = floor_h[i]
 				m.y_closed = floor_h[i]
-				m.speed = 2.6
+				m.speed = 4.5
 			if m:
 				m.name = "Mover_%d_%d" % [x, z]
 				movers[i] = m
@@ -839,7 +839,7 @@ func _on_player_enter_cell(i: int) -> void:
 			stats["secrets"] += 1
 			Audio.play("secret")
 			if world:
-				world.message("A SECRET IS REVEALED!", true)
+				world.message("SECRET FOUND", true)
 	var trig := int(sec.get("trigger", 0))
 	if trig != 0 and not triggers_fired.has(i):
 		triggers_fired[i] = true
@@ -847,7 +847,7 @@ func _on_player_enter_cell(i: int) -> void:
 	if exit_cells.has(i) and not finished:
 		if boss != null and is_instance_valid(boss) and not boss.dead:
 			if world:
-				world.message("THE GREAT SNIRBY STILL BREATHES", true)
+				world.message("THE EXIT IS SEALED", true)
 		else:
 			complete()
 
@@ -933,7 +933,7 @@ func use_at(hit: Dictionary, user: Node) -> bool:
 				if boss != null and is_instance_valid(boss) and not boss.dead:
 					u["used"] = false
 					if world:
-						world.message("THE GREAT SNIRBY STILL BREATHES", true)
+						world.message("THE EXIT IS SEALED", true)
 					return true
 				complete()
 			"switch":
@@ -942,7 +942,7 @@ func use_at(hit: Dictionary, user: Node) -> bool:
 				_swap_use_tex(u)
 				fire_tag(int(u["tag"]))
 				if world:
-					world.message(String(cells[i].get("msg", "SOMETHING OPENED SOMEWHERE...")), false)
+					world.message(String(cells[i].get("msg", "A DOOR OPENED")), false)
 		return true
 	return false
 

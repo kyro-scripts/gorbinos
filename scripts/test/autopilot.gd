@@ -29,7 +29,7 @@ func setup(p_gw: Node) -> void:
 	level = gw.level
 	player = gw.player
 	player.autopilot = self
-	Game.cheats["god"] = true
+	Game.cheats["god"] = not OS.get_cmdline_user_args().has("--mortal")
 
 
 var _shot_t := 3.0
@@ -40,6 +40,10 @@ func _physics_process(delta: float) -> void:
 	if player == null or player.dead or level.finished:
 		return
 	level_time += delta
+	if OS.get_cmdline_user_args().has("--die") and level_time > 3.0:
+		Game.cheats["god"] = false
+		player.take_damage(9999.0, null, Vector3.FORWARD, "bullet")
+		return
 	if OS.get_cmdline_user_args().has("--botshots"):
 		_shot_t -= delta
 		if _shot_t <= 0.0 and _shot_n < 30:
@@ -203,7 +207,7 @@ func _steer(delta: float) -> void:
 				player.auto_input *= 0.2
 		elif m.kind == "lift":
 			if m.current_top() > here_floor + 0.6 and m.state == 0 and to.length() < 2.8:
-				_face_and_use(tp + Vector3(0, m.current_top() - 0.4, 0))
+				_face_and_use(Vector3(tp.x, minf(m.current_top() - 0.3, player.eye_point().y + 0.3), tp.z))
 				player.auto_input = Vector2.ZERO
 			elif m.current_top() > here_floor + 0.6:
 				player.auto_input = Vector2.ZERO

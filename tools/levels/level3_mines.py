@@ -173,7 +173,7 @@ emit("level3_mines", {
     "music": "mines", "ambience": "amb_mines", "sky": "",
     "fog": Color(0.05, 0.02, 0.06, 1.0), "fog_start": 8.0, "fog_end": 40.0,
     "light_boost": 1.7, "diminish": 0.04,
-    "start_angle": -90.0, "par": 330,
+    "start_angle": -90.0, "par": 230,
     "wall": "m_rock", "side": "m_rock", "lamp_color": Color(1.0, 0.7, 0.3),
     "test_views": [[4, 6, -90, 0], [26, 13, 180, 0], [35, 21, 0, 10], [50, 8, 0, 15], [6, 20, 180, -10], [51, 42, 180, 0]],
 }, L, m)

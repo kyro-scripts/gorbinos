@@ -400,12 +400,12 @@ def fonts():
 
 
 if __name__ == "__main__":
+    # UI art (logo, tiles, health lump, rank letters, cursor) now comes from
+    # gen_clay.py; only effect sprites and the publisher logo are made here.
     explosion()
     puffs()
     flashes()
     projectiles()
     splats()
-    ui_art()
-    title_logo()
-    fonts()
-    print("sprites/ui/fonts done")
+    publisher_logo()
+    print("sprites done")

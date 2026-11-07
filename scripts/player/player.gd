@@ -7,14 +7,14 @@ const RADIUS := 0.4
 const HEIGHT := 1.75
 const EYE := 1.55
 const STEP := 0.56
-const WALK := 7.2
-const SPRINT := 10.8
-const GROUND_ACCEL := 11.0
-const AIR_ACCEL := 2.2
-const FRICTION := 7.5
+const WALK := 10.5
+const SPRINT := 15.0
+const GROUND_ACCEL := 14.0
+const AIR_ACCEL := 3.5
+const FRICTION := 8.0
 const STOP_SPEED := 2.0
-const JUMP_V := 6.5
-const GRAVITY := 19.5
+const JUMP_V := 7.4
+const GRAVITY := 23.0
 
 var level: Level
 var world: Node

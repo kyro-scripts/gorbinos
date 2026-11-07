@@ -98,10 +98,12 @@ func _draw() -> void:
 	draw_texture_rect_region(bg, Rect2(Vector2.ZERO, size), Rect2(Vector2(t * 10, 0), size / 2.0), Color(0.6, 0.6, 0.6))
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.4))
 	var cx := size.x * 0.5
-	UI.text_centered(self, "big", cx, 18, Game.level_name(level_index), Color.WHITE)
-	UI.text_centered(self, "menu_hi", cx, 54, "COMPLETED", Color.WHITE)
+	UI.text_centered(self, "big", cx, 14, Game.level_name(level_index), Color.WHITE)
+	var st_tex: Texture2D = load("res://assets/ui/stamp_cleared.png")
+	var ss := st_tex.get_size() * 0.6
+	draw_texture_rect(st_tex, Rect2(Vector2(cx - ss.x * 0.5, 62), ss), false)
 	var labels := ["KILLS", "ITEMS", "SECRETS", "TIME"]
-	var y := 104.0
+	var y := 118.0
 	for k in 4:
 		if k > phase:
 			break
@@ -113,13 +115,13 @@ func _draw() -> void:
 			v = Game.format_time(shown[k])
 		UI.text(self, "menu", Vector2(cx + 30, y), v, Color.WHITE)
 		if k == 3:
-			UI.text(self, "small", Vector2(cx + 110, y + 6), "PAR %s" % Game.format_time(par), UI.DIM, 8)
+			UI.text(self, "term", Vector2(cx + 100, y + 6), "PAR %s" % Game.format_time(par), UI.BONE, 16)
 		y += 30
 	if _rank_t >= 0.0:
 		var k := clampf(_rank_t * 5.0, 0.0, 1.0)
 		var s := rank_tex.get_size() * lerpf(2.5, 1.0, k)
 		var c := Vector2(cx + 170, 150)
 		draw_texture_rect(rank_tex, Rect2(c - s * 0.5, s), false, Color(1, 1, 1, k))
-		UI.text_centered(self, "small_bold", c.x, 200, "RANK", UI.ACID, 8, true)
+		UI.text_centered(self, "term", c.x, 208, "RANK", UI.ACID, 16)
 	if phase >= 4 and fmod(t, 1.0) < 0.7:
-		UI.text_centered(self, "menu", cx, size.y - 40, "PRESS ANY KEY", Color.WHITE)
+		UI.text_centered(self, "term", cx, size.y - 34, "PRESS ANY KEY", UI.BONE, 18)

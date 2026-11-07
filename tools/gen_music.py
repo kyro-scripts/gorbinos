@@ -392,42 +392,43 @@ def t_menu():
 
 
 def t_village():
-    s = Song(138, 32)
-    root, sc = 60, "lydian"
-    prog = [0, 0, 3, 4, 0, 5, 1, 4]
-    oompah = [(0, 0.5, 0), (1, 0.4, 4), (2, 0.5, -3), (3, 0.4, 4)]
-    bassline(s, "bass", "bass", root, sc, 0, 32, prog, oompah, octave=-2, vel=0.8, cut=900)
-    for bar in range(0, 32):
-        cd = prog[bar % len(prog)]
-        for beat in (1, 3):
-            for m in chord(root, sc, cd):
-                s.note("chords", bar * 4 + beat, 0.4, m, "sq", 0.18, pw=0.25, cut=3000)
-    walk_melody(s, "lead", "lead", root, sc, 4, 32, prog, 11, density=0.75, octave=1, vel=0.6, motif=GORB_MOTIF, motif_every=4)
-    arps(s, "arp", "sq", root, sc, 16, 24, prog, 0.25, 2, 0.15, shape=(0, 4, 2, 6), pw=0.125)
-    grid(s, "dr", "x.....x.x.......", 0, 32, "k", 0.9)
-    grid(s, "dr", "....x.......x..x", 2, 32, "s", 0.6)
-    grid(s, "dr", "x.x.x.x.x.x.x.xx", 4, 32, "h", 0.35)
-    grid(s, "dr", "...............x", 0, 32, "t", 0.5, tom=140)
-    return s.render({"lead": {"delay": (0.75, 0.35, 0.4), "crush": 7}, "chords": {"gain": 0.8}, "arp": {"delay": (0.5, 0.3, 0.3)}, "dr": {"crush": 6}})
+    """Dorian pads, soft plucks and the Gorbino motif on bells; a village
+    that sounds slightly wrong (a detuned pad layer)."""
+    s = Song(96, 24)
+    root, sc = 50, "dorian"
+    prog = [0, 0, 3, 3, 5, 5, 4, 1]
+    pads(s, "pad", "pad", root, sc, 0, 24, prog, 0, 0.3, cut=1000, att=0.9, rel=0.8)
+    for bar in range(0, 24, 2):
+        s.note("pad2", bar * 4, 8, root - 12 + 7, "pad", 0.16, cut=600, att=2.0, detune=0.35)
+    bassline(s, "bass", "bass", root, sc, 0, 24, prog, [(0, 2.5, 0), (3, 1, 4)], vel=0.55, cut=450)
+    arps(s, "arp", "pluck", root, sc, 4, 24, prog, 0.5, 1, 0.16, shape=(0, 4, 2, 7))
+    walk_melody(s, "lead", "bell", root, sc, 8, 24, prog, 12, density=0.25, octave=1, vel=0.42, motif=GORB_MOTIF,
+                motif_every=4, rhythm=[2, 1, 1], ratio=3.5, index=2.5, decay=1.6)
+    grid(s, "dr", "x.......x.......", 4, 24, "k", 0.7)
+    grid(s, "dr", "....x.......x...", 8, 24, "r", 0.3)
+    grid(s, "dr", "..x...x...x...x.", 8, 24, "h", 0.2)
+    return s.render({"lead": {"delay": (0.75, 0.5, 0.6), "gain": 0.8}, "pad": {"gain": 0.6}, "pad2": {"gain": 0.5},
+                     "arp": {"delay": (0.75, 0.4, 0.4), "gain": 0.7}, "dr": {"gain": 0.6, "crush": 6}})
 
 
 def t_industrial():
-    s = Song(118, 32)
-    root, sc = 40, "minor"
-    prog = [0, 0, 0, 0, 5, 5, 3, 4]
-    pat = [(i * 0.25, 0.2, [0, 0, 7, 0, 0, 3, 0, 5, 0, 0, 7, 0, 10, 0, 3, 1][i]) for i in range(16)]
+    """Pulsing distorted bass, metal clangs and a low drone. No lead."""
+    s = Song(110, 32)
+    root, sc = 40, "phrygian"
+    prog = [0, 0, 0, 0, 1, 1, 0, 6]
     for bar in range(32):
         cd = prog[bar % len(prog)]
-        for (off, dur, semi) in pat:
-            s.note("bass", bar * 4 + off, dur, deg(root, sc, cd, 0) + semi - 12 + 12, "bass", 0.7, cut=1200, q=2.5, drive=3)
-    grid(s, "dr", "x...x...x...x...", 0, 32, "k", 1.0)
-    grid(s, "dr", "....x.......x...", 4, 32, "c", 0.7)
-    grid(s, "dr", "..x...x...x...x.", 0, 32, "h", 0.5)
-    grid(s, "dr", "m.....m...m..m..", 8, 32, "m", 0.5)
-    grid(s, "dr", "......x........x", 8, 32, "t", 0.6, tom=70)
-    walk_melody(s, "lead", "lead", root, sc, 16, 32, prog, 21, density=0.4, octave=2, vel=0.45, rhythm=[1.5, 0.5, 1, 1], pw=0.1, cut=2000)
-    pads(s, "pad", "pad", root, sc, 8, 32, prog, 1, 0.22, bars_per=2, cut=700)
-    return s.render({"bass": {"gain": 0.8, "crush": 6}, "lead": {"delay": (0.75, 0.4, 0.5)}, "dr": {"crush": 5, "gain": 1.0}, "pad": {"gain": 0.6}})
+        for i in range(8):
+            if bar % 4 == 3 and i in (5, 7):
+                continue
+            s.note("bass", bar * 4 + i * 0.5, 0.42, deg(root, sc, cd, 0), "bass", 0.75 if i % 2 == 0 else 0.5, cut=900, q=2.0, drive=3)
+        s.note("drone", bar * 4, 4, root - 12, "pad", 0.3, cut=350, att=1.5, rel=1.0)
+    grid(s, "dr", "x.......x.......", 0, 32, "k", 1.0)
+    grid(s, "dr", "....x.......x...", 8, 32, "c", 0.55)
+    grid(s, "dr", "m.....m.........", 4, 32, "m", 0.45)
+    grid(s, "dr", "..x...x...x...x.", 8, 32, "h", 0.3)
+    walk_melody(s, "bell", "bell", root, sc, 12, 32, prog, 22, density=0.2, octave=2, vel=0.3, rhythm=[2, 2], ratio=2.76, index=3, decay=1.2)
+    return s.render({"bass": {"gain": 0.8, "crush": 6}, "drone": {"gain": 0.7}, "bell": {"delay": (1.5, 0.5, 0.6)}, "dr": {"crush": 5}})
 
 
 def t_mines():
@@ -446,28 +447,22 @@ def t_mines():
 
 
 def t_hq():
-    s = Song(104, 32)
+    """Corporate lounge chords heard through a wall: lowpassed electric
+    piano, slow bass, a tape-wobble and a single bell now and then."""
+    s = Song(84, 24)
     root, sc = 51, "major"
     prog = [0, 5, 1, 4, 2, 5, 3, 4]
-    for bar in range(32):
+    for bar in range(24):
         cd = prog[bar % len(prog)]
-        notes = chord(root, sc, cd, 4)
-        for (off, dur) in [(0, 1.4), (1.5, 0.4), (2.5, 1.4)]:
-            for m in notes:
-                s.note("ep", bar * 4 + off, dur, m, "epiano", 0.22)
-        # walking bass
-        for i in range(4):
-            dd = [0, 2, 4, 5][i] if bar % 2 == 0 else [7, 5, 4, 1][i]
-            s.note("bass", bar * 4 + i, 0.9, deg(root, sc, cd + dd, -2), "bass", 0.7, cut=600)
-    walk_melody(s, "lead", "bell", root, sc, 8, 32, prog, 41, density=0.55, octave=1, vel=0.45, rhythm=[1, 0.5, 0.5, 1, 1], ratio=1.0, index=1.5, decay=2.5)
-    # the wrongness: detuned tritone stabs every 4 bars
-    for bar in range(3, 32, 4):
-        s.note("wrong", bar * 4 + 3.5, 0.5, root + 6, "sq", 0.25, pw=0.3, detune=0.4)
-        s.note("wrong", bar * 4 + 3.5, 0.5, root + 12, "sq", 0.2, pw=0.3, detune=-0.3)
-    grid(s, "dr", "x.......x.......", 0, 32, "k", 0.6)
-    grid(s, "dr", "x..x..x.x..x..x.", 0, 32, "h", 0.3, swing=0.3)
-    grid(s, "dr", "....r.......r...".replace("r", "x"), 0, 32, "r", 0.4)
-    return s.render({"ep": {"gain": 0.7}, "lead": {"delay": (0.75, 0.3, 0.3)}, "wrong": {"delay": (0.5, 0.5, 0.6), "crush": 4}, "dr": {"crush": 7}})
+        for m in chord(root, sc, cd, 4):
+            s.note("ep", bar * 4, 3.6, m, "epiano", 0.2, detune=0.12 * ((bar % 3) - 1))
+        s.note("bass", bar * 4, 3.0, deg(root, sc, cd, -2), "bass", 0.5, cut=380)
+    for bar in range(0, 24, 4):
+        s.note("pad", bar * 4, 16, root - 12, "pad", 0.2, cut=500, att=2.0, detune=-0.2)
+    walk_melody(s, "bell", "bell", root, sc, 4, 24, prog, 41, density=0.18, octave=1, vel=0.32, rhythm=[2, 2], ratio=1.0, index=1.2, decay=1.5)
+    grid(s, "dr", "x.......x.......", 4, 24, "k", 0.45)
+    grid(s, "dr", "....x.......x...", 4, 24, "r", 0.22)
+    return s.render({"ep": {"gain": 0.75, "lp": 1800}, "bass": {"gain": 0.8}, "pad": {"gain": 0.5}, "bell": {"delay": (1.0, 0.45, 0.5)}, "dr": {"crush": 7, "gain": 0.7}})
 
 
 def t_facility():
@@ -492,48 +487,53 @@ def t_facility():
 
 
 def t_dimension():
-    s = Song(160, 32)
+    """Whole-tone drones, slow inharmonic bells and a heavy half-time beat."""
+    s = Song(116, 24)
     root, sc = 54, "whole"
-    prog = [0, 1, 0, 2, 3, 1, 4, 5]
-    for bar in range(32):
-        pat = ["x.....x...x.....", "x.......x.x..x..", "x..x......x.....", "x.x...x...x...x."][bar % 4]
-        grid(s, "dr", pat, bar, bar + 1, "k", 1.0)
-        grid(s, "dr", ["....x.......x...", "....x..x....x...", "....x.......x.xx", "..x.x.......x..."][bar % 4], bar, bar + 1, "s", 0.7)
-    grid(s, "dr", "x.xxx.xxx.xxx.xx", 4, 32, "h", 0.3)
-    bassline(s, "bass", "bass", root, sc, 0, 32, prog, [(0, 0.5, 0), (0.75, 0.25, 3), (1.5, 0.5, 0), (2.5, 0.5, 5), (3.5, 0.25, 1)], octave=-2, vel=0.8, cut=1100, drive=2)
-    walk_melody(s, "lead", "lead", root, sc, 8, 32, prog, 61, density=0.8, octave=1, vel=0.5, rhythm=[0.25, 0.25, 0.5, 0.25, 0.75], detune=0.33, pw=0.2)
-    walk_melody(s, "bell", "bell", root, sc, 0, 32, prog, 62, density=0.4, octave=2, vel=0.3, rhythm=[0.75, 0.75, 0.5], ratio=1.41, index=5)
-    return s.render({"lead": {"delay": (0.375, 0.5, 0.5), "crush": 5}, "bell": {"delay": (0.5, 0.5, 0.6)}, "dr": {"crush": 5}, "bass": {"crush": 6}})
+    prog = [0, 1, 0, 2, 3, 1, 4, 2]
+    for bar in range(24):
+        cd = prog[bar % len(prog)]
+        s.note("drone", bar * 4, 4, deg(root, sc, cd, -1), "pad", 0.3, cut=700, att=1.0, rel=1.0)
+        s.note("drone", bar * 4, 4, deg(root, sc, cd + 2, -1), "pad", 0.18, cut=600, att=1.2, rel=1.0, detune=0.25)
+    bassline(s, "bass", "bass", root, sc, 0, 24, prog, [(0, 1.5, 0), (2.5, 1.0, 0)], octave=-2, vel=0.7, cut=500, drive=2)
+    grid(s, "dr", "x.........x.....", 4, 24, "k", 1.0)
+    grid(s, "dr", "........x.......", 4, 24, "s", 0.6)
+    grid(s, "dr", "x...x...x...x...", 8, 24, "h", 0.18)
+    grid(s, "dr", "......t.......t.", 12, 24, "t", 0.4, tom=60)
+    walk_melody(s, "bell", "bell", root, sc, 0, 24, prog, 62, density=0.3, octave=1, vel=0.35, rhythm=[1.5, 1.5, 1], ratio=1.41, index=4, decay=1.0)
+    return s.render({"drone": {"gain": 0.75}, "bass": {"crush": 6, "gain": 0.8}, "bell": {"delay": (0.75, 0.55, 0.6)}, "dr": {"crush": 5}})
 
 
 def t_boss():
-    s = Song(150, 16)
+    """Driving riff and drums under a dark pad; no screeching lead."""
+    s = Song(138, 16)
     root, sc = 40, "dim"
     riff = [0, 0, 1, 0, 3, 0, 6, 5, 0, 0, 1, 0, 8, 7, 6, 3]
     for bar in range(16):
         tr = [0, 0, 1, -1][bar % 4]
         for i, semi in enumerate(riff):
-            s.note("bass", bar * 4 + i * 0.25, 0.22, root + semi + tr, "bass", 0.85, cut=1600, q=2, drive=4)
+            s.note("bass", bar * 4 + i * 0.25, 0.22, root + semi + tr, "bass", 0.8, cut=1300, q=2, drive=4)
+        s.note("pad", bar * 4, 4, root + 12 + tr, "pad", 0.22, cut=800, att=0.3)
+        s.note("pad", bar * 4, 4, root + 18 + tr, "pad", 0.16, cut=800, att=0.3)
     grid(s, "dr", "x.x...x.x.x...x.", 0, 16, "k", 1.0)
-    grid(s, "dr", "....x.......x...", 0, 16, "s", 0.8)
-    grid(s, "dr", "x.x.x.x.x.x.x.x.", 0, 16, "o", 0.35)
-    grid(s, "dr", "m.......m...m...", 4, 16, "m", 0.6)
-    for bar in range(4, 16):
-        for k, (off, dur, semi) in enumerate([(0, 1, 12), (1, 0.5, 13), (1.5, 0.5, 18), (2, 2, 17)] if bar % 2 == 0 else [(0, 1.5, 12), (1.5, 0.5, 11), (2, 2, 6)]):
-            s.note("lead", bar * 4 + off, dur, root + 24 + semi, "lead", 0.5, pw=0.15)
-    return s.render({"bass": {"crush": 5}, "lead": {"delay": (0.5, 0.35, 0.4)}, "dr": {"crush": 5}})
+    grid(s, "dr", "....x.......x...", 0, 16, "s", 0.75)
+    grid(s, "dr", "x.x.x.x.x.x.x.x.", 4, 16, "h", 0.25)
+    grid(s, "dr", "m.......m.......", 4, 16, "m", 0.5)
+    return s.render({"bass": {"crush": 5}, "pad": {"gain": 0.6}, "dr": {"crush": 5}}) * 0.55
 
 
 def t_intermission():
-    s = Song(120, 8)
-    root, sc = 57, "dorian"
-    prog = [0, 3, 0, 4]
-    bassline(s, "bass", "bass", root, sc, 0, 8, prog, [(0, 0.5, 0), (0.5, 0.5, 7), (1, 0.5, 0), (2, 0.5, 4), (3, 0.5, 2)], octave=-2, vel=0.6)
-    arps(s, "arp", "sq", root, sc, 0, 8, prog, 0.25, 1, 0.2, shape=(0, 2, 4, 2), pw=0.25)
-    walk_melody(s, "lead", "bell", root, sc, 0, 8, prog, 71, density=0.5, octave=2, vel=0.4, motif=GORB_MOTIF, motif_every=4, ratio=2.0, index=2)
-    grid(s, "dr", "x...x...x...x...", 0, 8, "k", 0.7)
-    grid(s, "dr", "..x...x...x...x.", 0, 8, "h", 0.3)
-    return s.render({"arp": {"crush": 5}, "lead": {"delay": (0.5, 0.4, 0.4)}, "dr": {"crush": 6}})
+    """Short pad loop with the motif on a bell, like the title theme."""
+    s = Song(92, 8)
+    root, sc = 50, "phrygian"
+    prog = [0, 5, 3, 1]
+    pads(s, "pad", "pad", root, sc, 0, 8, prog, 0, 0.3, cut=900, att=0.6)
+    bassline(s, "bass", "bass", root, sc, 0, 8, prog, [(0, 2, 0), (2, 2, -3)], vel=0.5, cut=400)
+    walk_melody(s, "lead", "bell", root, sc, 0, 8, prog, 71, density=0.3, octave=1, vel=0.45, motif=GORB_MOTIF, motif_every=4,
+                rhythm=[1, 1, 2], ratio=3.5, index=3)
+    grid(s, "dr", "x.......x.x.....", 0, 8, "k", 0.7)
+    grid(s, "dr", "....x.......x...", 0, 8, "r", 0.3)
+    return s.render({"lead": {"delay": (0.75, 0.5, 0.6), "gain": 0.8}, "pad": {"gain": 0.6}, "dr": {"gain": 0.6, "crush": 6}})
 
 
 def t_ending():
@@ -549,8 +549,12 @@ def t_ending():
 
 
 if __name__ == "__main__":
+    import sys
+    only = sys.argv[1:]
     for name, fn in [("menu", t_menu), ("village", t_village), ("industrial", t_industrial), ("mines", t_mines),
                      ("hq", t_hq), ("facility", t_facility), ("dimension", t_dimension), ("boss", t_boss),
                      ("intermission", t_intermission), ("ending", t_ending)]:
+        if only and name not in only:
+            continue
         save(name, fn())
     os.rmdir(TMP)

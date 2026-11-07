@@ -12,7 +12,7 @@ const DATA := {
 	"light_boost": 1.45,
 	"diminish": 0.024,
 	"start_angle": 0.0,
-	"par": 360,
+	"par": 251,
 	"wall": "h_wallpaper",
 	"side": "h_panel",
 	"test_views": [[18, 51, 0, 5], [40, 47, 90, 0], [18, 27, 0, 0], [30, 20, -90, -10], [55, 27, 180, 0], [32, 10, 0, 0], [50, 6, -90, 5]],

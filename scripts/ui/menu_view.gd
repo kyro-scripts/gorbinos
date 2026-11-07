@@ -15,7 +15,6 @@ var top_y := 70.0
 var allow_empty_back := true
 var show_title := true
 var center_offset := 0.0
-var _cursor: Texture2D
 var _rows: Array = []            # [rect, item_index]
 var _flash := ""
 var _flash_t := 0.0
@@ -25,7 +24,6 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_cursor = load("res://assets/ui/cursor.png")
 	focus_mode = Control.FOCUS_ALL
 
 
@@ -131,13 +129,19 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_UP, KEY_W:
-				_move(-1)
+				_move(-_tile_cols() if _is_tiles() else -1)
 			KEY_DOWN, KEY_S:
-				_move(1)
+				_move(_tile_cols() if _is_tiles() else 1)
 			KEY_LEFT, KEY_A:
-				_adjust(-1)
+				if _is_tiles():
+					_move(-1)
+				else:
+					_adjust(-1)
 			KEY_RIGHT, KEY_D:
-				_adjust(1)
+				if _is_tiles():
+					_move(1)
+				else:
+					_adjust(1)
 			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
 				if not event.echo:
 					_activate()
@@ -265,7 +269,7 @@ func _value_text(it: Dictionary) -> String:
 			if it.has("fmt"):
 				return (it["fmt"] as Callable).call(v)
 			var n := int(round((v - float(it["min"])) / (float(it["max"]) - float(it["min"])) * 10.0))
-			return "[" + "=".repeat(n) + "-".repeat(10 - n) + "]"
+			return "|".repeat(n) + ".".repeat(10 - n)
 		"toggle":
 			return "ON" if Settings.get_v(it["key"]) else "OFF"
 		"choice":
@@ -282,6 +286,26 @@ func _value_text(it: Dictionary) -> String:
 	return ""
 
 
+const TILE := 92.0
+const TILE_GAP := 12.0
+var _tex_cache := {}
+
+
+func _tex(n: String) -> Texture2D:
+	if not _tex_cache.has(n):
+		var p := "res://assets/ui/%s.png" % n
+		_tex_cache[n] = load(p) if ResourceLoader.exists(p) else null
+	return _tex_cache[n]
+
+
+func _is_tiles() -> bool:
+	return page().get("tiles", false)
+
+
+func _tile_cols() -> int:
+	return int(page().get("cols", 4))
+
+
 func _draw() -> void:
 	_rows.clear()
 	if stack.is_empty():
@@ -289,62 +313,114 @@ func _draw() -> void:
 	var p := page()
 	var cx := size.x * 0.5 + (0.0 if p.get("wide", false) else center_offset)
 	var y := top_y
-	if show_title and p.has("title"):
-		UI.text_centered(self, "big", cx, y - 52, String(p["title"]), Color.WHITE)
+	if show_title and p.has("title") and String(p["title"]) != "":
+		UI.text_centered(self, "big", cx, y - 56, String(p["title"]), Color.WHITE)
+	if _is_tiles():
+		_draw_tiles(cx, y)
+	else:
+		_draw_list(p, cx, y)
+	if p.has("footer"):
+		var fw := UI.text_width("term", String(p["footer"]), 16)
+		draw_rect(Rect2(cx - fw * 0.5 - 6, size.y - 26, fw + 12, 18), Color(0, 0, 0, 0.75))
+		UI.text_centered(self, "term", cx, size.y - 26, String(p["footer"]), UI.BONE, 16)
+	if _flash_t > 0.0:
+		UI.text_centered(self, "menu_hi", cx, size.y - 56, _flash, Color(UI.ACID, clampf(_flash_t, 0, 1)))
+	if waiting_bind != "":
+		UI.text_centered(self, "term", cx, size.y - 44, "PRESS A KEY OR MOUSE BUTTON. ESC TO CANCEL.", UI.ACID, 16)
+
+
+func _draw_tiles(cx: float, y: float) -> void:
+	var items := _items()
+	var cols := mini(_tile_cols(), items.size())
+	var rows := int(ceil(float(items.size()) / cols))
+	var total_w := cols * TILE + (cols - 1) * TILE_GAP
+	for k in items.size():
+		var it: Dictionary = items[k]
+		var r := k / cols
+		var c := k % cols
+		var in_row := mini(cols, items.size() - r * cols)
+		var row_w := in_row * TILE + (in_row - 1) * TILE_GAP
+		var x0 := cx - row_w * 0.5 + c * (TILE + TILE_GAP)
+		var y0 := y + r * (TILE + TILE_GAP)
+		var rect := Rect2(x0, y0, TILE, TILE)
+		_rows.append([rect, k])
+		var en := _selectable(it)
+		var is_sel := k == sel and en
+		var drawn := rect
+		if is_sel:
+			drawn = rect.grow(4.0 + sin(anim_t * 9.0) * 1.5)
+			drawn.position += Vector2(randf_range(-0.6, 0.6), randf_range(-0.6, 0.6))
+		draw_rect(Rect2(drawn.position + Vector2(5, 5), drawn.size), Color(0, 0, 0, 0.6))
+		var t := _tex(String(it.get("icon", "")))
+		var mod := Color(1, 1, 1) if en else Color(0.35, 0.3, 0.35)
+		if t:
+			draw_texture_rect(t, drawn, false, mod)
+		else:
+			draw_rect(drawn, Color(0.2, 0.1, 0.15))
+			UI.text_centered(self, "menu", drawn.get_center().x, drawn.get_center().y - 12, String(it.get("label", "")))
+		if is_sel:
+			draw_rect(drawn, UI.ACID, false, 3.0)
+	# the selected tile's name under the grid
+	if sel < items.size() and _selectable(items[sel]):
+		var lab := String(items[sel].get("label", ""))
+		var ly := y + rows * (TILE + TILE_GAP) + 2
+		UI.text_centered(self, "menu_hi", cx, ly, lab, Color.WHITE, 24)
+		var desc := String(items[sel].get("desc", ""))
+		if desc != "":
+			UI.text_centered(self, "term", cx, ly + 30, desc, UI.BONE, 16)
+
+
+func _draw_list(p: Dictionary, cx: float, y: float) -> void:
 	var items := _items()
 	var wide: bool = p.get("wide", false)
-	var fsz := 20 if not p.get("small", false) else 16
-	var rh := row_h if not p.get("small", false) else 19.0
-	var visible_rows := int((size.y - y - 30) / rh)
+	var fsz := 22 if not p.get("small", false) else 18
+	var rh := row_h + 2.0 if not p.get("small", false) else 21.0
+	var visible_rows := int((size.y - y - 34) / rh)
 	if sel < scroll:
 		scroll = sel
 	if sel >= scroll + visible_rows:
 		scroll = sel - visible_rows + 1
 	scroll = clampi(scroll, 0, maxi(0, items.size() - visible_rows))
+	var row_w := 520.0 if wide else 300.0
 	if scroll > 0:
-		UI.text_centered(self, "small", cx, y - 12, "- MORE -", UI.DIM)
+		UI.text_centered(self, "term", cx, y - 18, "- MORE -", UI.DIM, 16)
 	for k in range(scroll, mini(items.size(), scroll + visible_rows)):
 		var it: Dictionary = items[k]
 		var en := _selectable(it)
 		var is_sel := k == sel and en
-		var fname := "menu_hi" if is_sel else ("menu" if en else "menu_dim")
 		var label: String = it.get("label", "")
 		var t: String = it.get("type", "button")
 		if t == "info":
-			var lines := UI.wrap("small", label, size.x * 0.7)
-			for ln in lines:
-				UI.text_centered(self, "small", cx, y + 4, ln, it.get("color", UI.BONE), 8, true)
-				y += 11
+			for ln in UI.wrap("term", label, size.x * 0.7, 16):
+				UI.text_centered(self, "term", cx, y + 2, ln, it.get("color", UI.BONE), 16)
+				y += 16
 			y += 4
 			continue
-		var x0: float
+		var r := Rect2(cx - row_w * 0.5, y - 1, row_w, rh - 3)
+		_rows.append([r, k])
+		# hard blocks: dark strip, inverted lime when selected
+		draw_rect(Rect2(r.position + Vector2(4, 4), r.size), Color(0, 0, 0, 0.5))
+		draw_rect(r, UI.ACID if is_sel else Color(0.07, 0.03, 0.06, 0.85))
+		if not is_sel:
+			draw_rect(Rect2(r.position, Vector2(4, r.size.y)), Color(0.9, 0.3, 0.45) if en else Color(0.3, 0.25, 0.3))
+		var tc := Color(0.04, 0.02, 0.03) if is_sel else (UI.BONE if en else Color(0.45, 0.4, 0.45))
+		var f := UI.font("anton")
+		var asc := f.get_ascent(fsz)
+		var ty := y + (rh - 3 - f.get_height(fsz)) * 0.5 - 1 + asc
 		if wide:
-			x0 = cx - 250
-			UI.text(self, fname, Vector2(x0, y), label, Color.WHITE, fsz)
+			draw_string(f, Vector2(r.position.x + 12, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, tc)
 			var vt := _value_text(it)
 			if vt != "":
-				UI.text(self, "menu_dim" if not is_sel else "menu", Vector2(cx + 30, y), vt, Color.WHITE, fsz)
+				draw_string(f, Vector2(r.position.x + row_w * 0.55, ty), vt, HORIZONTAL_ALIGNMENT_LEFT, row_w * 0.43, fsz, tc)
 		else:
-			var w := UI.text_width(fname, label, fsz)
-			x0 = cx - w * 0.5
-			UI.text(self, fname, Vector2(x0, y), label, Color.WHITE, fsz)
-			var vt := _value_text(it)
-			if vt != "":
-				UI.text(self, "small", Vector2(cx + w * 0.5 + 10, y + 6), vt, UI.DIM, 8)
-		var row_rect := Rect2(Vector2(cx - 300, y - 2), Vector2(600, rh))
-		_rows.append([row_rect, k])
-		if is_sel:
-			var fr := 1 if fmod(anim_t, 2.2) > 2.0 else 0
-			draw_texture_rect_region(_cursor, Rect2(Vector2(x0 - 30, y - 1 + sin(anim_t * 6.0) * 1.5), Vector2(24, 24)), Rect2(fr * 24, 0, 24, 24))
+			var vt2 := _value_text(it)
+			var full := label if vt2 == "" else "%s   %s" % [label, vt2]
+			draw_string(f, Vector2(r.position.x, ty), full, HORIZONTAL_ALIGNMENT_CENTER, row_w, fsz, tc)
 		y += rh
-	if p.has("footer"):
-		UI.text_centered(self, "small", cx, size.y - 22, String(p["footer"]), UI.DIM, 8, true)
 	if items.size() > scroll + visible_rows:
-		UI.text_centered(self, "small", cx, y + 2, "- MORE -", UI.DIM)
-	if _flash_t > 0.0:
-		UI.text_centered(self, "menu_hi", cx, size.y - 50, _flash, Color(1, 1, 1, clampf(_flash_t, 0, 1)))
-	if waiting_bind != "":
-		UI.text_centered(self, "small", cx, size.y - 36, "PRESS A KEY OR MOUSE BUTTON. ESC TO CANCEL.", UI.ACID, 8, true)
+		UI.text_centered(self, "term", cx, y, "- MORE -", UI.DIM, 16)
+	elif sel < items.size() and String(items[sel].get("desc", "")) != "":
+		UI.text_centered(self, "term", cx, y + 4, String(items[sel]["desc"]), UI.BONE, 16)
 
 
 # ------------------------------------------------------------------ shared pages
@@ -413,7 +489,7 @@ static func binds_page(view: MenuView) -> Dictionary:
 static func gameplay_page(view: MenuView) -> Dictionary:
 	return {"title": "GAMEPLAY", "wide": true, "items": [
 		{"type": "toggle", "label": "HEAD BOB", "key": "head_bob"},
-		{"type": "choice", "label": "CROSSHAIR", "key": "crosshair", "options": ["CROSS", "DOT", "BOX", "NONE"]},
+		{"type": "choice", "label": "CROSSHAIR", "key": "crosshair", "options": ["CIRCLE", "DOT", "CROSS", "NONE"]},
 		{"type": "toggle", "label": "AUTO RELOAD", "key": "auto_reload"},
 		{"type": "toggle", "label": "SHOW FPS", "key": "show_fps"},
 		{"label": "BACK", "cb": func(): view.pop()},

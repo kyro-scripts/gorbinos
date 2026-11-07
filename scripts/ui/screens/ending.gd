@@ -4,14 +4,9 @@ extends Control
 const CREDITS := [
 	["GORBINO'S QUEST", ""],
 	["", ""],
-	["DESIGN, CODE, ART", "THE GLANDCORE COLLECTIVE"],
-	["GORBINO VOICE", "A DETUNED SAWTOOTH"],
-	["SNIRBY VOICE", "A SLIGHTLY HIGHER SAWTOOTH"],
-	["LEVEL DESIGN", "SIX VERY LONG NIGHTS"],
-	["MUSIC", "THE GLANDCORE SOUND DEPT."],
-	["QUALITY ASSURANCE", "ONE (1) GORBINO"],
-	["", ""],
-	["NO SNIRBIES WERE HARMED", "SEVERAL HUNDRED WERE"],
+	["A GLANDCORE SOFTWARE GAME", ""],
+	["DESIGN, CODE, ART, MUSIC", "GLANDCORE SOFTWARE"],
+	["ADDITIONAL VOICES AND WEAPON SOUNDS", "SUPPLIED BY THE PLAYER"],
 	["", ""],
 	["THANK YOU FOR PLAYING", ""],
 ]
@@ -26,7 +21,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	bg = load("res://assets/textures/v_grass.png")
-	gorb = load("res://assets/ui/gorb_big.png")
+	gorb = load("res://assets/ui/app_icon_256.png")
 	Audio.play_music("ending")
 	Audio.stop_ambience()
 
@@ -38,7 +33,7 @@ func _process(delta: float) -> void:
 		get_tree().quit(0)
 		return
 	if lines.is_empty() and size.x > 0:
-		lines = UI.wrap("small", Game.ENDING, minf(size.x - 80, 460))
+		lines = UI.wrap("term", Game.ENDING, minf(size.x - 80, 460), 18)
 	queue_redraw()
 
 
@@ -57,19 +52,19 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.5))
 	var cx := size.x * 0.5
 	if t < 30.0:
-		UI.text_centered(self, "big", cx, 20, "THE END?", Color.WHITE)
+		UI.text_centered(self, "big", cx, 20, "END", Color.WHITE)
 		var y := 70.0
 		var shown := int(t * 30.0)
 		for ln in lines:
 			if shown <= 0:
 				break
-			UI.text_centered(self, "small", cx, y, ln.substr(0, shown), UI.BONE, 8, true)
+			UI.text_centered(self, "term", cx, y, ln.substr(0, shown), UI.BONE, 18)
 			shown -= ln.length() + 1
-			y += 13
+			y += 18
 		return
 	var k := t - 30.0
 	var y2 := size.y - k * 22.0
-	draw_texture(gorb, Vector2(cx - 64, y2 - 150))
+	draw_texture_rect(gorb, Rect2(cx - 64, y2 - 150, 128, 128), false)
 	for c in CREDITS:
 		if c[0] != "":
 			UI.text_centered(self, "menu", cx, y2, c[0], Color.WHITE)
