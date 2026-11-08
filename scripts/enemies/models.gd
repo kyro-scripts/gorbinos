@@ -102,8 +102,6 @@ static func weapon(wname: String, with_hands := true) -> Node3D:
 			var pump := pivot()
 			root.add_child(pump)
 			pump.add_child(mi(box(0.065, 0.06, 0.17), wood, Vector3(0, -0.025, -0.26)))
-			if with_hands:
-				pump.add_child(mi(box(0.09, 0.07, 0.12), glove, Vector3(-0.01, -0.06, -0.26)))
 			parts["pump"] = pump
 			muzzle.position = Vector3(0, 0.02, -0.65)
 			if with_hands:
@@ -127,7 +125,6 @@ static func weapon(wname: String, with_hands := true) -> Node3D:
 			muzzle.position = Vector3(0, 0.02, -0.6)
 			if with_hands:
 				root.add_child(mi(box(0.075, 0.09, 0.1), glove, Vector3(0.0, -0.08, 0.12), Vector3(20, 0, 0)))
-				barrels.add_child(mi(box(0.1, 0.06, 0.12), glove, Vector3(-0.02, -0.05, -0.22)))
 		"mg":
 			root.add_child(mi(box(0.08, 0.1, 0.34), Mat.world("gun_red", {"origin": true}), Vector3(0, 0, 0.0)))
 			root.add_child(mi(box(0.03, 0.04, 0.18), dark, Vector3(0, 0.08, 0.0)))
@@ -145,7 +142,6 @@ static func weapon(wname: String, with_hands := true) -> Node3D:
 			muzzle.position = Vector3(0, 0, -0.56)
 			if with_hands:
 				root.add_child(mi(box(0.075, 0.09, 0.1), glove, Vector3(0.0, -0.13, 0.12), Vector3(-10, 0, 0)))
-				root.add_child(mi(box(0.09, 0.07, 0.1), glove, Vector3(-0.03, -0.07, -0.15)))
 		"rocket":
 			var green := Mat.world("gun_green", {"origin": true})
 			root.add_child(mi(cyl(0.065, 0.065, 0.62, 10), green, Vector3(0, 0.02, -0.12), Vector3(90, 0, 0)))

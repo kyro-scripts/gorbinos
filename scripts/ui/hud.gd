@@ -21,6 +21,9 @@ var _hit_t := 0.0
 var _last_hp := 100
 var _dead_t := 0.0
 var _death_tex: Texture2D
+var _splats: Array = []           # blood on the screen: [pos 0..1, radius, life, drip]
+var _face_t := 0.0                # subliminal face flash
+var _face_kind := 0
 
 const BORDER_COLS := [Color(1, 0.2, 0.3), Color(0.25, 1, 0.3), Color(0.3, 0.4, 1), Color(1, 0.9, 0.2), Color(0.05, 0.05, 0.05)]
 
@@ -31,6 +34,20 @@ func _ready() -> void:
 	_jar = load("res://assets/ui/hud_jar.png")
 	_specimen = load("res://assets/ui/hud_gorb.png")
 	_death_tex = load("res://assets/ui/death.png")
+
+
+## Blood thrown onto the screen (the gutting finisher).
+func splatter(n: int) -> void:
+	for k in n:
+		_splats.append([Vector2(randf_range(0.08, 0.92), randf_range(0.08, 0.85)), randf_range(12.0, 38.0), randf_range(2.2, 3.8), 0.0, randi()])
+	if _splats.size() > 24:
+		_splats = _splats.slice(_splats.size() - 24)
+
+
+## A face, for a couple of frames.
+func flash_face(dur := 0.07) -> void:
+	_face_t = dur
+	_face_kind = randi() % 2
 
 
 func message(t: String) -> void:
@@ -64,6 +81,11 @@ func _process(delta: float) -> void:
 			_hit_t = 0.25
 		_last_hp = player.health
 	_hit_t -= delta
+	_face_t -= delta
+	for sp in _splats:
+		sp[2] -= delta
+		sp[3] += delta * (10.0 + sp[1] * 0.4)
+	_splats = _splats.filter(func(sp): return sp[2] > 0.0)
 	_dead_t = _dead_t + delta if player and player.dead else 0.0
 	_noise_t -= delta
 	if _noise_t <= 0.0:
@@ -79,8 +101,11 @@ func _draw() -> void:
 	var H := size.y
 	if show_map:
 		_draw_automap(Rect2(0, 0, W, H))
+	_draw_splats(W, H)
 	_draw_border(W, H)
 	_draw_crosshair(W, H)
+	_draw_gut_prompt(W, H)
+	_draw_ammo_marker(W, H)
 	_draw_health()
 	_draw_ammo(W, H)
 	_draw_keys()
@@ -103,6 +128,8 @@ func _draw() -> void:
 		UI.text_centered(self, "term", W * 0.5, 4, String(boss.def["name"]), UI.BONE, 16)
 	if Settings.get_v("show_fps"):
 		UI.text(self, "term", Vector2(W - 70, 8), "FPS %d" % Engine.get_frames_per_second(), UI.ACID, 16)
+	if _face_t > 0.0:
+		_draw_face(W, H)
 	if player.dead and _dead_t > 0.3:
 		var k := clampf((_dead_t - 0.3) * 3.0, 0.0, 1.0)
 		var s := _death_tex.get_size() * 0.62 * lerpf(2.2, 1.0, k * k)
@@ -132,7 +159,7 @@ func _draw_border(W: float, H: float) -> void:
 
 func _draw_crosshair(W: float, H: float) -> void:
 	var ch := int(Settings.get_v("crosshair"))
-	if ch >= 3 or player.dead or show_map:
+	if ch >= 3 or player.dead or show_map or player.gutting:
 		return
 	var c := Vector2(W, H) * 0.5
 	var col := Color(1.0, 0.15, 0.15, 0.9)
@@ -210,9 +237,22 @@ func _draw_keys() -> void:
 			x += 20
 
 
+func _ammo_state() -> int:
+	## 0 fine, 1 low, 2 empty (for the current weapon)
+	var wp := player.weapons
+	var d := wp.cur()
+	var total := wp.mag_count() + wp.reserve() if String(d["style"]) != "heat" else wp.reserve()
+	if total <= 0:
+		return 2
+	var low := maxi(int(d["mag"]), 8) if String(d["style"]) != "heat" else 60
+	return 1 if total <= low else 0
+
+
 func _draw_ammo(W: float, H: float) -> void:
 	var wp := player.weapons
 	var d := wp.cur()
+	var kind := String(d["ammo"])
+	var kc: Color = Pickup.AMMO_COLOR.get(kind, UI.BONE)
 	var right := W - 14.0
 	var big := ""
 	var small := ""
@@ -221,23 +261,143 @@ func _draw_ammo(W: float, H: float) -> void:
 	else:
 		big = str(wp.mag_count())
 		small = "/%d" % wp.reserve()
+	var st := _ammo_state()
+	var flash_on := fmod(Time.get_ticks_msec() * 0.001, 0.5) < 0.3
 	var bw := UI.text_width("anton", big, 40)
 	var sw := UI.text_width("anton", small, 20) if small != "" else 0.0
 	var col := Color(1, 0.3, 0.25) if (String(d["style"]) != "heat" and wp.mag_count() == 0) else UI.BONE
 	UI.text(self, "anton", Vector2(right - sw - bw - 4, H - 58), big, col, 40)
 	if small != "":
-		UI.text(self, "anton", Vector2(right - sw, H - 40), small, Color(0.75, 0.7, 0.7), 20)
-	var name := String(d["name"])
-	UI.text(self, "term", Vector2(right - UI.text_width("term", name, 16), H - 74), name, UI.BONE, 16)
+		UI.text(self, "anton", Vector2(right - sw, H - 40), small, kc.lerp(UI.BONE, 0.35), 20)
+	# weapon name with the colour chip of the ammo it eats
+	var label := "%s  %s" % [String(d["name"]), kind.to_upper()]
+	var lw := UI.text_width("term", label, 16)
+	UI.text(self, "term", Vector2(right - lw, H - 76), label, UI.BONE, 16)
+	draw_rect(Rect2(right - lw - 13, H - 71, 8, 8), kc)
+	# all four reserves at a glance; the one in use is boxed
+	var x := right
+	for k in ["cells", "rockets", "shells", "bullets"]:
+		var n: int = int(wp.ammo.get(k, 0))
+		var txt := str(n)
+		var tw := UI.text_width("term", txt, 16)
+		var c: Color = Pickup.AMMO_COLOR[k]
+		var a := 1.0 if n > 0 else 0.35
+		x -= tw
+		UI.text(self, "term", Vector2(x, H - 96), txt, Color(UI.BONE, a), 16)
+		x -= 11
+		draw_rect(Rect2(x, H - 91, 7, 7), Color(c, a))
+		if k == kind:
+			draw_rect(Rect2(x - 3, H - 97, tw + 16, 18), Color(c, 0.9), false, 1.0)
+		x -= 12
+	var status := ""
+	var scol := UI.ACID
 	if wp.state == "reload":
-		UI.text(self, "term", Vector2(right - UI.text_width("term", "RELOADING", 16), H - 90), "RELOADING", UI.ACID, 16)
+		status = "RELOADING"
+	elif wp.current == "plasma" and wp.overheat:
+		status = "OVERHEAT"
+		scol = Color(1, 0.3, 0.2)
+	elif st == 2:
+		status = "OUT OF AMMO - FIND " + kind.to_upper() if flash_on else ""
+		scol = Color(1, 0.25, 0.2)
+	elif st == 1:
+		status = "LOW AMMO" if flash_on else ""
+		scol = kc
+	if status != "":
+		UI.text(self, "term", Vector2(right - UI.text_width("term", status, 16), H - 116), status, scol, 16)
 	if wp.current == "plasma":
 		var hk := wp.heat / 100.0
 		var r2 := Rect2(right - 90, H - 16, 90, 5)
 		draw_rect(r2.grow(1), Color(0, 0, 0, 0.7))
 		draw_rect(Rect2(r2.position, Vector2(90 * hk, 5)), Color(0.3, 0.9, 1.0) if not wp.overheat else Color(1, 0.2, 0.1))
-		if wp.overheat:
-			UI.text(self, "term", Vector2(right - UI.text_width("term", "OVERHEAT", 16), H - 90), "OVERHEAT", Color(1, 0.3, 0.2), 16)
+
+
+## When ammo runs low, point at the nearest pickup of the right kind.
+func _draw_ammo_marker(W: float, H: float) -> void:
+	if player.dead or show_map or player.gutting or level == null:
+		return
+	if _ammo_state() == 0:
+		return
+	var kind := String(player.weapons.cur()["ammo"])
+	var best: Node = null
+	var bd := 60.0
+	for pk in level.pickups:
+		if not is_instance_valid(pk):
+			continue
+		var k: String = Pickup.AMMO_KIND.get(pk.ptype, "")
+		if k != kind and k != "all":
+			continue
+		var dd: float = pk.global_position.distance_to(player.global_position)
+		if dd < bd:
+			bd = dd
+			best = pk
+	if best == null:
+		return
+	var cam: Camera3D = player.camera
+	var wp: Vector3 = best.global_position + Vector3(0, 0.6, 0)
+	var vp_size := Vector2(cam.get_viewport().get_visible_rect().size)
+	var sp := cam.unproject_position(wp) / vp_size * Vector2(W, H)
+	var behind := cam.is_position_behind(wp)
+	var c := Vector2(W, H) * 0.5
+	var margin := 40.0
+	var on_screen := not behind and Rect2(margin, margin, W - margin * 2, H - margin * 2).has_point(sp)
+	if not on_screen:
+		var dir := (sp - c) if not behind else (c - sp)
+		if dir.length() < 1.0:
+			dir = Vector2(0, 1)
+		dir = dir.normalized()
+		var sx := (W * 0.5 - margin) / maxf(absf(dir.x), 0.001)
+		var sy := (H * 0.5 - margin) / maxf(absf(dir.y), 0.001)
+		sp = c + dir * minf(sx, sy)
+	var col: Color = Pickup.AMMO_COLOR[kind]
+	var bob := sin(Time.get_ticks_msec() * 0.008) * 3.0
+	var p := sp + Vector2(0, bob)
+	var s := 7.0
+	draw_colored_polygon(PackedVector2Array([p + Vector2(0, -s), p + Vector2(s, 0), p + Vector2(0, s), p + Vector2(-s, 0)]), Color(0, 0, 0, 0.6))
+	draw_colored_polygon(PackedVector2Array([p + Vector2(0, -s + 2), p + Vector2(s - 2, 0), p + Vector2(0, s - 2), p + Vector2(-s + 2, 0)]), col)
+	var txt := "%s %dM" % [kind.to_upper(), int(bd)]
+	UI.text_centered(self, "term", p.x, p.y + 9, txt, col, 16)
+
+
+func _draw_gut_prompt(W: float, H: float) -> void:
+	var f = player.finisher
+	if f == null or f.active() or f.available == null or player.dead or show_map:
+		return
+	var pulse := 0.65 + 0.35 * sin(Time.get_ticks_msec() * 0.012)
+	var key := Settings.bind_label("melee").split(" / ")[0]
+	UI.text_centered(self, "anton", W * 0.5, H * 0.5 + 18, "[%s] GUT" % key, Color(1, 0.12, 0.08, pulse), 24)
+
+
+func _draw_splats(W: float, H: float) -> void:
+	for sp in _splats:
+		var a := clampf(float(sp[2]) / 1.2, 0.0, 1.0) * 0.7
+		var col := Color(0.42, 0.0, 0.03, a)
+		var c := Vector2(sp[0].x * W, sp[0].y * H)
+		var r := float(sp[1])
+		var rnd := RandomNumberGenerator.new()
+		rnd.seed = int(sp[4])
+		draw_circle(c, r, col)
+		for k in 3:
+			var o := Vector2(rnd.randf_range(-1, 1), rnd.randf_range(-1, 1)) * r * 1.2
+			draw_circle(c + o, r * rnd.randf_range(0.15, 0.4), col)
+		for k in 2:
+			var dx := rnd.randf_range(-0.6, 0.6) * r
+			var dw := r * rnd.randf_range(0.12, 0.22)
+			draw_rect(Rect2(c.x + dx - dw * 0.5, c.y, dw, float(sp[3]) * rnd.randf_range(0.5, 1.0)), col)
+
+
+func _draw_face(W: float, H: float) -> void:
+	var tex: Texture2D
+	var src: Rect2
+	if _face_kind == 0:
+		tex = Mat.tex("cr_snirby_face")
+		src = Rect2(Vector2(0.1, 0.15) * tex.get_size(), Vector2(0.8, 0.75) * tex.get_size())
+	else:
+		tex = Mat.tex("cr_gorb_black")
+		src = Rect2(Vector2(0.02, 0.48) * tex.get_size(), Vector2(0.5, 0.5) * tex.get_size())
+	var s := H * 1.3
+	var r := Rect2(Vector2(W * 0.5 - s * 0.5 + randf_range(-8, 8), H * 0.5 - s * 0.5 + randf_range(-8, 8)), Vector2(s, s))
+	draw_rect(Rect2(0, 0, W, H), Color(0, 0, 0, 0.55))
+	draw_texture_rect_region(tex, r, src, Color(1.0, 0.6, 0.55, 0.8))
 
 
 func _draw_automap(area: Rect2) -> void:
@@ -278,6 +438,20 @@ func _draw_automap(area: Rect2) -> void:
 					draw_line(a, b, wall, 1.0)
 				elif abs(lv.floor_h[j] - lv.floor_h[i]) > 0.3 and j > i:
 					draw_line(a, b, step, 1.0)
+	# ammo the player has seen
+	for pk in lv.pickups:
+		if not is_instance_valid(pk):
+			continue
+		var kind: String = Pickup.AMMO_KIND.get(pk.ptype, "")
+		if kind == "":
+			continue
+		var cell: Vector2i = lv.cell_of(pk.global_position)
+		var ci := lv.idx_of(cell)
+		if ci < 0 or lv.seen[ci] == 0:
+			continue
+		var mp := org + Vector2(pk.global_position.x, pk.global_position.z) / Level.S * scale
+		if area.has_point(mp):
+			draw_rect(Rect2(mp - Vector2(2, 2), Vector2(4, 4)), Pickup.AMMO_COLOR[kind])
 	# player arrow
 	var fwd := Vector2(-sin(player.yaw), -cos(player.yaw))
 	var side := Vector2(-fwd.y, fwd.x)

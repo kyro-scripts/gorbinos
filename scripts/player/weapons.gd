@@ -50,6 +50,7 @@ var _bob_a := 0.0
 var _fire_held_last := false
 var _spin_speed := 0.0
 var _eject: Array = []
+var holster := 0.0            # 1 = lowered out of sight (while gutting)
 
 
 func _ready() -> void:
@@ -191,6 +192,11 @@ func _process(delta: float) -> void:
 	flash.visible = flash_t > 0.0
 	spread_bloom = move_toward(spread_bloom, 0.0, delta * 0.08)
 	_handle_heat(delta)
+	holster = move_toward(holster, 1.0 if player.gutting else 0.0, delta * (7.0 if player.gutting else 3.5))
+	if player.gutting:
+		_fire_held_last = true
+		_animate(delta)
+		return
 	_handle_input()
 	match state:
 		"lower":
@@ -509,6 +515,8 @@ func _animate(delta: float) -> void:
 		vm_parts["spin"].rotation.z += _spin_speed * delta
 	if vm_parts.has("core"):
 		vm_parts["core"].scale = Vector3.ONE * (1.0 + 0.3 * sin(Time.get_ticks_msec() * 0.02) + heat * 0.01)
+	pos += Vector3(0.03, -0.2, 0.05) * holster
+	rot += Vector3(-0.7, 0, -0.3) * holster
 	holder.position = pos
 	holder.rotation = rot
 	for k in range(_eject.size() - 1, -1, -1):

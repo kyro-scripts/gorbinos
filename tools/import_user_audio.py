@@ -3,11 +3,14 @@
   vag.wav    -> pistol_fire, enemy_gun (pitched down)
   an944.wav  -> mg_fire; layered and pitched down for shotgun_fire / ssg_fire
   canthide / runpig / seeyou -> voice_* (enemy alert lines)
+  idk.wav (or idk.mp3) -> enemy_shot: every enemy gun / spit / projectile shot
 
 Run: python3 tools/import_user_audio.py   (needs numpy + scipy)
 To use different sounds, replace the files in tools/user_audio/ and rerun.
 """
 import os
+import subprocess
+import tempfile
 import wave
 import numpy as np
 from scipy import signal
@@ -74,3 +77,17 @@ save("ssg_fire", np.tanh(2.0 * mix(pitch(an, 0.6), pitch(vag, 0.55) * 0.8,
                                    thump(0.7, 120, 38) * 0.9)))
 for v in ("canthide", "runpig", "seeyou"):
     save("voice_" + v, load(v + ".wav"))
+
+# enemy shooting sound: idk.wav, or idk.mp3 decoded with ffmpeg
+if os.path.exists(os.path.join(SRC, "idk.wav")):
+    save("enemy_shot", load("idk.wav"))
+elif os.path.exists(os.path.join(SRC, "idk.mp3")):
+    with tempfile.TemporaryDirectory() as td:
+        tmp = os.path.join(td, "idk.wav")
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", os.path.join(SRC, "idk.mp3"),
+                        "-ac", "1", "-ar", str(SR), "-sample_fmt", "s16", tmp], check=True)
+        with wave.open(tmp) as w:
+            x = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float64) / 32768.0
+    save("enemy_shot", x)
+else:
+    print("no tools/user_audio/idk.wav or idk.mp3: enemies keep their built-in shot sounds")

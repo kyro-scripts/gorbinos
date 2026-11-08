@@ -24,16 +24,16 @@ func _process(delta: float) -> void:
 	_voice_cool -= delta
 
 
-## A whispered line from an enemy. Rate limited so it stays unsettling
-## rather than repetitive. Returns true if a line was played.
+## A whispered line from an enemy. Rate limited (a few seconds between
+## lines, shared by all enemies). Returns true if a line was played.
 func voice_line(pos: Vector3, pitch := 1.0, force := false) -> bool:
 	if _voice_cool > 0.0 and not force:
 		return false
-	_voice_cool = randf_range(9.0, 16.0)
+	_voice_cool = randf_range(3.5, 7.0)
 	var choices := VOICES.filter(func(v): return v != _last_voice)
 	var v: String = choices[randi() % choices.size()]
 	_last_voice = v
-	play_at(v, pos, 8.0, pitch)
+	play_at(v, pos, 8.0, pitch * randf_range(0.88, 1.08))
 	return true
 
 

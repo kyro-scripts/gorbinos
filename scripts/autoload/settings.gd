@@ -6,7 +6,7 @@ const PATH := "user://settings.cfg"
 const ACTIONS := [
 	["move_forward", "MOVE FORWARD"], ["move_back", "MOVE BACK"], ["move_left", "STRAFE LEFT"],
 	["move_right", "STRAFE RIGHT"], ["jump", "JUMP"], ["sprint", "SPRINT"], ["fire", "FIRE"],
-	["use", "USE / OPEN"], ["reload", "RELOAD"], ["weapon_next", "NEXT WEAPON"],
+	["use", "USE / OPEN"], ["melee", "KNIFE / GUT"], ["reload", "RELOAD"], ["weapon_next", "NEXT WEAPON"],
 	["weapon_prev", "PREV WEAPON"], ["weapon_last", "LAST WEAPON"], ["weapon_1", "PISTOL"],
 	["weapon_2", "SHOTGUN"], ["weapon_3", "DOUBLE SHOTGUN"], ["weapon_4", "MACHINE GUN"],
 	["weapon_5", "ROCKET LAUNCHER"], ["weapon_6", "PLASMA"], ["automap", "AUTOMAP"],
@@ -24,6 +24,7 @@ const DEFAULT_BINDS := {
 	"fire": ["m:%d" % MOUSE_BUTTON_LEFT, "k:%d" % KEY_CTRL],
 	"use": ["k:%d" % KEY_E, "m:%d" % MOUSE_BUTTON_RIGHT],
 	"reload": ["k:%d" % KEY_R],
+	"melee": ["k:%d" % KEY_F, "m:%d" % MOUSE_BUTTON_MIDDLE],
 	"weapon_next": ["m:%d" % MOUSE_BUTTON_WHEEL_DOWN],
 	"weapon_prev": ["m:%d" % MOUSE_BUTTON_WHEEL_UP],
 	"weapon_last": ["k:%d" % KEY_Q],

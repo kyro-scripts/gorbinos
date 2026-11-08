@@ -82,6 +82,14 @@ var burst_left := 0
 var boss_phase := 0
 var summoned := false
 var col_shape: CollisionShape3D
+var gutted := false          # held by the player's knife: frozen, then dies
+var gut_phase := ""          # set by the finisher: stab, slice, rip, yank
+var gut_k := 0.0
+var _gut_wound: Node3D
+var _gut_base := Vector3.ONE
+var _whisper_t := 6.0
+var _twitch_t := 2.0
+var _twitch := 0.0
 var _skin_mat: ShaderMaterial
 var _fly_snd_t := 0.0
 
@@ -145,7 +153,7 @@ func alert() -> void:
 	state = "chase"
 	attack_timer = randf_range(0.6, 1.6) / Game.diff()["aggro"]
 	var spoke := false
-	if not def.get("boss", false) and randf() < 0.45:
+	if not def.get("boss", false) and randf() < 0.8:
 		spoke = Audio.voice_line(center_point(), {"gorbino": 0.9, "snirby": 1.12}.get(def["model"], 1.35))
 	if not spoke:
 		Audio.play_at(def["sight"], center_point(), 2.0 if def.get("boss", false) else 0.0, float(def.get("pitch", 1.0)) * randf_range(0.92, 1.08))
@@ -167,6 +175,9 @@ func _physics_process(delta: float) -> void:
 			_skin_mat.set_shader_parameter("flash", 0.0)
 	if dead:
 		_animate_death(delta)
+		return
+	if gutted:
+		_gut_animate(delta)
 		return
 	var pl := _player()
 	if pl == null or not is_instance_valid(pl):
@@ -194,6 +205,12 @@ func _physics_process(delta: float) -> void:
 		_animate(delta, ppos)
 		return
 	# --- alerted
+	# keep whispering at the player while hunting them
+	_whisper_t -= delta
+	if _whisper_t <= 0.0:
+		_whisper_t = randf_range(5.0, 11.0)
+		if not player_dead and dist < 32.0 and not def.get("boss", false):
+			Audio.voice_line(center_point(), {"gorbino": 0.9, "snirby": 1.12}.get(def["model"], 1.35))
 	los_timer -= delta
 	if los_timer <= 0.0:
 		los_timer = 0.18 + randf() * 0.08
@@ -356,6 +373,97 @@ func _move(want: Vector3, delta: float) -> void:
 	global_position = p
 
 
+# ------------------------------------------------------------------ sounds
+## Every enemy shot (guns, spit, projectiles) uses the player-supplied
+## enemy_shot sound when it exists, otherwise the built-in one.
+func _shot_sound(fallback: String, pos: Vector3, vol := 0.0, pitch := 1.0) -> void:
+	if Audio.get_sound("enemy_shot") != null:
+		Audio.play_at("enemy_shot", pos, vol, pitch * randf_range(0.94, 1.06))
+	else:
+		Audio.play_at(fallback, pos, vol, pitch)
+
+
+# ------------------------------------------------------------------ gutting
+func can_be_gutted() -> bool:
+	return not dead and not gutted and not flying and not def.get("boss", false)
+
+
+## The player's knife goes in: freeze, face the player and open a wound.
+func begin_gutted(pl: Node) -> void:
+	gutted = true
+	state = "gutted"
+	alerted = true
+	vel = Vector3.ZERO
+	knock = Vector3.ZERO
+	var to_p: Vector3 = pl.global_position - global_position
+	yaw = atan2(-to_p.x, -to_p.z)
+	rotation.y = yaw
+	var a: Array = Creatures.gut_anchor(model)
+	var pivot: Node3D = a[0]
+	_gut_base = Vector3(a[2], a[2] * 0.5, 0.06)
+	_gut_wound = Models.pivot(a[1], Vector3(rad_to_deg(a[3]), 0, 0))
+	pivot.add_child(_gut_wound)
+	var m := Mat.make("gore_wound", {"origin": true, "shade": 0.3, "gloss": 1.0, "fullbright": 0.2})
+	_gut_wound.add_child(Models.mi(Creatures.face_mesh(), m))
+	_gut_wound.scale = Vector3(0.001, 0.001, 0.001)
+
+
+## World position of the cut (where the knife goes).
+func gut_point() -> Vector3:
+	if _gut_wound and is_instance_valid(_gut_wound):
+		return _gut_wound.global_position
+	return center_point()
+
+
+func blood_color() -> Color:
+	return Color(0.15, 0.3, 0.05) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
+
+
+func _gut_animate(delta: float) -> void:
+	anim_t += delta
+	var k := gut_k
+	var w := 0.0
+	var h := 0.0
+	var shake := 0.0
+	match gut_phase:
+		"stab":
+			w = 0.18 * k
+			h = 0.12 * k
+			shake = 0.05
+		"slice":
+			w = 0.18 + 0.82 * k
+			h = 0.12 + 0.1 * k
+			shake = 0.03
+		"rip":
+			w = 1.0 + 0.15 * k
+			h = 0.22 + 0.78 * k
+			shake = 0.045
+		_:
+			w = 1.15
+			h = 1.0
+			shake = 0.02
+	if _gut_wound:
+		_gut_wound.scale = Vector3(_gut_base.x * w, _gut_base.y * h, _gut_base.z * (0.5 + h))
+	var sc := float(def.get("scale", 1.0))
+	model.position = Vector3(randf_range(-1, 1), randf_range(-0.3, 0.5), randf_range(-1, 1)) * shake * sc
+	Creatures.animate(model, anim_t * 2.5, delta, {"pain": gut_phase != "stab" or k > 0.5, "windup": gut_phase == "stab" or gut_phase == "rip", "move": 0.0})
+	if gut_phase == "rip":
+		var body: Node3D = parts["body"]
+		body.rotation.x = lerpf(0.0, 0.35, k)
+	# a Snirby throws its beak up and screams
+	if parts.has("beak"):
+		parts["beak"].rotation.x = 1.15 + sin(anim_t * 31.0) * 0.06
+
+
+## The finisher ends: the creature dies where it stands, opened up.
+func gut_finish(dir: Vector3) -> void:
+	if dead:
+		return
+	model.position = Vector3.ZERO
+	hp = 0.0
+	_die(0.0, "gut", dir)
+
+
 # ------------------------------------------------------------------ attacks
 func _muzzle_point() -> Vector3:
 	var sc := float(def.get("scale", 1.0))
@@ -383,7 +491,7 @@ func _do_attack(pl: Node, dist: float) -> void:
 			else:
 				Audio.play_at("gorb_bite", center_point(), -6.0, 0.8)
 		"hitscan":
-			Audio.play_at("enemy_gun", mp, 0.0, randf_range(0.9, 1.05))
+			_shot_sound("enemy_gun", mp, 0.0, randf_range(0.9, 1.05))
 			Fx.light(level, mp, Color(1, 0.8, 0.3), 6.0, 1.2, 0.08)
 			for k in int(def["count"]):
 				var dir := (target - mp).normalized()
@@ -416,7 +524,7 @@ func _fire_proj(mp: Vector3, target: Vector3, pl: Node) -> void:
 	# light leading of the target
 	var lead: Vector3 = pl.velocity * (mp.distance_to(target) / spd) * 0.35 if "velocity" in pl else Vector3.ZERO
 	var aim := (target + lead - mp).normalized()
-	Audio.play_at("proj_launch" if def["model"] == "gorbino" else "snirb_spit", mp, 0.0, float(def.get("pitch", 1.0)))
+	_shot_sound("proj_launch" if def["model"] == "gorbino" else "snirb_spit", mp, 0.0, float(def.get("pitch", 1.0)))
 	for k in n:
 		var off := 0.0 if n == 1 else (float(k) / (n - 1) - 0.5) * 2.0 * spread
 		var dir := aim.rotated(Vector3.UP, off)
@@ -441,7 +549,7 @@ func _boss_attack(pl: Node, mp: Vector3, target: Vector3) -> void:
 				var p := Projectile.new()
 				level.fx_root().add_child(p)
 				p.launch(level, self, mp, (target - mp).normalized().rotated(Vector3.UP, off) * 18.0, "spit", 12.0, false)
-			Audio.play_at("snirb_spit", mp, 4.0, 0.5)
+			_shot_sound("snirb_spit", mp, 4.0, 0.5)
 		1:
 			# summon snirbies
 			Audio.play_at("boss_roar", center_point(), 4.0, 0.6)
@@ -472,7 +580,7 @@ func _boss_attack(pl: Node, mp: Vector3, target: Vector3) -> void:
 				p.launch(level, self, mp, dir.normalized() * 10.0, "purple", 16.0, false)
 				p.homing = 2.5
 				p.target = pl
-			Audio.play_at("proj_launch", mp, 4.0, 0.5)
+			_shot_sound("proj_launch", mp, 4.0, 0.5)
 		3:
 			# fire rain: big fireballs with splash
 			for k in 3:
@@ -482,12 +590,12 @@ func _boss_attack(pl: Node, mp: Vector3, target: Vector3) -> void:
 				p.launch(level, self, mp, (t2 - mp).normalized() * 16.0, "fire", 20.0, false)
 				p.splash = 40.0
 				p.splash_r = 3.0
-			Audio.play_at("rocket_fire", mp, 2.0, 0.6)
+			_shot_sound("rocket_fire", mp, 2.0, 0.6)
 
 
 # ------------------------------------------------------------------ damage
 func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") -> void:
-	if dead:
+	if dead or gutted:
 		return
 	hp -= amount
 	flash_t = 0.07
@@ -496,7 +604,7 @@ func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") ->
 	var kb := amount * (0.06 if kind != "explosion" else 0.12) / sqrt(max_hp / 60.0)
 	if not def.get("boss", false):
 		knock += Vector3(dir.x, 0, dir.z) * minf(kb, 9.0)
-	var bc := Color(0.15, 0.3, 0.05) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
+	var bc := blood_color()
 	Fx.blood(level, center_point() - dir * 0.2, bc, clampi(int(amount / 6.0), 2, 10))
 	if not alerted:
 		alert()
@@ -549,7 +657,19 @@ func _animate_death(delta: float) -> void:
 	Creatures.death_pose(model, k)
 	if def.get("boss", false) and death_t < 2.5 and fmod(death_t, 0.35) < delta:
 		Fx.explosion(level, global_position + Vector3(randf_range(-3, 3), randf_range(1, 6), randf_range(-3, 3)), false)
-	if death_t > 3.0:
+	# the dead don't lie still: now and then a corpse jerks
+	if k >= 1.0 and not def.get("boss", false):
+		_twitch_t -= delta
+		if _twitch_t <= 0.0:
+			_twitch_t = randf_range(1.5, 6.0)
+			_twitch = 1.0
+			if gutted and randf() < 0.5:
+				Audio.play_at("gut_drip", global_position + Vector3(0, 0.3, 0), -8.0, randf_range(0.8, 1.2))
+		_twitch = move_toward(_twitch, 0.0, delta * 5.0)
+		parts["body"].rotation.y = sin(death_t * 70.0) * 0.06 * _twitch
+		model.position.y = absf(sin(death_t * 45.0)) * 0.02 * _twitch
+	if death_t > (3.0 if def.get("boss", false) else 40.0):
+		parts["body"].rotation.y = 0.0
 		set_physics_process(false)
 
 
@@ -586,13 +706,7 @@ func restore(d: Dictionary) -> void:
 		model.visible = not gibbed
 		death_t = 10.0
 		if not gibbed:
-			if def["model"] == "gorbino":
-				model.rotation.x = deg_to_rad(80)
-				model.position.y = 0.25 * float(def.get("scale", 1.0))
-				parts["body"].scale.y = 0.75
-			else:
-				model.rotation.z = deg_to_rad(85)
-				model.position.y = 0.2 * float(def.get("scale", 1.0))
+			Creatures.death_pose(model, 1.0)
 		set_physics_process(false)
 	elif d.get("alerted", false):
 		alerted = true

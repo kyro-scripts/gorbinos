@@ -77,6 +77,11 @@ func _ready() -> void:
 	menu.emptied.connect(_resume)
 	add_child(menu)
 	_death_stamp = load("res://assets/ui/death.png")
+	var dr := Dread.new()
+	dr.world = self
+	dr.level = level
+	dr.player = player
+	add_child(dr)
 	if Game.pending_restore != null:
 		_restore(Game.pending_restore)
 		Game.pending_restore = null
@@ -93,6 +98,42 @@ func _ready() -> void:
 		add_child(autopilot)
 	if OS.get_cmdline_user_args().has("--lineup"):
 		_debug_lineup()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--guttest"):
+			_debug_guttest(a.substr(10) if a.length() > 10 else "green")
+		elif a == "--facetest":
+			hud.flash_face(100.0)
+			_debug_shots("face", [2.0], true)
+		elif a == "--armshots":
+			_debug_shots("arm", [0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0, 6.6, 7.2, 7.8, 8.4], true)
+
+
+## Debug: put a creature in reach, gut it, and screenshot every phase.
+func _debug_guttest(etype: String) -> void:
+	var yaw := level.start_yaw
+	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+	var p: Vector3 = level.player_start + fwd * 1.9
+	p.y = level.floor_at(p)
+	var en := Enemy.new()
+	level.entity_root().add_child(en)
+	en.setup(etype, level, p, yaw + PI)
+	level.enemies.append(en)
+	Game.cheats["god"] = true
+	await get_tree().create_timer(1.0).timeout
+	player.finisher.start(en)
+	_debug_shots("gut", [0.05, 0.3, 0.42, 0.65, 0.95, 1.25, 1.5, 1.8, 2.05, 2.3, 2.6, 3.2, 4.5], true)
+
+
+func _debug_shots(tag: String, times: Array, quit_after: bool) -> void:
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	var t0 := 0.0
+	for i in times.size():
+		await get_tree().create_timer(float(times[i]) - t0).timeout
+		t0 = float(times[i])
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("user://shots/%s_%02d.png" % [tag, i])
+	if quit_after:
+		get_tree().quit()
 
 
 ## Debug: stand one of every creature in front of the player, frozen, for screenshots.
@@ -200,6 +241,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("automap"):
 		hud.show_map = not hud.show_map
 	elif event.is_action_pressed("quicksave"):
+		if player.gutting:
+			return
 		save_to("quick")
 		hud.message("QUICKSAVED.")
 	elif event.is_action_pressed("quickload"):

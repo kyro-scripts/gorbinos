@@ -66,7 +66,7 @@ static func telefog(level: Node, pos: Vector3) -> void:
 
 
 ## Spurt of coloured chunks (blood). Gorbinos bleed orange goo, Snirbies blue.
-static func blood(level: Node, pos: Vector3, color: Color, amount: int) -> void:
+static func blood(level: Node, pos: Vector3, color: Color, amount: int, size := 0.09) -> void:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.emitting = false
@@ -81,11 +81,15 @@ static func blood(level: Node, pos: Vector3, color: Color, amount: int) -> void:
 	p.scale_amount_min = 0.6
 	p.scale_amount_max = 1.2
 	var qm := QuadMesh.new()
-	qm.size = Vector2(0.09, 0.09)
+	qm.size = Vector2(size, size)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = color
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	# droplets that fly right into the lens dissolve instead of filling the screen
+	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+	mat.distance_fade_min_distance = 0.3
+	mat.distance_fade_max_distance = 0.65
 	qm.material = mat
 	p.mesh = qm
 	level.fx_root().add_child(p)

@@ -54,6 +54,7 @@ var flow_timer := 0.0
 var has_fliers := false
 var enemies: Array = []
 var pickups: Array = []
+var fog_params := Vector4.ZERO      # as sent to the shaders (Dread dims the light boost)
 var barrels: Array = []
 var props: Array = []
 var checkpoints: Array = []
@@ -495,8 +496,10 @@ func apply_globals() -> void:
 	RenderingServer.global_shader_parameter_set("level_info", Vector4(S, W, H, 0))
 	var fc: Color = data.get("fog", Color(0, 0, 0, 1))
 	RenderingServer.global_shader_parameter_set("fog_color", Vector4(fc.r, fc.g, fc.b, fc.a))
-	RenderingServer.global_shader_parameter_set("fog_params", Vector4(float(data.get("fog_start", 18.0)), float(data.get("fog_end", 70.0)),
-		float(data.get("light_boost", 1.5)), float(data.get("diminish", 0.03))))
+	# a little darker than the map data asks for: the far end of every room fades out sooner
+	fog_params = Vector4(float(data.get("fog_start", 18.0)) * 0.85, float(data.get("fog_end", 70.0)) * 0.85,
+		float(data.get("light_boost", 1.5)), float(data.get("diminish", 0.03)) * 1.15)
+	RenderingServer.global_shader_parameter_set("fog_params", fog_params)
 
 
 func _build_secrets() -> void:

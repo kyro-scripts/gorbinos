@@ -30,6 +30,9 @@ func _ready() -> void:
 				Game.inventory["weapons"] = ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma"]
 				Game.inventory["ammo"] = {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300}
 				Game.inventory["mags"] = {"pistol": 12, "shotgun": 6, "ssg": 2, "mg": 60, "rocket": 4}
+			if args.has("--lowammo"):
+				Game.inventory["ammo"] = {"bullets": 0, "shells": 0, "rockets": 0, "cells": 0}
+				Game.inventory["mags"] = {"pistol": 3}
 			var lv := a.substr(8)
 			if lv == "test":
 				Game.level_override = load("res://scripts/levels/test_level.gd").DATA

@@ -363,6 +363,22 @@ static func snotling(opts := {}) -> Node3D:
 	return root
 
 
+# ================================================================== gutting
+## Where a knife opens this creature: [pivot node, position in that pivot,
+## wound width]. The wound is parented to the pivot so it squashes and
+## falls with the body.
+static func gut_anchor(root: Node3D) -> Array:
+	var p: Dictionary = root.get_meta("parts")
+	# low on the belly, under the face; the last value tilts the wound to the surface
+	match p.get("kind", ""):
+		"gorbino":
+			return [p["squash"], Vector3(0, (0.24 - GORB_SQUASH_Y) * GORB_H, -0.35 * GORB_H), 0.55, -0.72]
+		"snirby":
+			return [p["puff"], Vector3(0, -0.33, -0.37), 0.42, -0.72]
+		_:
+			return [p["puff"], Vector3(0, -0.3, -0.38), 0.4, -0.7]
+
+
 # ================================================================== animation
 ## st keys: move (0..1), windup, pain, blink, fly, look (Vector3, model local)
 static func animate(root: Node3D, t: float, delta: float, st: Dictionary) -> void:

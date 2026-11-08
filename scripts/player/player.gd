@@ -21,6 +21,11 @@ var world: Node
 var head: Node3D            # top-level camera rig
 var camera: Camera3D
 var weapons: Weapons
+var offhand: Offhand
+var finisher: Finisher
+var gutting := false              # mid-finisher: locked in place and untouchable
+var gut_move_to := Vector3.INF
+var gut_crouch := 0.0
 var yaw := 0.0
 var pitch := 0.0
 var health := 100
@@ -83,6 +88,13 @@ func _ready() -> void:
 	weapons = Weapons.new()
 	weapons.player = self
 	camera.add_child(weapons)
+	offhand = Offhand.new()
+	offhand.player = self
+	camera.add_child(offhand)
+	finisher = Finisher.new()
+	finisher.player = self
+	finisher.offhand = offhand
+	add_child(finisher)
 
 
 func setup(lvl: Level, p_world: Node, pos: Vector3, p_yaw: float, inventory: Dictionary) -> void:
@@ -125,7 +137,7 @@ func aim_basis() -> Basis:
 
 
 func look(rel: Vector2) -> void:
-	if dead:
+	if dead or gutting:
 		return
 	var s := Settings.mouse_degrees_per_pixel()
 	yaw -= deg_to_rad(rel.x * s)
@@ -157,6 +169,20 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0, 10 * delta)
 		velocity.z = move_toward(velocity.z, 0, 10 * delta)
 		velocity.y -= GRAVITY * delta
+		move_and_slide()
+		_cur_pos = global_position
+		return
+	if gutting:
+		# the finisher holds the player: step to the creature, no input
+		var to := Vector3.ZERO
+		if gut_move_to != Vector3.INF:
+			to = gut_move_to - global_position
+			to.y = 0.0
+		var sp := minf(to.length() * 8.0, 7.0)
+		var dir := to.normalized() if to.length() > 0.02 else Vector3.ZERO
+		velocity.x = dir.x * sp
+		velocity.z = dir.z * sp
+		velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITY * delta
 		move_and_slide()
 		_cur_pos = global_position
 		return
@@ -304,7 +330,9 @@ func _update_head(f: float) -> void:
 	var eye := EYE
 	if dead:
 		eye = lerpf(EYE, 0.35, clampf(death_t * 2.5, 0.0, 1.0))
-	head.global_position = p + Vector3(0, eye + step_offset - land_dip, 0)
+	if not gutting:
+		gut_crouch = move_toward(gut_crouch, 0.0, get_process_delta_time() * 2.5)
+	head.global_position = p + Vector3(0, eye + step_offset - land_dip - gut_crouch, 0)
 	head.rotation = Vector3(0, yaw, 0)
 
 
@@ -347,7 +375,7 @@ func teleport_to(pos: Vector3) -> void:
 
 # ------------------------------------------------------------------ damage
 func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") -> void:
-	if dead:
+	if dead or gutting:
 		return
 	if source != self and source != null:
 		amount *= float(Game.diff()["dmg"])

@@ -14,6 +14,7 @@
    LEFT CLICK ..... FIRE              E / RIGHT CLICK . USE (DOORS, SWITCHES, LIFTS)
    SPACE .......... JUMP              SHIFT ........... SPRINT
    R .............. RELOAD / VENT     1-6 / WHEEL ..... WEAPONS
+   F / MIDDLE ..... KNIFE: SLASH, OR GUT A CREATURE UP CLOSE
    Q .............. LAST WEAPON       TAB ............. AUTOMAP
    F5 / F9 ........ QUICK SAVE/LOAD   ESC ............. MENU
    All keys can be rebound in OPTIONS > CONTROLS.
@@ -24,6 +25,8 @@
    * The plasma rifle overheats. Press RELOAD to vent it early.
    * Rockets damage you too, and push you.
    * Checkpoints save your progress when you touch them.
+   * Nothing can hurt you while you are gutting something.
+   * Ammo colours: yellow bullets, red shells, green rockets, cyan cells.
 
  DIFFICULTY
    MERCY .......... less damage taken, double ammo
