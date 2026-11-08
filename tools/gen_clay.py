@@ -386,8 +386,60 @@ def app_icon():
     save(out, "app_icon_256.png")
 
 
+def hud_jar():
+    """Specimen jar for the health display: glass with highlights and
+    shiny metal caps; the interior is left mostly transparent so the HUD can
+    draw the fluid behind it.  Interior box: x 16..64, y 22..118 of 80x140."""
+    W, H = 80, 140
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    out = np.zeros((H, W, 4), np.float32)
+    # glass walls: thin rounded rim with vertical streak highlights
+    inner = (xx >= 16) & (xx < 64) & (yy >= 20) & (yy < 120)
+    wall = (xx >= 12) & (xx < 68) & (yy >= 18) & (yy < 122) & ~inner
+    out[wall] = [0.75, 0.9, 0.85, 0.55]
+    for x0, a in ((19, 0.35), (22, 0.18), (57, 0.12)):
+        m = inner & (np.abs(xx - x0) < 1.2)
+        out[m] = [1.0, 1.0, 1.0, a]
+    out[inner & (out[..., 3] == 0)] = [0.6, 0.85, 0.8, 0.07]
+    # caps: shaded cylinders in tarnished metal
+    for (y0, y1) in ((4, 22), (118, 136)):
+        h = np.zeros((H, W), np.float32)
+        m = (xx >= 8) & (xx < 72) & (yy >= y0) & (yy < y1)
+        u = (xx - 40) / 32.0
+        h[m] = np.sqrt(np.clip(1 - u[m] ** 2, 0, 1)) * 8
+        base = flesh_base(W, H, 7900 + y0, [(0, (60, 50, 40)), (0.5, (150, 130, 95)), (1, (220, 205, 170))])
+        cap = shade_height(h, base, mask=m.astype(np.float32), spec=1.0, shin=24)
+        out[m] = cap[m]
+        for bx in (14, 40, 66):
+            b = np.hypot(xx - bx, yy - (y0 + y1) / 2) < 2.2
+            out[b] = [0.2, 0.17, 0.12, 1]
+    # dark outline
+    a = (out[..., 3] > 0.3).astype(np.float32)
+    ol = np.zeros_like(a)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            ol = np.maximum(ol, np.roll(np.roll(a, dy, 0), dx, 1))
+    edge = (ol > 0) & (a == 0)
+    out[edge] = [0.03, 0.02, 0.02, 1]
+    save(out, "hud_jar.png")
+
+
+def hud_gorb():
+    """The little specimen floating in the jar: a glossy dark blob."""
+    W = H = 48
+    h = metaballs(W, H, [(24, 22, 15), (14, 36, 6), (24, 38, 6), (34, 36, 6)], 0.2, 7950) * 6
+    base = flesh_base(W, H, 7951, [(0, (10, 20, 5)), (1, (60, 95, 30))])
+    out = shade_height(h, base, spec=1.2, shin=30)
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    for ex in (-6, 6):
+        out[np.hypot(xx - (24 + ex), yy - 20) < 2.8, :3] = 0.02
+        out[np.hypot(xx - (23 + ex), yy - 19) < 1.0, :3] = 0.9
+    save(out, "hud_gorb.png")
+
+
 if __name__ == "__main__":
-    hp_lump()
+    hud_jar()
+    hud_gorb()
     death()
     ranks()
     logo()

@@ -216,9 +216,77 @@ def dr_rim(n, vel, p):
     return (np.sin(2 * np.pi * 1700 * t) * 0.5 + bandpass(noise(n), 2000, 6000)) * np.exp(-t * 80) * vel
 
 
-INST = {"lead": inst_lead, "sq": inst_sq, "bass": inst_bass, "acid": inst_acid, "pad": inst_pad,
+def inst_power(f, n, vel, p):
+    """Distorted power chord: root, fifth and octave on detuned saws."""
+    x = np.zeros(n)
+    for mult, g in ((1.0, 1.0), (1.4983, 0.8), (2.0, 0.55)):
+        x += (saw(f * mult * 1.004, n) + saw(f * mult * 0.996, n)) * g
+    x = np.tanh(x * p.get("drive", 3.5))
+    x = lowpass(x, p.get("cut", 2400), 0.9)
+    return x * adsr(n, 0.004, 0.15, 0.85, 0.04) * vel
+
+
+def inst_reese(f, n, vel, p):
+    """Detuned saw stack with a slowly moving filter (drum and bass)."""
+    x = saw(f, n) + saw(f * 1.011, n) + saw(f * 0.992, n) * 0.8
+    out = np.zeros(n)
+    blk = 256
+    zi = np.zeros(2)
+    for s0 in range(0, n, blk):
+        t = s0 / SR
+        fc = 260 + 520 * (0.5 + 0.5 * np.sin(2 * np.pi * p.get("lfo", 0.4) * t))
+        w0 = 2 * np.pi * fc / SR
+        alpha = np.sin(w0) / 2.4
+        b = np.array([(1 - np.cos(w0)) / 2, 1 - np.cos(w0), (1 - np.cos(w0)) / 2])
+        a = np.array([1 + alpha, -2 * np.cos(w0), 1 - alpha])
+        y, zi = signal.lfilter(b / a[0], a / a[0], x[s0:s0 + blk], zi=zi)
+        out[s0:s0 + blk] = y
+    return np.tanh(out * 1.4) * adsr(n, 0.02, 0.2, 0.9, 0.08) * vel
+
+
+def inst_vibes(f, n, vel, p):
+    t = np.arange(n) / SR
+    idx = 1.1 * np.exp(-t * 9)
+    x = np.sin(2 * np.pi * f * t + idx * np.sin(2 * np.pi * f * 4.0 * t))
+    x *= 1 + 0.3 * np.sin(2 * np.pi * 5.2 * t)
+    return x * np.exp(-t * 2.3) * adsr(n, 0.002, 0.1, 1.0, 0.05) * vel
+
+
+def inst_mbox(f, n, vel, p):
+    """Music box: bright FM pluck, a hair out of tune."""
+    t = np.arange(n) / SR
+    det = 1.0 + p.get("wobble", 0.004) * np.sin(2 * np.pi * 0.7 * t)
+    idx = 2.2 * np.exp(-t * 14)
+    x = np.sin(2 * np.pi * f * det * t + idx * np.sin(2 * np.pi * f * 7.0 * t))
+    x += 0.3 * np.sin(2 * np.pi * f * 2.0 * t) * np.exp(-t * 6)
+    return x * np.exp(-t * 3.2) * vel
+
+
+def inst_organ(f, n, vel, p):
+    x = sum(sine(f * h, n) * g for h, g in ((1, 1.0), (2, 0.5), (3, 0.3), (4, 0.15)))
+    x *= 1 + 0.08 * np.sin(2 * np.pi * 6.0 * np.arange(n) / SR)
+    return np.tanh(x * 0.8) * adsr(n, 0.03, 0.1, 0.9, 0.1) * vel
+
+
+INST = {"power": inst_power, "reese": inst_reese, "vibes": inst_vibes, "mbox": inst_mbox, "organ": inst_organ,
+        "lead": inst_lead, "sq": inst_sq, "bass": inst_bass, "acid": inst_acid, "pad": inst_pad,
         "bell": inst_bell, "epiano": inst_epiano, "pluck": inst_pluck}
-DRUMS = {"k": dr_kick, "s": dr_snare, "h": dr_hat, "o": dr_ohat, "c": dr_clap, "t": dr_tom, "m": dr_clang, "r": dr_rim}
+def dr_shaker(n, vel, p):
+    t = np.arange(n) / SR
+    env = np.clip(t / 0.01, 0, 1) * np.exp(-t * 35)
+    return highpass(noise(n), 5000) * env * vel * 0.5
+
+
+def dr_crash(n, vel, p):
+    t = np.arange(n) / SR
+    return highpass(noise(n), 3500) * np.exp(-t * 2.2) * vel * 0.45
+
+
+def dr_ghost(n, vel, p):
+    return dr_snare(n, vel * 0.35, p)
+
+
+DRUMS = {"a": dr_shaker, "x": dr_crash, "g": dr_ghost, "k": dr_kick, "s": dr_snare, "h": dr_hat, "o": dr_ohat, "c": dr_clap, "t": dr_tom, "m": dr_clang, "r": dr_rim}
 
 SCALES = {
     "major": [0, 2, 4, 5, 7, 9, 11], "minor": [0, 2, 3, 5, 7, 8, 10], "phrygian": [0, 1, 3, 5, 7, 8, 10],
@@ -358,6 +426,13 @@ def arps(song, bus, inst, root, scale, bar_from, bar_to, prog, step=0.25, octave
             song.note(bus, bar * song.bpb + i * step, step * 0.9, deg(root, scale, cd + dd, octave), inst, vel, **p)
 
 
+def play(song, bus, inst, bar0, phrase, vel=0.6, transpose=0, **p):
+    """phrase: list of bars; each bar a list of (beat, dur, midi)."""
+    for k, bar in enumerate(phrase):
+        for (b, d, m) in bar:
+            song.note(bus, (bar0 + k) * song.bpb + b, d, m + transpose, inst, vel, **p)
+
+
 # The Gorbino motif (scale degree offsets): heard in several tracks
 GORB_MOTIF = [(0, 0.75, 0), (0.75, 0.25, 4), (1.0, 0.5, 5), (1.5, 0.5, 4), (2.0, 1.0, 2), (3.0, 1.0, 0)]
 
@@ -392,43 +467,71 @@ def t_menu():
 
 
 def t_village():
-    """Dorian pads, soft plucks and the Gorbino motif on bells; a village
-    that sounds slightly wrong (a detuned pad layer)."""
-    s = Song(96, 24)
-    root, sc = 50, "dorian"
-    prog = [0, 0, 3, 3, 5, 5, 4, 1]
-    pads(s, "pad", "pad", root, sc, 0, 24, prog, 0, 0.3, cut=1000, att=0.9, rel=0.8)
-    for bar in range(0, 24, 2):
-        s.note("pad2", bar * 4, 8, root - 12 + 7, "pad", 0.16, cut=600, att=2.0, detune=0.35)
-    bassline(s, "bass", "bass", root, sc, 0, 24, prog, [(0, 2.5, 0), (3, 1, 4)], vel=0.55, cut=450)
-    arps(s, "arp", "pluck", root, sc, 4, 24, prog, 0.5, 1, 0.16, shape=(0, 4, 2, 7))
-    walk_melody(s, "lead", "bell", root, sc, 8, 24, prog, 12, density=0.25, octave=1, vel=0.42, motif=GORB_MOTIF,
-                motif_every=4, rhythm=[2, 1, 1], ratio=3.5, index=2.5, decay=1.6)
-    grid(s, "dr", "x.......x.......", 4, 24, "k", 0.7)
-    grid(s, "dr", "....x.......x...", 8, 24, "r", 0.3)
-    grid(s, "dr", "..x...x...x...x.", 8, 24, "h", 0.2)
-    return s.render({"lead": {"delay": (0.75, 0.5, 0.6), "gain": 0.8}, "pad": {"gain": 0.6}, "pad2": {"gain": 0.5},
-                     "arp": {"delay": (0.75, 0.4, 0.4), "gain": 0.7}, "dr": {"gain": 0.6, "crush": 6}})
+    """'Well Water Waltz': a 3/4 music-box waltz in D harmonic minor with
+    oom-pah-pah accompaniment; slightly out of tune, like a toy left outside."""
+    s = Song(132, 36, 3)
+    A = [[(0, 1, 69), (1, 1, 74), (2, 1, 73)], [(0, 2, 74), (2, 1, 69)], [(0, 1, 70), (1, 1, 69), (2, 1, 67)], [(0, 3, 69)],
+         [(0, 1, 65), (1, 1, 67), (2, 1, 69)], [(0, 2, 70), (2, 1, 69)], [(0, 1, 67), (1, 1, 65), (2, 1, 64)], [(0, 3, 62)]]
+    B = [[(0, 1, 74), (1, 1, 76), (2, 1, 77)], [(0, 2, 76), (2, 1, 74)], [(0, 1, 73), (1, 1, 74), (2, 1, 76)], [(0, 3, 69)],
+         [(0, 1, 70), (1, 1, 69), (2, 1, 70)], [(0, 2, 73), (2, 1, 76)], [(0, 1, 74), (1, 1, 73), (2, 1, 70)], [(0, 3, 74)]]
+    chA = [(38, [62, 65, 69]), (38, [62, 65, 69]), (43, [62, 67, 70]), (45, [61, 64, 69]),
+           (38, [62, 65, 69]), (43, [62, 67, 70]), (45, [61, 64, 67]), (38, [62, 65, 69])]
+    chB = [(46, [62, 65, 70]), (45, [61, 64, 69]), (45, [61, 64, 69]), (38, [62, 65, 69]),
+           (43, [62, 67, 70]), (45, [61, 64, 69]), (45, [61, 64, 67]), (38, [62, 65, 69])]
+    plan = [("intro", chA[:4]), ("A", chA), ("B", chB), ("A2", chA), ("B", chB), ("outro", chA[4:])]
+    bar = 0
+    for name, chords in plan:
+        for k, (bass, ch) in enumerate(chords):
+            s.note("bass", bar * 3, 0.9, bass, "bass", 0.65, cut=500)
+            for beat in (1, 2):
+                for m in ch:
+                    s.note("chords", bar * 3 + beat, 0.5, m - 12, "epiano", 0.13)
+            s.drum("dr", bar * 3, "k", 0.55)
+            for beat in (1, 2):
+                s.drum("dr", bar * 3 + beat, "a", 0.5)
+            if name == "A2":
+                for m in ch:
+                    s.note("organ", bar * 3, 3, m - 12, "organ", 0.07)
+            bar += 1
+    play(s, "box", "mbox", 4, A, 0.5, 12)
+    play(s, "box", "mbox", 12, B, 0.5, 12)
+    play(s, "box", "mbox", 20, A, 0.5, 12, wobble=0.012)
+    play(s, "box", "mbox", 28, B, 0.45, 0, wobble=0.012)
+    return s.render({"box": {"delay": (1.5, 0.35, 0.35), "gain": 0.85}, "chords": {"gain": 0.7, "lp": 2500},
+                     "bass": {"gain": 0.8}, "organ": {"gain": 0.6}, "dr": {"gain": 0.5, "crush": 7}})
 
 
 def t_industrial():
-    """Pulsing distorted bass, metal clangs and a low drone. No lead."""
-    s = Song(110, 32)
-    root, sc = 40, "phrygian"
-    prog = [0, 0, 0, 0, 1, 1, 0, 6]
-    for bar in range(32):
-        cd = prog[bar % len(prog)]
-        for i in range(8):
-            if bar % 4 == 3 and i in (5, 7):
-                continue
-            s.note("bass", bar * 4 + i * 0.5, 0.42, deg(root, sc, cd, 0), "bass", 0.75 if i % 2 == 0 else 0.5, cut=900, q=2.0, drive=3)
-        s.note("drone", bar * 4, 4, root - 12, "pad", 0.3, cut=350, att=1.5, rel=1.0)
-    grid(s, "dr", "x.......x.......", 0, 32, "k", 1.0)
-    grid(s, "dr", "....x.......x...", 8, 32, "c", 0.55)
-    grid(s, "dr", "m.....m.........", 4, 32, "m", 0.45)
-    grid(s, "dr", "..x...x...x...x.", 8, 32, "h", 0.3)
-    walk_melody(s, "bell", "bell", root, sc, 12, 32, prog, 22, density=0.2, octave=2, vel=0.3, rhythm=[2, 2], ratio=2.76, index=3, decay=1.2)
-    return s.render({"bass": {"gain": 0.8, "crush": 6}, "drone": {"gain": 0.7}, "bell": {"delay": (1.5, 0.5, 0.6)}, "dr": {"crush": 5}})
+    """'Line Pressure': industrial techno. Four-on-the-floor, a distorted
+    bass riff, power-chord stabs and clanging metal."""
+    s = Song(132, 32)
+    root = 40
+    riff = [0, 0, None, 0, 3, None, 0, None, 6, None, 5, None, 3, None, 2, None]
+    sections = [("intro", 4), ("main", 12), ("break", 4), ("main2", 12)]
+    bar = 0
+    for name, n in sections:
+        for k in range(n):
+            if name != "break":
+                grid(s, "dr", "x...x...x...x...", bar, bar + 1, "k", 1.0)
+                grid(s, "dr", "..x...x...x...x.", bar, bar + 1, "m", 0.35)
+            if name in ("main", "main2"):
+                grid(s, "dr", "....x.......x...", bar, bar + 1, "c", 0.6)
+                grid(s, "dr", "xxxxxxxxxxxxxxxx", bar, bar + 1, "h", 0.22)
+                tr = [0, 0, 3, -2][(k // 2) % 4]
+                for i, semi in enumerate(riff):
+                    if semi is not None:
+                        s.note("bass", bar * 4 + i * 0.25, 0.22, root + semi + tr, "bass", 0.8, cut=1100, q=2.5, drive=4)
+                if k % 2 == 0:
+                    s.note("stab", bar * 4, 0.45, root + 12 + tr, "power", 0.45, cut=1800)
+                    s.note("stab", bar * 4 + 1.5, 0.3, root + 12 + tr, "power", 0.35, cut=1800)
+            if name == "break":
+                s.note("pad", bar * 4, 4, root, "pad", 0.3, cut=500, att=0.5)
+                grid(s, "dr", "m.....m.....m...", bar, bar + 1, "m", 0.5)
+            if k == 0:
+                s.drum("dr", bar * 4, "x", 0.8, len=1.5)
+            bar += 1
+    return s.render({"bass": {"gain": 0.85, "crush": 6}, "stab": {"gain": 0.6, "delay": (0.75, 0.3, 0.3)},
+                     "pad": {"gain": 0.6}, "dr": {"crush": 5}})
 
 
 def t_mines():
@@ -447,22 +550,33 @@ def t_mines():
 
 
 def t_hq():
-    """Corporate lounge chords heard through a wall: lowpassed electric
-    piano, slow bass, a tape-wobble and a single bell now and then."""
-    s = Song(84, 24)
-    root, sc = 51, "major"
-    prog = [0, 5, 1, 4, 2, 5, 3, 4]
-    for bar in range(24):
-        cd = prog[bar % len(prog)]
-        for m in chord(root, sc, cd, 4):
-            s.note("ep", bar * 4, 3.6, m, "epiano", 0.2, detune=0.12 * ((bar % 3) - 1))
-        s.note("bass", bar * 4, 3.0, deg(root, sc, cd, -2), "bass", 0.5, cut=380)
-    for bar in range(0, 24, 4):
-        s.note("pad", bar * 4, 16, root - 12, "pad", 0.2, cut=500, att=2.0, detune=-0.2)
-    walk_melody(s, "bell", "bell", root, sc, 4, 24, prog, 41, density=0.18, octave=1, vel=0.32, rhythm=[2, 2], ratio=1.0, index=1.2, decay=1.5)
-    grid(s, "dr", "x.......x.......", 4, 24, "k", 0.45)
-    grid(s, "dr", "....x.......x...", 4, 24, "r", 0.22)
-    return s.render({"ep": {"gain": 0.75, "lp": 1800}, "bass": {"gain": 0.8}, "pad": {"gain": 0.5}, "bell": {"delay": (1.0, 0.45, 0.5)}, "dr": {"crush": 7, "gain": 0.7}})
+    """'Synergy': bossa nova for a lobby nobody leaves. Vibraphone melody,
+    electric piano comping, rim clicks and a shaker."""
+    s = Song(116, 32)
+    chords = [(41, [57, 60, 64, 65]), (43, [55, 58, 62, 65]), (41, [57, 60, 64, 65]), (46, [57, 58, 62, 65]),
+              (45, [55, 57, 60, 64]), (43, [55, 58, 62, 65]), (41, [57, 60, 64, 65]), (48, [55, 58, 60, 64])]
+    mel = [[(0, 1.5, 72), (1.5, 0.5, 69), (2, 1, 67), (3, 1, 69)], [(0, 2, 70), (2, 1, 72), (3, 1, 74)],
+           [(0, 3, 76), (3, 1, 74)], [(0, 1.5, 74), (1.5, 0.5, 72), (2, 2, 69)],
+           [(0, 1, 72), (1, 1, 69), (2, 1, 66), (3, 1, 69)], [(0, 2, 67), (2, 1, 70), (3, 1, 69)],
+           [(0, 4, 65)], [(0, 1, 64), (1, 1, 67), (2, 1, 70), (3, 1, 72)]]
+    for bar in range(32):
+        bass, ch = chords[bar % 8]
+        # bossa bass: root on 1, fifth on 2-and, root on 3
+        s.note("bass", bar * 4, 1.4, bass, "bass", 0.6, cut=600)
+        s.note("bass", bar * 4 + 1.5, 0.5, bass + 7, "bass", 0.5, cut=600)
+        s.note("bass", bar * 4 + 2, 1.4, bass, "bass", 0.55, cut=600)
+        s.note("bass", bar * 4 + 3.5, 0.5, bass + 7, "bass", 0.45, cut=600)
+        for off, d in ((0, 0.9), (1.5, 0.4), (2.5, 0.9), (3.5, 0.4)):
+            for m in ch:
+                s.note("ep", bar * 4 + off, d, m, "epiano", 0.11)
+    grid(s, "dr", "x..x..x...x.x...", 0, 32, "r", 0.4)
+    grid(s, "dr", "xaxaxaxaxaxaxaxa".replace("a", "x"), 0, 32, "a", 0.45)
+    grid(s, "dr", "x.....x.x.....x.", 0, 32, "k", 0.45)
+    play(s, "vib", "vibes", 8, mel, 0.5)
+    play(s, "vib", "vibes", 16, mel, 0.5, 12)
+    play(s, "vib", "vibes", 24, mel[:6] + [[(0, 4, 66)], [(0, 1, 64), (1, 1, 67), (2, 1, 70), (3, 1, 73)]], 0.5)
+    return s.render({"ep": {"gain": 0.8, "lp": 3500}, "bass": {"gain": 0.8}, "vib": {"delay": (0.75, 0.3, 0.3), "gain": 0.9},
+                     "dr": {"gain": 0.55, "crush": 7}})
 
 
 def t_facility():
@@ -487,53 +601,74 @@ def t_facility():
 
 
 def t_dimension():
-    """Whole-tone drones, slow inharmonic bells and a heavy half-time beat."""
-    s = Song(116, 24)
-    root, sc = 54, "whole"
-    prog = [0, 1, 0, 2, 3, 1, 4, 2]
-    for bar in range(24):
-        cd = prog[bar % len(prog)]
-        s.note("drone", bar * 4, 4, deg(root, sc, cd, -1), "pad", 0.3, cut=700, att=1.0, rel=1.0)
-        s.note("drone", bar * 4, 4, deg(root, sc, cd + 2, -1), "pad", 0.18, cut=600, att=1.2, rel=1.0, detune=0.25)
-    bassline(s, "bass", "bass", root, sc, 0, 24, prog, [(0, 1.5, 0), (2.5, 1.0, 0)], octave=-2, vel=0.7, cut=500, drive=2)
-    grid(s, "dr", "x.........x.....", 4, 24, "k", 1.0)
-    grid(s, "dr", "........x.......", 4, 24, "s", 0.6)
-    grid(s, "dr", "x...x...x...x...", 8, 24, "h", 0.18)
-    grid(s, "dr", "......t.......t.", 12, 24, "t", 0.4, tom=60)
-    walk_melody(s, "bell", "bell", root, sc, 0, 24, prog, 62, density=0.3, octave=1, vel=0.35, rhythm=[1.5, 1.5, 1], ratio=1.41, index=4, decay=1.0)
-    return s.render({"drone": {"gain": 0.75}, "bass": {"crush": 6, "gain": 0.8}, "bell": {"delay": (0.75, 0.55, 0.6)}, "dr": {"crush": 5}})
+    """'Other Side': jungle. Chopped breakbeats at 168, a moving reese bass
+    and a few cold bells."""
+    s = Song(168, 32)
+    root = 42
+    prog = [0, 0, -4, -4, -2, -2, -6, -5]
+    kicks = ["x.........x.....", "x.x.......x.x..."]
+    snares = ["....x.......x...", "....x..x....x..."]
+    ghosts = [".......x.x....x.", "..x.......x...x."]
+    for bar in range(32):
+        v = bar % 2
+        if bar >= 4:
+            grid(s, "dr", kicks[v], bar, bar + 1, "k", 0.95)
+            grid(s, "dr", snares[v], bar, bar + 1, "s", 0.75)
+            grid(s, "dr", ghosts[v], bar, bar + 1, "g", 0.7)
+            grid(s, "dr", "x.x.x.x.x.x.x.x.", bar, bar + 1, "h", 0.2)
+        if bar % 8 == 0:
+            s.drum("dr", bar * 4, "x", 0.7, len=1.5)
+        if bar % 2 == 0:
+            s.note("reese", bar * 4, 7.8, root - 12 + prog[(bar // 2) % 8], "reese", 0.6, lfo=0.35)
+        s.note("pad", bar * 4, 4, root + 12 + prog[(bar // 2) % 8], "pad", 0.16, cut=900, att=0.6)
+    for bar in range(8, 32, 4):
+        for k, (b, m) in enumerate([(0, 78), (0.75, 76), (1.5, 72), (3, 70)]):
+            s.note("bell", bar * 4 + b, 0.7, m + prog[(bar // 2) % 8], "bell", 0.28, ratio=1.41, index=3, decay=1.6)
+    return s.render({"reese": {"gain": 0.8}, "pad": {"gain": 0.6}, "bell": {"delay": (0.75, 0.45, 0.5)}, "dr": {"crush": 6}})
 
 
 def t_boss():
-    """Driving riff and drums under a dark pad; no screeching lead."""
-    s = Song(138, 16)
-    root, sc = 40, "dim"
-    riff = [0, 0, 1, 0, 3, 0, 6, 5, 0, 0, 1, 0, 8, 7, 6, 3]
+    """'Great Snirby': metal. Palm-muted power-chord chugs, double kick,
+    crashes."""
+    s = Song(150, 16)
+    root = 40
+    chug = [0, 0, 0, 1, 0, 0, 3, 1]
     for bar in range(16):
-        tr = [0, 0, 1, -1][bar % 4]
-        for i, semi in enumerate(riff):
-            s.note("bass", bar * 4 + i * 0.25, 0.22, root + semi + tr, "bass", 0.8, cut=1300, q=2, drive=4)
-        s.note("pad", bar * 4, 4, root + 12 + tr, "pad", 0.22, cut=800, att=0.3)
-        s.note("pad", bar * 4, 4, root + 18 + tr, "pad", 0.16, cut=800, att=0.3)
-    grid(s, "dr", "x.x...x.x.x...x.", 0, 16, "k", 1.0)
-    grid(s, "dr", "....x.......x...", 0, 16, "s", 0.75)
-    grid(s, "dr", "x.x.x.x.x.x.x.x.", 4, 16, "h", 0.25)
-    grid(s, "dr", "m.......m.......", 4, 16, "m", 0.5)
-    return s.render({"bass": {"crush": 5}, "pad": {"gain": 0.6}, "dr": {"crush": 5}}) * 0.55
+        part = bar // 4
+        tr = [0, 0, -2, 1][part]
+        for i, semi in enumerate(chug):
+            dur = 0.4 if semi == 0 else 0.48
+            s.note("gtr", bar * 4 + i * 0.5, dur, root + semi + tr, "power", 0.55 if semi == 0 else 0.7, cut=1600 if semi == 0 else 2600, drive=4)
+        if part >= 2:
+            grid(s, "dr", "xxxxxxxxxxxxxxxx", bar, bar + 1, "k", 0.75)
+        else:
+            grid(s, "dr", "x.x...x.x.x...x.", bar, bar + 1, "k", 1.0)
+        grid(s, "dr", "....x.......x...", bar, bar + 1, "s", 0.85)
+        grid(s, "dr", "x.x.x.x.x.x.x.x.", bar, bar + 1, "o", 0.25)
+        if bar % 4 == 0:
+            s.drum("dr", bar * 4, "x", 0.9, len=1.8)
+        s.note("pad", bar * 4, 4, root + 12 + tr, "pad", 0.15, cut=700)
+    return s.render({"gtr": {"gain": 0.75}, "pad": {"gain": 0.5}, "dr": {"crush": 6}}) * 0.6
 
 
 def t_intermission():
-    """Short pad loop with the motif on a bell, like the title theme."""
-    s = Song(92, 8)
-    root, sc = 50, "phrygian"
-    prog = [0, 5, 3, 1]
-    pads(s, "pad", "pad", root, sc, 0, 8, prog, 0, 0.3, cut=900, att=0.6)
-    bassline(s, "bass", "bass", root, sc, 0, 8, prog, [(0, 2, 0), (2, 2, -3)], vel=0.5, cut=400)
-    walk_melody(s, "lead", "bell", root, sc, 0, 8, prog, 71, density=0.3, octave=1, vel=0.45, motif=GORB_MOTIF, motif_every=4,
-                rhythm=[1, 1, 2], ratio=3.5, index=3)
-    grid(s, "dr", "x.......x.x.....", 0, 8, "k", 0.7)
-    grid(s, "dr", "....x.......x...", 0, 8, "r", 0.3)
-    return s.render({"lead": {"delay": (0.75, 0.5, 0.6), "gain": 0.8}, "pad": {"gain": 0.6}, "dr": {"gain": 0.6, "crush": 6}})
+    """'Tally': a short funk vamp for the results screen."""
+    s = Song(108, 8)
+    bassline_notes = [(0, 0.4, 38), (0.75, 0.25, 38), (1.5, 0.25, 50), (2, 0.4, 41), (2.75, 0.25, 43), (3.5, 0.4, 45)]
+    for bar in range(8):
+        tr = 0 if bar % 4 < 2 else 5
+        for (b, d, m) in bassline_notes:
+            s.note("bass", bar * 4 + b, d, m + tr, "pluck", 0.7)
+        for off in (0.5, 1.75, 2.5, 3.75):
+            for m in ([60, 64, 65, 69] if tr == 0 else [65, 69, 70, 74]):
+                s.note("ep", bar * 4 + off, 0.25, m - 12, "epiano", 0.12)
+    grid(s, "dr", "x.....x...x.....", 0, 8, "k", 0.8)
+    grid(s, "dr", "....x.......x...", 0, 8, "c", 0.6)
+    grid(s, "dr", "xxxxxxxxxxxxxxxx", 0, 8, "h", 0.18, swing=0.3)
+    hook = [[(0, 0.5, 74), (0.5, 0.5, 72), (1, 1, 69), (2.5, 0.5, 67), (3, 1, 69)], [(0, 2, 72), (2, 2, 74)]]
+    play(s, "vib", "vibes", 2, hook, 0.5)
+    play(s, "vib", "vibes", 6, hook, 0.5, 5)
+    return s.render({"bass": {"gain": 0.85}, "ep": {"gain": 0.7}, "vib": {"delay": (0.75, 0.3, 0.3)}, "dr": {"crush": 6}})
 
 
 def t_ending():

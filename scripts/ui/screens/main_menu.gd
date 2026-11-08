@@ -10,6 +10,7 @@ var vp: SubViewport
 var stage: Node3D
 var gorb: Node3D
 var snirb: Node3D
+var snot: Node3D
 var preview: TextureRect
 
 
@@ -78,14 +79,19 @@ func _build_stage() -> void:
 	we.environment = env
 	vp.add_child(we)
 	stage.add_child(Models.mi(Models.cyl(1.5, 1.6, 0.3, 12), Mat.world("d_meat", {"origin": true}), Vector3(0, -0.15, 0)))
-	gorb = Models.gorbino(Color(1.0, 0.48, 0.1))
+	gorb = Models.gorbino(Color(0.12, 0.19, 0.06))
 	gorb.position = Vector3(-0.65, 0, 0.15)
 	gorb.rotation.y = PI + 0.35
 	stage.add_child(gorb)
 	snirb = Models.snirby()
-	snirb.position = Vector3(0.8, 0, -0.05)
-	snirb.rotation.y = PI - 0.45
+	snirb.position = Vector3(0.7, 0, -0.3)
+	snirb.rotation.y = PI + 0.85
 	stage.add_child(snirb)
+	snot = Models.snotling()
+	snot.scale = Vector3.ONE * 0.55
+	snot.position = Vector3(0.12, 0, 0.95)
+	snot.rotation.y = PI - 0.2
+	stage.add_child(snot)
 	preview = TextureRect.new()
 	preview.texture = vp.get_texture()
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -99,7 +105,8 @@ func _process(delta: float) -> void:
 	t += delta
 	stage.rotation.y = sin(t * 0.4) * 0.5
 	Creatures.animate(gorb, t, delta, {"move": 0.25, "blink": fmod(t, 3.1) < 0.12, "windup": fmod(t, 6.0) > 5.2, "look": Vector3(1.5, 1.2, -4.0)})
-	Creatures.animate(snirb, t + 1.3, delta, {"move": 0.0, "blink": fmod(t + 1.0, 4.3) < 0.12})
+	Creatures.animate(snirb, t + 1.3, delta, {"move": 0.0, "windup": fmod(t + 2.0, 5.0) > 4.4})
+	Creatures.animate(snot, t + 0.6, delta, {"move": 0.0, "blink": fmod(t + 1.0, 4.3) < 0.12})
 	var tiles: bool = menu.page().get("tiles", false)
 	menu.top_y = 112.0 if tiles else 150.0
 	menu.center_offset = -120.0 if tiles else -100.0

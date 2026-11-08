@@ -14,7 +14,7 @@ const DIRS8 := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)
 const ENTITY_CHARS := {
 	"@": "player",
 	"g": "green", "y": "yellow", "r": "red", "b": "blue", "p": "purple", "k": "black",
-	"s": "snirby", "f": "skysnirby", "Z": "boss",
+	"s": "snirby", "f": "skysnirby", "$": "snotling", "Z": "boss",
 	"+": "juice", "h": "medkit", "M": "mega",
 	"*": "armor_bonus", "A": "armor_green", "V": "armor_blue",
 	"i": "bullets", "I": "bullets_box", "c": "shells", "C": "shells_box",
@@ -25,7 +25,7 @@ const ENTITY_CHARS := {
 	"!": "checkpoint", "X": "exit_pad",
 	"q": "tele_a", "Q": "tele_a_dst", "w": "tele_b", "W": "tele_b_dst",
 }
-const ENEMY_TYPES := ["green", "yellow", "red", "blue", "purple", "black", "snirby", "skysnirby", "boss"]
+const ENEMY_TYPES := ["green", "yellow", "red", "blue", "purple", "black", "snirby", "skysnirby", "snotling", "boss"]
 const BRIGHT := {"i_light": 0.9, "h_ceilinglight": 0.85, "f_ceiling": 0.6, "f_glow": 0.9, "m_lantern": 0.55,
 	"exit_panel": 0.45, "lamp": 1.0, "liq_magma": 0.95, "liq_sludge": 0.6, "liq_goo": 0.4, "liq_ooze": 0.55,
 	"liq_water": 0.25, "switch_on": 0.4, "switch_off": 0.3, "f_vat": 0.55, "m_crystal": 0.35, "tech_panel": 0.35,

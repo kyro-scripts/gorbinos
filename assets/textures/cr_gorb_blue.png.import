@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://drua3aepqmc5v"
-path="res://.godot/imported/cr_snirby_eye_red.png-a00a7609aaeca4323bf5c2f3f329ea07.ctex"
+uid="uid://buicev3rphudn"
+path="res://.godot/imported/cr_gorb_blue.png-f351da50d63aea7ed9c84f4b9c217d03.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/cr_snirby_eye_red.png"
-dest_files=["res://.godot/imported/cr_snirby_eye_red.png-a00a7609aaeca4323bf5c2f3f329ea07.ctex"]
+source_file="res://assets/textures/cr_gorb_blue.png"
+dest_files=["res://.godot/imported/cr_gorb_blue.png-f351da50d63aea7ed9c84f4b9c217d03.ctex"]
 
 [params]
 

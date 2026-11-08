@@ -59,6 +59,10 @@ static func snirby(opts := {}) -> Node3D:
 	return Creatures.snirby(opts)
 
 
+static func snotling(opts := {}) -> Node3D:
+	return Creatures.snotling(opts)
+
+
 # ================================================================== WEAPONS
 ## Builds a first-person (or pickup) weapon model. Front of gun = -Z.
 static func weapon(wname: String, with_hands := true) -> Node3D:

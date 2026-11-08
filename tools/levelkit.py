@@ -10,7 +10,7 @@ import os
 from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ENTITY = set("@gyrbpksfZ+hM*AViIcCoOeEB23456RUYxlTtm!XqQwW")
+ENTITY = set("@gyrbpksf$Z+hM*AViIcCoOeEB23456RUYxlTtm!XqQwW")
 
 
 class Color:
@@ -108,7 +108,43 @@ class Map:
         return sum(1 for r in self.g for c in r if c in chars)
 
 
+SPECIAL = ("wall", "secret", "trigger", "liquid", "damage", "door", "lift", "lower", "use", "tag")
+
+
+def _plain_floor(d):
+    return isinstance(d, dict) and not any(k in d for k in SPECIAL)
+
+
+def snotling_packs(m, legend, every=3, size=3):
+    """Turn every third Snirby into a pack of Snotlings (the little pink guys),
+    spread over the same floor sector around the original spot."""
+    spots = [(x, y) for y in range(m.h) for x in range(m.w) if m.g[y][x] == "s"]
+    for n, (x, y) in enumerate(spots):
+        if n % every:
+            continue
+        counts = {}
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if 0 <= x + dx < m.w and 0 <= y + dy < m.h:
+                    c = m.g[y + dy][x + dx]
+                    if _plain_floor(legend.get(c)):
+                        counts[c] = counts.get(c, 0) + 1
+        if not counts:
+            continue
+        base = max(counts, key=counts.get)
+        m.put(x, y, "$")
+        placed = 1
+        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1), (2, 0), (-2, 0), (0, 2), (0, -2)]:
+            if placed >= size:
+                break
+            cx, cy = x + dx, y + dy
+            if 0 <= cx < m.w and 0 <= cy < m.h and m.g[cy][cx] == base:
+                m.put(cx, cy, "$")
+                placed += 1
+
+
 def emit(name, meta, legend, m):
+    snotling_packs(m, legend)
     for k in legend:
         if k in '\\"':
             raise ValueError("legend char %r breaks GDScript strings" % k)

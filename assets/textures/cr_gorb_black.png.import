@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://utokr5yav7nq"
-path="res://.godot/imported/cr_gorbino_eye.png-6d17bc37a2b0ea7723c422cbe78ccc20.ctex"
+uid="uid://ddeqkjmebcfyt"
+path="res://.godot/imported/cr_gorb_black.png-128f906f579c19306963f28e7a899637.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/cr_gorbino_eye.png"
-dest_files=["res://.godot/imported/cr_gorbino_eye.png-6d17bc37a2b0ea7723c422cbe78ccc20.ctex"]
+source_file="res://assets/textures/cr_gorb_black.png"
+dest_files=["res://.godot/imported/cr_gorb_black.png-128f906f579c19306963f28e7a899637.ctex"]
 
 [params]
 

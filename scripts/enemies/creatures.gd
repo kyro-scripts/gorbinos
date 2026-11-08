@@ -1,15 +1,20 @@
 class_name Creatures
 extends RefCounted
-## The two creatures of Gorbino's Quest, built from generated meshes:
-##  - Gorbino: an orange, octopus-like crawler on six wriggling tentacles,
-##    bulging bloodshot slit-pupil eyes and a human mouth.
-##  - Snirby: a pink, lumpy, snot-nosed blob on two maroon feet.
+## The creatures of Gorbino's Quest:
+##  - Gorbino: the supplied model (assets/models/gorbino), a glossy round blob
+##    on two round feet, recoloured per variant.
+##  - Snirby: a blue ball wearing the supplied face texture, with a long dark
+##    beak and orange shoes.
+##  - Snotling: a little pink, lumpy, snot-nosed blob.
 ## Each model stores its animatable parts in the "parts" metadata, and
 ## animate() / death_pose() drive them.
 
-const TENTACLE_HEADINGS := [-35.0, 35.0, -95.0, 95.0, -150.0, 150.0]
-const SEG_LEN := [0.24, 0.22, 0.2, 0.18]
-const SEG_RAD := [0.1, 0.075, 0.055, 0.036, 0.016]
+const GORB_H := 1.45            # Gorbino height in metres at scale 1
+const GORB_SQUASH_Y := 0.1      # bottom of the body sphere (model units)
+const GORB_EYES := [Vector3(0.12, 0.589, -0.43), Vector3(-0.137, 0.599, -0.423)]
+const GORB_MOUTH := Vector3(-0.08, 0.348, -0.393)
+const SNIRBY_R := 0.5           # Snirby body radius
+const SNIRBY_Y := 0.62          # Snirby body centre height
 
 static var _mesh_cache := {}
 
@@ -104,73 +109,70 @@ static func _part(mesh: Mesh, mat: Material, pos := Vector3.ZERO, scl := Vector3
 
 
 # ================================================================== GORBINO
+static func _gorb_mesh(part: String) -> Mesh:
+	var key := "gorb_" + part
+	if not _mesh_cache.has(key):
+		_mesh_cache[key] = load("res://assets/models/gorbino/gorbino_%s.res" % part)
+	return _mesh_cache[key]
+
+
+## opts: skin (green/yellow/red/blue/purple/black), gun, launcher, glow_eyes
 static func gorbino(color: Color, opts := {}) -> Node3D:
 	var root := Node3D.new()
 	var parts := {"kind": "gorbino"}
-	var skin := _skin("cr_gorbino_skin", color)
-	var darker := _skin("cr_gorbino_skin", color.darkened(0.35))
-	var eye_tex := "cr_gorbino_eye_red" if opts.get("glow_eyes", false) else "cr_gorbino_eye"
-	var eye_m := Mat.make(eye_tex, {"origin": true, "shade": 0.6, "gloss": 0.9, "fullbright": 0.7 if opts.get("glow_eyes", false) else 0.0})
-	var mouth_m := Mat.make("cr_gorbino_mouth", {"origin": true, "shade": 0.5, "gloss": 0.6})
+	var skin := Mat.make("cr_gorb_" + String(opts.get("skin", "green")), {"origin": true, "shade": 0.9, "gloss": 0.7})
+	var limb := Mat.make("white", {"origin": true, "tint": color, "shade": 0.9, "gloss": 1.0})
+	var maw_m := Mat.make("cr_gorbino_maw", {"origin": true, "shade": 0.5, "gloss": 0.8})
 	parts["skin_mat"] = skin
+	var H := GORB_H
 	var body := Models.pivot()
 	root.add_child(body)
 	parts["body"] = body
-	# mantle: tall lumpy bulb leaning back
-	var mantle := _part(blob_mesh(0.5, Vector3(1.0, 1.28, 0.95), 4101, 0.09), skin, Vector3(0, 1.0, 0.08), Vector3.ONE, Vector3(12, 0, 0))
-	body.add_child(mantle)
-	parts["mantle"] = mantle
-	# brow ridge and cheek lumps
-	body.add_child(_part(blob_mesh(0.5, Vector3(0.8, 0.13, 0.35), 4102, 0.12), darker, Vector3(0, 1.02, -0.33), Vector3.ONE, Vector3(-14, 0, 0)))
-	for sx in [-1.0, 1.0]:
-		body.add_child(_part(blob_mesh(0.18, Vector3(1, 0.8, 0.9), 4103 + int(sx), 0.15), skin, Vector3(0.27 * sx, 0.66, -0.3)))
-	# eyes with lids
+	var squash := Models.pivot(Vector3(0, GORB_SQUASH_Y * H, 0))
+	body.add_child(squash)
+	parts["squash"] = squash
+	squash.add_child(_part(_gorb_mesh("body"), skin, Vector3(0, -GORB_SQUASH_Y * H, 0), Vector3.ONE * H))
+	# the two feet, each on its own pivot so they can step
+	var feet := []
+	var feet_base := []
+	for side in ["l", "r"]:
+		var m := _gorb_mesh("foot_" + side)
+		var c := m.get_aabb().get_center() * H
+		var f := Models.pivot(c)
+		body.add_child(f)
+		f.add_child(_part(m, skin, -c, Vector3.ONE * H))
+		feet.append(f)
+		feet_base.append(c)
+	parts["feet"] = feet
+	parts["feet_base"] = feet_base
+	# glowing eyes for the elite; the others' eyes are painted on
 	var eyes := []
-	var lids := []
-	for sx in [-1.0, 1.0]:
-		var e := Models.pivot(Vector3(0.2 * sx, 0.84, -0.42))
-		body.add_child(e)
-		e.add_child(_part(face_mesh(), eye_m, Vector3.ZERO, Vector3(0.34, 0.34, 0.3)))
-		var lid := _part(blob_mesh(0.18, Vector3(1.0, 0.5, 1.0), 4110, 0.05, 6, 10), darker, Vector3(0, 0.1, 0.01))
-		e.add_child(lid)
-		eyes.append(e)
-		lids.append(lid)
+	if opts.get("glow_eyes", false):
+		var eye_m := Mat.make("white", {"origin": true, "tint": Color(1.0, 0.12, 0.05), "fullbright": 1.0, "shade": 0.3})
+		for e in GORB_EYES:
+			var ep := Models.pivot(Vector3(e.x, e.y - GORB_SQUASH_Y, e.z - 0.012) * H)
+			squash.add_child(ep)
+			ep.add_child(_part(Models.sphere(0.045 * H, 8, 6), eye_m))
+			eyes.append(ep)
 	parts["eyes"] = eyes
-	parts["lids"] = lids
-	# mouth
-	var mouth := Models.pivot(Vector3(0, 0.55, -0.42))
-	body.add_child(mouth)
-	mouth.add_child(_part(face_mesh(), mouth_m, Vector3.ZERO, Vector3(0.46, 0.17, 0.12)))
+	# maw: a dark slit over the painted mouth that gapes when it attacks
+	var mouth := Models.pivot(Vector3(GORB_MOUTH.x, GORB_MOUTH.y - GORB_SQUASH_Y, GORB_MOUTH.z - 0.03) * H)
+	squash.add_child(mouth)
+	mouth.add_child(_part(face_mesh(), maw_m, Vector3.ZERO, Vector3(0.36, 0.02, 0.1)))
 	parts["mouth"] = mouth
-	# tentacles
-	var tentacles := []
-	for ti in TENTACLE_HEADINGS.size():
-		var h: float = TENTACLE_HEADINGS[ti]
-		var a := deg_to_rad(h)
-		var rootp := Models.pivot(Vector3(-sin(a) * 0.3, 0.6, -cos(a) * 0.3 + 0.06), Vector3(0, h, 0))
-		body.add_child(rootp)
-		var segs := []
-		var parent: Node3D = rootp
-		for k in SEG_LEN.size():
-			var j := Models.pivot(Vector3(0, 0 if k == 0 else -SEG_LEN[k - 1], 0))
-			parent.add_child(j)
-			var c := Models.cyl(SEG_RAD[k + 1], SEG_RAD[k], SEG_LEN[k] + 0.04, 7)
-			j.add_child(_part(c, skin if k < 3 else darker, Vector3(0, -SEG_LEN[k] * 0.5, 0)))
-			segs.append(j)
-			parent = j
-		tentacles.append(segs)
-	parts["tentacles"] = tentacles
-	# gun held by the front-right tentacle
 	if opts.get("gun", false):
-		var tip: Node3D = tentacles[0][3]
-		var g := Models.pivot(Vector3(0, -0.2, 0), Vector3(90, 0, 0))
-		tip.add_child(g)
+		# a pseudopod reaching forward with the gun
+		var arm := Models.pivot(Vector3(0.55, 0.45, -0.22))
+		squash.add_child(arm)
+		arm.add_child(_part(blob_mesh(0.13, Vector3(1.0, 0.8, 2.2), 5140, 0.05, 6, 10), limb, Vector3(0, 0, -0.18)))
+		var g := Models.pivot(Vector3(0, 0.02, -0.42))
+		arm.add_child(g)
 		g.add_child(Models.mi(Models.box(0.07, 0.09, 0.3), Mat.world("gun_dark", {"origin": true})))
 		g.add_child(Models.mi(Models.box(0.05, 0.12, 0.06), Mat.world("gun_wood", {"origin": true}), Vector3(0, -0.08, 0.08)))
-		parts["gun"] = true
+		parts["arm"] = arm
 	if opts.get("launcher", false):
-		var l := Models.pivot(Vector3(0.36, 1.25, 0.05))
-		body.add_child(l)
+		var l := Models.pivot(Vector3(0.4, 1.12, 0.05))
+		squash.add_child(l)
 		l.add_child(Models.mi(Models.cyl(0.11, 0.11, 0.8, 8), Mat.world("gun_red", {"origin": true}), Vector3.ZERO, Vector3(90, 0, 0)))
 		l.add_child(Models.mi(Models.cyl(0.08, 0.08, 0.05, 8), Mat.world("black", {"origin": true}), Vector3(0, 0, -0.41), Vector3(90, 0, 0)))
 		parts["launcher"] = l
@@ -180,14 +182,97 @@ static func gorbino(color: Color, opts := {}) -> Node3D:
 
 
 # ================================================================== SNIRBY
+## Sphere wearing the face texture on its front (planar projection, viewer's
+## left = texture left); the back faces sample plain blue skin.
+static func snirby_body_mesh(rings := 14, segs := 22) -> ArrayMesh:
+	var key := "snirby_body%d%d" % [rings, segs]
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	var pts := []
+	for i in rings + 1:
+		var theta := float(i) / rings * PI
+		var row := []
+		for j in segs + 1:
+			var phi := (float(j) / segs - 0.5) * TAU
+			row.append(Vector3(sin(theta) * sin(phi), cos(theta), -sin(theta) * cos(phi)))
+		pts.append(row)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in rings:
+		for j in segs:
+			var quad := [pts[i][j], pts[i][j + 1], pts[i + 1][j], pts[i + 1][j + 1]]
+			for tri in [[0, 2, 1], [1, 2, 3]]:
+				var front: bool = (quad[tri[0]].z + quad[tri[1]].z + quad[tri[2]].z) < 0.15
+				for q in tri:
+					var p: Vector3 = quad[q]
+					st.set_normal(p)
+					st.set_uv(Vector2(0.5 - p.x * 0.5, 0.5 - p.y * 0.5) if front else Vector2(0.04, 0.5))
+					st.add_vertex(p * SNIRBY_R)
+	var mesh := st.commit()
+	_mesh_cache[key] = mesh
+	return mesh
+
+
+## Point on the Snirby's face for a texture coordinate (puff-local).
+static func _snirby_face_point(uv: Vector2) -> Vector3:
+	var x := (0.5 - uv.x) * 2.0
+	var y := (0.5 - uv.y) * 2.0
+	return Vector3(x, y, -sqrt(maxf(0.0, 1.0 - x * x - y * y))) * SNIRBY_R
+
+
+## opts: tint, glow (glowing pupils), fly
 static func snirby(opts := {}) -> Node3D:
 	var root := Node3D.new()
 	var parts := {"kind": "snirby"}
 	var tint: Color = opts.get("tint", Color(1, 1, 1))
+	var skin := Mat.make("cr_snirby_face", {"origin": true, "tint": tint, "shade": 0.85, "gloss": 0.6, "fullbright": 0.12})
+	var beak_m := Mat.make("white", {"origin": true, "tint": Color(0.09, 0.12, 0.15), "shade": 0.9, "gloss": 1.0})
+	var foot_m := Mat.make("cr_snirby_feet", {"origin": true, "shade": 0.85, "gloss": 0.9})
+	parts["skin_mat"] = skin
+	var body := Models.pivot()
+	root.add_child(body)
+	parts["body"] = body
+	var puff := Models.pivot(Vector3(0, SNIRBY_Y, 0))
+	body.add_child(puff)
+	parts["puff"] = puff
+	puff.add_child(_part(snirby_body_mesh(), skin))
+	# the long beak grows out of the nose
+	var beak := Models.pivot(_snirby_face_point(Vector2(0.5, 0.585)) * 0.85)
+	puff.add_child(beak)
+	beak.add_child(_part(Models.cyl(0.0, 0.2, 1.05, 10), beak_m, Vector3(0, 0, -0.525), Vector3(1.0, 1.0, 0.85), Vector3(-90, 0, 0)))
+	parts["beak"] = beak
+	var eyes := []
+	if opts.get("glow", false):
+		var eye_m := Mat.make("white", {"origin": true, "tint": Color(1.0, 0.15, 0.08), "fullbright": 1.0, "shade": 0.3})
+		for uv in [Vector2(0.32, 0.44), Vector2(0.67, 0.44)]:
+			var e := Models.pivot(_snirby_face_point(uv) * 1.01)
+			puff.add_child(e)
+			e.add_child(_part(Models.sphere(0.035, 6, 4), eye_m))
+			eyes.append(e)
+	parts["eyes"] = eyes
+	# rounded orange shoes
+	var feet := []
+	for sx in [-1.0, 1.0]:
+		var f := Models.pivot(Vector3(0.21 * sx, 0.1, -0.1))
+		body.add_child(f)
+		f.add_child(_part(blob_mesh(0.17, Vector3(0.9, 0.62, 1.35), 5230, 0.03, 6, 10), foot_m))
+		feet.append(f)
+	parts["feet"] = feet
+	parts["fly"] = opts.get("fly", false)
+	root.set_meta("parts", parts)
+	animate(root, 0.0, 0.016, {})
+	return root
+
+
+# ================================================================== SNOTLING
+## The little pink guy: a lumpy, droopy-eyed blob with a runny nose.
+static func snotling(opts := {}) -> Node3D:
+	var root := Node3D.new()
+	var parts := {"kind": "snotling"}
+	var tint: Color = opts.get("tint", Color(1, 1, 1))
 	var skin := _skin("cr_snirby_skin", tint, {"gloss": 0.35})
 	var lidm := _skin("cr_snirby_skin", tint.darkened(0.15), {"gloss": 0.2})
-	var glow: bool = opts.get("glow", false)
-	var eye_m := Mat.make("cr_snirby_eye_red" if glow else "cr_snirby_eye_h", {"origin": true, "shade": 0.5, "gloss": 1.0, "fullbright": 0.8 if glow else 0.0})
+	var eye_m := Mat.make("cr_snirby_eye_h", {"origin": true, "shade": 0.5, "gloss": 1.0})
 	var foot_m := _skin("cr_snirby_foot", Color(1, 1, 1), {"gloss": 0.3})
 	var mouth_m := Mat.make("cr_gorbino_mouth", {"origin": true, "shade": 0.5, "gloss": 0.6})
 	var hole_m := Mat.make("white", {"origin": true, "tint": Color(0.18, 0.02, 0.04), "shade": 0.3})
@@ -241,7 +326,6 @@ static func snirby(opts := {}) -> Node3D:
 		a.add_child(_part(blob_mesh(0.16, Vector3(1.0, 0.72, 0.85), 4220, 0.08, 6, 10), skin, Vector3(0.09 * sx, -0.04, 0)))
 		arms.append(a)
 	parts["arms"] = arms
-	# feet
 	var feet := []
 	for sx in [-1.0, 1.0]:
 		var f := Models.pivot(Vector3(0.21 * sx, 0.1, -0.04))
@@ -249,7 +333,6 @@ static func snirby(opts := {}) -> Node3D:
 		f.add_child(_part(blob_mesh(0.18, Vector3(0.95, 0.55, 1.45), 4230, 0.05, 6, 10), foot_m))
 		feet.append(f)
 	parts["feet"] = feet
-	parts["fly"] = opts.get("fly", false)
 	root.set_meta("parts", parts)
 	animate(root, 0.0, 0.016, {})
 	return root
@@ -259,52 +342,51 @@ static func snirby(opts := {}) -> Node3D:
 ## st keys: move (0..1), windup, pain, blink, fly, look (Vector3, model local)
 static func animate(root: Node3D, t: float, delta: float, st: Dictionary) -> void:
 	var p: Dictionary = root.get_meta("parts")
-	if p.get("kind", "") == "gorbino":
-		_anim_gorbino(p, t, delta, st)
-	else:
-		_anim_snirby(p, t, delta, st)
+	match p.get("kind", ""):
+		"gorbino":
+			_anim_gorbino(p, t, delta, st)
+		"snirby":
+			_anim_snirby(p, t, delta, st)
+		_:
+			_anim_snotling(p, t, delta, st)
 
 
 static func _anim_gorbino(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
 	var m := float(st.get("move", 0.0))
 	var windup: bool = st.get("windup", false)
 	var pain: bool = st.get("pain", false)
+	var fly: bool = st.get("fly", false)
 	var body: Node3D = p["body"]
-	var crawl := t * (7.0 + 5.0 * m)
-	body.position.y = 0.05 * sin(crawl * 2.0) * m + 0.02 * sin(t * 1.7) + (0.3 if st.get("fly", false) else 0.0)
-	body.rotation.x = (-0.3 if windup else (0.35 if pain else 0.0)) + 0.06 * sin(crawl) * m
-	body.rotation.z = 0.08 * sin(crawl * 0.5) * m
-	p["mantle"].scale = Vector3.ONE * (1.0 + 0.03 * sin(t * 2.3)) + Vector3(0, 0.04 * sin(t * 2.3 + 1.0), 0)
-	var tents: Array = p["tentacles"]
-	for ti in tents.size():
-		var segs: Array = tents[ti]
-		var ph := float(ti) * 1.7
-		var lift := sin(crawl + ph) * (0.35 * m + 0.06)
-		for k in segs.size():
-			var j: Node3D = segs[k]
-			var base := deg_to_rad(68.0) if k == 0 else deg_to_rad(-26.0)
-			if p.has("gun") and ti == 0:
-				base = deg_to_rad(105.0) if k == 0 else deg_to_rad(-6.0)
-				if windup:
-					base += deg_to_rad(10.0)
-				j.rotation = Vector3(base + sin(t * 3.0 + k) * 0.04, 0, 0)
-				continue
-			var wig := sin(t * 3.2 + ph + k * 0.9) * 0.12 + sin(crawl + ph + k * 0.6) * 0.25 * m
-			if windup:
-				wig += 0.25 * (1.0 if k == 0 else -0.5)
-			j.rotation = Vector3(base + wig + (lift if k == 0 else 0.0), sin(t * 2.0 + ph) * 0.1 * (1.0 if k > 0 else 0.0), 0)
+	var sq: Node3D = p["squash"]
+	var step := t * (8.0 + 6.0 * m)
+	# jelly wobble; it stretches up before attacking and flattens when hurt
+	var wob := sin(t * 3.1) * 0.03 + sin(step * 2.0) * 0.06 * m
+	var sy := 1.0 + wob + (0.16 if windup else 0.0) - (0.2 if pain else 0.0)
+	var sxz := 1.0 / sqrt(maxf(sy, 0.3))
+	sq.scale = sq.scale.lerp(Vector3(sxz, sy, sxz), clampf(delta * 16.0, 0.0, 1.0))
+	body.position.y = absf(sin(step)) * 0.1 * m + (0.25 + sin(t * 2.0) * 0.1 if fly else 0.0)
+	body.rotation.x = (-0.2 if windup else 0.0) + sin(step) * 0.05 * m
+	body.rotation.z = sin(step * 0.5) * 0.08 * m
+	var feet: Array = p["feet"]
+	var base: Array = p["feet_base"]
+	for i in feet.size():
+		var f: Node3D = feet[i]
+		var b: Vector3 = base[i]
+		var ph := float(i) * PI
+		if fly:
+			f.position = b + Vector3(0, 0.02 + sin(t * 4.0 + ph) * 0.04, 0.05)
+			f.rotation.x = 0.4
+		else:
+			f.rotation.x = -maxf(0.0, sin(step + ph)) * 0.5 * m
+			f.position = b + Vector3(0, maxf(0.0, sin(step + ph)) * 0.12 * m, -sin(step + ph) * 0.12 * m)
 	var mouth: Node3D = p["mouth"]
-	mouth.scale.y = lerpf(mouth.scale.y, 2.4 if windup else (1.8 if pain else 1.0 + 0.15 * sin(t * 5.0)), clampf(delta * 14.0, 0.0, 1.0))
+	var open := 7.0 if windup else (4.0 if pain else 1.0)
+	mouth.scale = mouth.scale.lerp(Vector3(1.0 + (open - 1.0) * 0.04, open, 1.0), clampf(delta * 14.0, 0.0, 1.0))
+	if p.has("arm"):
+		p["arm"].rotation.x = -0.25 if windup else 0.1 + sin(t * 2.0) * 0.08
 	var blink: bool = st.get("blink", false)
-	var look = st.get("look", null)
-	for i in p["eyes"].size():
-		var e: Node3D = p["eyes"][i]
-		var lid: Node3D = p["lids"][i]
-		lid.position.y = 0.0 if blink else (0.04 if pain else 0.1)
-		lid.scale.y = 1.6 if blink else 1.0
-		if look is Vector3:
-			var d: Vector3 = (look - e.position).normalized()
-			e.rotation = Vector3(clampf(asin(d.y), -0.4, 0.4), clampf(atan2(-d.x, -d.z), -0.6, 0.6), 0)
+	for e in p["eyes"]:
+		e.scale = Vector3.ONE * (0.4 if blink else (1.0 + 0.15 * sin(t * 9.0)))
 
 
 static func _anim_snirby(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
@@ -312,6 +394,43 @@ static func _anim_snirby(p: Dictionary, t: float, delta: float, st: Dictionary) 
 	var windup: bool = st.get("windup", false)
 	var pain: bool = st.get("pain", false)
 	var fly: bool = st.get("fly", false) or p.get("fly", false)
+	var body: Node3D = p["body"]
+	var puff: Node3D = p["puff"]
+	var step := t * (9.0 + 6.0 * m)
+	var breathe := 1.0 + 0.04 * sin(t * 2.0)
+	if fly:
+		puff.scale = Vector3(1.3, 1.25, 1.3) * breathe
+		body.position.y = 0.2 + sin(t * 2.4) * 0.12
+	else:
+		var squish := absf(sin(step)) * m
+		puff.scale = Vector3(breathe + 0.05 * squish, breathe - 0.07 * squish, breathe) * (0.85 if pain else 1.0)
+		body.position.y = absf(sin(step)) * 0.14 * m
+	body.rotation.x = (0.3 if pain else 0.0) - (0.25 if windup else 0.0)
+	body.rotation.z = sin(step * 0.5) * 0.1 * m
+	# the beak jabs: it rears up on the windup and pecks down
+	var beak: Node3D = p["beak"]
+	var bx := 0.35 if windup else (-0.25 if pain else sin(t * 1.7) * 0.06 + sin(step) * 0.08 * m)
+	beak.rotation.x = lerpf(beak.rotation.x, bx, clampf(delta * 14.0, 0.0, 1.0))
+	beak.rotation.y = sin(t * 0.9) * 0.08
+	var feet: Array = p["feet"]
+	for i in feet.size():
+		var f: Node3D = feet[i]
+		if fly:
+			f.rotation.x = 0.5 + sin(t * 3.0 + i) * 0.2
+			f.position = Vector3(f.position.x, 0.12, -0.04)
+		else:
+			f.rotation.x = 0.0
+			f.position.z = -0.1 + sin(step + i * PI) * 0.16 * m
+			f.position.y = 0.1 + maxf(0.0, sin(step + i * PI)) * 0.08 * m
+	for e in p["eyes"]:
+		e.scale = Vector3.ONE * (1.0 + 0.2 * sin(t * 7.0))
+
+
+static func _anim_snotling(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
+	var m := float(st.get("move", 0.0))
+	var windup: bool = st.get("windup", false)
+	var pain: bool = st.get("pain", false)
+	var fly: bool = st.get("fly", false)
 	var body: Node3D = p["body"]
 	var puff: Node3D = p["puff"]
 	var step := t * (9.0 + 6.0 * m)
@@ -337,13 +456,9 @@ static func _anim_snirby(p: Dictionary, t: float, delta: float, st: Dictionary) 
 	var feet: Array = p["feet"]
 	for i in feet.size():
 		var f: Node3D = feet[i]
-		if fly:
-			f.rotation.x = 0.5 + sin(t * 3.0 + i) * 0.2
-			f.position.z = -0.04
-		else:
-			f.rotation.x = 0.0
-			f.position.z = -0.04 + sin(step + i * PI) * 0.16 * m
-			f.position.y = 0.1 + maxf(0.0, sin(step + i * PI)) * 0.08 * m
+		f.rotation.x = 0.0
+		f.position.z = -0.04 + sin(step + i * PI) * 0.16 * m
+		f.position.y = 0.1 + maxf(0.0, sin(step + i * PI)) * 0.08 * m
 	var mouth: Node3D = p["mouth"]
 	var open := 3.0 if windup else (2.2 if pain else 1.0 + 0.3 * maxf(0.0, sin(t * 4.0)))
 	mouth.scale = mouth.scale.lerp(Vector3(1.0 + (open - 1.0) * 0.3, open, 1.0), clampf(delta * 12.0, 0.0, 1.0))
@@ -364,20 +479,26 @@ static func _anim_snirby(p: Dictionary, t: float, delta: float, st: Dictionary) 
 static func death_pose(root: Node3D, k: float) -> void:
 	var p: Dictionary = root.get_meta("parts")
 	var body: Node3D = p["body"]
-	if p.get("kind", "") == "gorbino":
-		body.position.y = lerpf(0.0, -0.45, k * k)
-		body.rotation.x = lerpf(0.0, 0.5, k)
-		p["mouth"].scale.y = 2.6
-		for segs in p["tentacles"]:
-			for j in segs.size():
-				var s: Node3D = segs[j]
-				s.rotation.x = lerpf(s.rotation.x, deg_to_rad(88.0) if j == 0 else deg_to_rad(8.0), k)
-		for lid in p["lids"]:
-			lid.position.y = 0.02
-	else:
-		body.rotation.z = lerpf(0.0, deg_to_rad(80), k * k)
-		body.position.y = lerpf(0.0, 0.05, k)
-		p["puff"].scale = Vector3(1.0 + 0.2 * k, 1.0 - 0.35 * k, 1.0 + 0.2 * k)
-		p["mouth"].scale = Vector3(1.5, 3.0, 1.0)
-		for lid in p["lids"]:
-			lid.position.y = 0.0
+	match p.get("kind", ""):
+		"gorbino":
+			var sq: Node3D = p["squash"]
+			sq.scale = Vector3(1.0 + 0.45 * k, 1.0 - 0.6 * k, 1.0 + 0.45 * k)
+			body.position.y = 0.0
+			body.rotation.x = lerpf(0.0, 0.2, k)
+			p["mouth"].scale = Vector3(1.3, 6.0, 1.0)
+			for e in p["eyes"]:
+				e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)
+		"snirby":
+			body.rotation.z = lerpf(0.0, deg_to_rad(80), k * k)
+			body.position.y = lerpf(0.0, 0.05, k)
+			p["puff"].scale = Vector3(1.0 + 0.2 * k, 1.0 - 0.35 * k, 1.0 + 0.2 * k)
+			p["beak"].rotation.x = lerpf(0.0, -0.5, k)
+			for e in p["eyes"]:
+				e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)
+		_:
+			body.rotation.z = lerpf(0.0, deg_to_rad(80), k * k)
+			body.position.y = lerpf(0.0, 0.05, k)
+			p["puff"].scale = Vector3(1.0 + 0.2 * k, 1.0 - 0.35 * k, 1.0 + 0.2 * k)
+			p["mouth"].scale = Vector3(1.5, 3.0, 1.0)
+			for lid in p["lids"]:
+				lid.position.y = 0.0

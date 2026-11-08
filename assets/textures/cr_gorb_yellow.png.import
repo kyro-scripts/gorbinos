@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://l02l4ktdylu1"
-path="res://.godot/imported/cr_gorbino_skin.png-29db2dc2e2b7f062afa96ce829297725.ctex"
+uid="uid://di16fhh1fp4wv"
+path="res://.godot/imported/cr_gorb_yellow.png-26bc351ec10ab5e1aca845362660fe15.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/cr_gorbino_skin.png"
-dest_files=["res://.godot/imported/cr_gorbino_skin.png-29db2dc2e2b7f062afa96ce829297725.ctex"]
+source_file="res://assets/textures/cr_gorb_yellow.png"
+dest_files=["res://.godot/imported/cr_gorb_yellow.png-26bc351ec10ab5e1aca845362660fe15.ctex"]
 
 [params]
 

@@ -40,35 +40,6 @@ def skin_field(w, h, seed, cells):
 
 
 # ------------------------------------------------------------------ GORBINO
-def gorbino_skin():
-    """Neutral (tintable) octopus skin: mottling, suckers, veins, wet glints."""
-    W, H = 256, 128
-    n1, n2, d1 = skin_field(W, H, 9100, 60)
-    base = 0.62 + n1 * 0.35 - (d1 < 3.2) * 0.25 + n2 * 0.12
-    img = np.stack([base, base * 0.93, base * 0.86], -1)
-    # dark freckles
-    fr = (value_noise(256, 64, 9103, 2)[:H, :W] > 0.76)
-    img[fr] *= 0.78
-    # veins: thin dark lines from noise level sets
-    vn = value_noise(256, 6, 9104, 4)[:H, :W]
-    veins = np.abs(vn - 0.5) < 0.012
-    img[veins] = img[veins] * np.array([0.55, 0.25, 0.3])
-    # pale sucker rings on the lower half (underside / tentacle roots)
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    r = rng(9105)
-    for _ in range(70):
-        cx, cy = r.uniform(0, W), r.uniform(H * 0.55, H)
-        rad = r.uniform(2.0, 4.5)
-        d = np.hypot(xx - cx, yy - cy)
-        ring = (d < rad) & (d > rad * 0.55)
-        img[ring] = np.array([1.0, 0.92, 0.85])
-        img[d <= rad * 0.55] *= 0.6
-    # wet glints
-    gl = r.random((H, W)) > 0.992
-    img[gl] = 1.0
-    photo(Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)), 9106, block=2).save(os.path.join(OUT, "cr_gorbino_skin.png"))
-
-
 def eye(path, size, iris_stops, pupil="slit", seed=0, lid_color=None):
     """Bloodshot eyeball with a goat/octopus slit or a round pupil."""
     S = size
@@ -179,21 +150,6 @@ def snirby_skin():
     photo(im, 9306, grain=0.07, block=2, sat=1.15).save(os.path.join(OUT, "cr_snirby_skin.png"))
 
 
-def snirby_eye():
-    """Tall glossy black eye, slightly bloodshot rim, big wet highlight."""
-    W, H = 32, 64
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    d = np.hypot((xx - 15.5) / 15.5, (yy - 31.5) / 31.5)
-    img = gradmap(np.clip(d, 0, 1), [(0, (40, 20, 30)), (0.7, (10, 4, 10)), (0.9, (120, 20, 30)), (1, (200, 90, 100))])
-    yy2 = (yy - 20) / 9
-    hl = np.hypot((xx - 11) / 5, yy2) < 1
-    img[hl] = np.array([1, 1, 1])
-    img[np.hypot((xx - 19) / 3, (yy - 44) / 4) < 1] = np.array([0.6, 0.6, 0.7])
-    # a hint of a blue-ish iris at the bottom like the cartoon it was copied from
-    img[(np.hypot((xx - 15.5) / 9, (yy - 46) / 10) < 1) & ~hl] = img[(np.hypot((xx - 15.5) / 9, (yy - 46) / 10) < 1) & ~hl] * 0.4 + np.array([0.1, 0.2, 0.6]) * 0.6
-    photo(to_img(img), 9400, grain=0.05, block=1).save(os.path.join(OUT, "cr_snirby_eye.png"))
-
-
 def snirby_foot():
     W = 64
     n1, n2, d1 = skin_field(W, W, 9500, 30)
@@ -211,14 +167,24 @@ def snot():
 
 
 if __name__ == "__main__":
-    gorbino_skin()
-    eye(os.path.join(OUT, "cr_gorbino_eye.png"), 64, [(0, (40, 20, 0)), (0.5, (230, 150, 10)), (1, (255, 230, 80))], "slit", 9150)
+    # Snotling (the little pink guy) and the Gorbino's maw / mouth
     eye(os.path.join(OUT, "cr_snirby_eye_h.png"), 64, [(0, (20, 40, 20)), (0.5, (110, 150, 80)), (1, (200, 220, 150))], "round", 9170)
-    eye(os.path.join(OUT, "cr_snirby_eye_red.png"), 64, [(0, (60, 0, 0)), (0.5, (255, 30, 20)), (1, (255, 200, 120))], "round", 9180)
-    eye(os.path.join(OUT, "cr_gorbino_eye_red.png"), 64, [(0, (40, 0, 0)), (0.5, (255, 20, 10)), (1, (255, 150, 90))], "slit", 9160)
     gorbino_mouth()
     snirby_skin()
-    snirby_eye()
     snirby_foot()
     snot()
     print("creature textures written")
+
+
+# ================================================================== the Gorbino's attack maw
+# (the Gorbino and Snirby skins themselves come from the supplied assets;
+# see tools/import_user_models.py)
+def gorbino_maw():
+    W, H = 64, 32
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    d = np.hypot((xx - 31.5) / 31.5, (yy - 15.5) / 15.5)
+    img = gradmap(np.clip(d, 0, 1), [(0, (40, 0, 8)), (0.7, (15, 0, 4)), (0.9, (70, 10, 20)), (1, (20, 30, 10))])
+    to_img(img).save(os.path.join(OUT, "cr_gorbino_maw.png"))
+
+
+gorbino_maw()

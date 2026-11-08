@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cx6x8ol5duaya"
-path="res://.godot/imported/hp_lump.png-908a9357bf60249911bc20a31d274a61.ctex"
+uid="uid://bc575eclaa7sh"
+path="res://.godot/imported/cr_gorb_purple.png-b71f4603811cec1cf2dd12e51df3f8be.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/hp_lump.png"
-dest_files=["res://.godot/imported/hp_lump.png-908a9357bf60249911bc20a31d274a61.ctex"]
+source_file="res://assets/textures/cr_gorb_purple.png"
+dest_files=["res://.godot/imported/cr_gorb_purple.png-b71f4603811cec1cf2dd12e51df3f8be.ctex"]
 
 [params]
 

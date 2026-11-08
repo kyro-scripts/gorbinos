@@ -91,6 +91,29 @@ func _ready() -> void:
 		autopilot = load("res://scripts/test/autopilot.gd").new()
 		autopilot.setup(self)
 		add_child(autopilot)
+	if OS.get_cmdline_user_args().has("--lineup"):
+		_debug_lineup()
+
+
+## Debug: stand one of every creature in front of the player, frozen, for screenshots.
+func _debug_lineup() -> void:
+	var yaw := level.start_yaw
+	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+	var right := Vector3(cos(yaw), 0, -sin(yaw))
+	var turn := 0.0
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--lineup-turn="):
+			turn = float(a.substr(14))
+	var rows := [[4.6, 1.5, ["snotling", "green", "snirby", "yellow", "red"]], [8.0, 2.4, ["blue", "skysnirby", "black", "purple"]]]
+	for row in rows:
+		var names: Array = row[2]
+		for i in names.size():
+			var p: Vector3 = level.player_start + fwd * float(row[0]) + right * (float(i) - (names.size() - 1) * 0.5) * float(row[1])
+			p.y = level.floor_at(p)
+			var en := Enemy.new()
+			level.entity_root().add_child(en)
+			en.setup(names[i], level, p, yaw + PI + turn)
+			en.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 func _exit_tree() -> void:

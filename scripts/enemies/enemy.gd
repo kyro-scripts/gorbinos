@@ -3,27 +3,27 @@ extends AnimatableBody3D
 ## Gorbinos and Snirbies. One script, data-driven variants.
 
 const TYPES := {
-	"green": {"model": "gorbino", "color": Color(1.0, 0.48, 0.1), "hp": 51, "speed": 5.4, "radius": 0.55, "height": 1.6,
+	"green": {"model": "gorbino", "color": Color(0.12, 0.19, 0.06), "hp": 51, "speed": 5.4, "radius": 0.55, "height": 1.6,
 		"attack": "proj", "proj": "green", "proj_speed": 19.5, "dmg": 10, "count": 1, "spread": 0.0, "cooldown": [1.12, 2.24],
 		"windup": 0.40, "range": 45.0, "pain": 0.75, "sight": "gorb_sight", "pain_snd": "gorb_pain", "death": "gorb_death",
 		"idle": "gorb_idle", "name": "GORBINO", "drop": ""},
-	"yellow": {"model": "gorbino", "color": Color(1.0, 0.85, 0.1), "hp": 38, "speed": 5.9, "radius": 0.55, "height": 1.6,
+	"yellow": {"model": "gorbino", "color": Color(0.62, 0.52, 0.06), "hp": 38, "speed": 5.9, "radius": 0.55, "height": 1.6,
 		"attack": "hitscan", "dmg": 5, "count": 3, "spread": 0.07, "cooldown": [0.91, 1.82], "windup": 0.40, "range": 40.0,
 		"pain": 0.8, "sight": "gorb_sight2", "pain_snd": "gorb_pain", "death": "gorb_death", "idle": "gorb_idle",
 		"gun": true, "name": "YELLOW GORBINO", "drop": "bullets", "keep_range": 9.0},
-	"red": {"model": "gorbino", "color": Color(1.0, 0.18, 0.12), "hp": 110, "speed": 9.7, "radius": 0.6, "height": 1.6,
+	"red": {"model": "gorbino", "color": Color(0.55, 0.06, 0.05), "hp": 110, "speed": 9.7, "radius": 0.6, "height": 1.6,
 		"attack": "melee", "dmg": 16, "cooldown": [0.42, 0.70], "windup": 0.20, "range": 1.9, "pain": 0.5,
 		"sight": "gorb_attack", "pain_snd": "gorb_pain", "death": "gorb_death", "idle": "gorb_idle", "name": "RED GORBINO", "drop": ""},
-	"blue": {"model": "gorbino", "color": Color(0.2, 0.45, 1.0), "hp": 221, "speed": 4.1, "radius": 0.62, "height": 1.7, "scale": 1.12,
+	"blue": {"model": "gorbino", "color": Color(0.08, 0.16, 0.5), "hp": 221, "speed": 4.1, "radius": 0.62, "height": 1.7, "scale": 1.12,
 		"attack": "proj", "proj": "ice", "proj_speed": 22.1, "dmg": 11, "count": 3, "spread": 0.18, "cooldown": [1.40, 2.38],
 		"windup": 0.50, "range": 40.0, "pain": 0.35, "sight": "gorb_sight", "pain_snd": "gorb_pain", "death": "gorb_death",
 		"idle": "gorb_idle", "name": "BLUE GORBINO", "drop": "shells", "pitch": 0.85},
-	"purple": {"model": "gorbino", "color": Color(0.7, 0.2, 1.0), "hp": 144, "speed": 6.2, "radius": 0.55, "height": 1.6,
+	"purple": {"model": "gorbino", "color": Color(0.36, 0.08, 0.5), "hp": 144, "speed": 6.2, "radius": 0.55, "height": 1.6,
 		"attack": "proj", "proj": "purple", "proj_speed": 14.3, "homing": 2.2, "dmg": 15, "count": 1, "spread": 0.0,
 		"cooldown": [1.26, 2.10], "windup": 0.40, "range": 50.0, "pain": 0.55, "fly": true, "hover": 1.6,
 		"sight": "gorb_sight2", "pain_snd": "gorb_pain", "death": "gorb_death", "idle": "gorb_idle", "name": "PURPLE GORBINO",
 		"drop": "cells", "pitch": 1.25},
-	"black": {"model": "gorbino", "color": Color(0.12, 0.1, 0.14), "hp": 638, "speed": 4.9, "radius": 0.9, "height": 2.5, "scale": 1.55,
+	"black": {"model": "gorbino", "color": Color(0.07, 0.07, 0.08), "hp": 638, "speed": 4.9, "radius": 0.9, "height": 2.5, "scale": 1.55,
 		"attack": "proj", "proj": "fire", "proj_speed": 26.0, "dmg": 25, "splash": 55.0, "splash_r": 3.5, "count": 1, "spread": 0.0,
 		"cooldown": [0.98, 1.82], "windup": 0.40, "range": 60.0, "pain": 0.2, "glow_eyes": true, "launcher": true,
 		"sight": "gorb_big_sight", "pain_snd": "gorb_pain", "death": "gorb_big_death", "idle": "gorb_idle",
@@ -35,11 +35,15 @@ const TYPES := {
 	"skysnirby": {"model": "snirby", "hp": 55, "speed": 8.1, "radius": 0.45, "height": 1.6, "fly": true, "hover": 2.4,
 		"attack": "mixed", "proj": "spit", "proj_speed": 26.0, "dmg": 8, "melee_dmg": 10, "count": 2, "spread": 0.08,
 		"cooldown": [0.77, 1.54], "windup": 0.30, "range": 35.0, "pain": 0.8, "sight": "snirb_sight", "pain_snd": "snirb_pain",
-		"death": "snirb_death", "idle": "snirb_sniff", "name": "SKY SNIRBY", "drop": "", "tint": Color(1.0, 0.86, 0.96), "propeller": true},
+		"death": "snirb_death", "idle": "snirb_sniff", "name": "SKY SNIRBY", "drop": "", "tint": Color(0.85, 1.0, 0.95), "propeller": true},
+	"snotling": {"model": "snotling", "hp": 22, "speed": 10.6, "radius": 0.34, "height": 1.0, "scale": 0.7,
+		"attack": "mixed", "proj": "spit", "proj_speed": 21.0, "dmg": 5, "melee_dmg": 6, "count": 1, "spread": 0.0,
+		"cooldown": [0.8, 1.6], "windup": 0.20, "range": 22.0, "pain": 1.0, "sight": "snirb_sight", "pain_snd": "snirb_pain",
+		"death": "snirb_death", "idle": "snirb_sniff", "name": "SNOTLING", "drop": "", "pitch": 1.35, "color": Color(0.85, 0.45, 0.55)},
 	"boss": {"model": "snirby", "hp": 4420, "speed": 4.6, "radius": 1.9, "height": 6.4, "scale": 4.2, "boss": true,
 		"attack": "boss", "proj": "spit", "proj_speed": 24.7, "dmg": 12, "count": 1, "spread": 0.0, "cooldown": [0.70, 1.26],
 		"windup": 0.50, "range": 90.0, "pain": 0.0, "sight": "boss_roar", "pain_snd": "snirb_pain", "death": "boss_death",
-		"idle": "snirb_sniff", "name": "THE GREAT SNIRBY", "drop": "", "tint": Color(1.0, 0.75, 0.85), "glow": true, "pitch": 0.45},
+		"idle": "snirb_sniff", "name": "THE GREAT SNIRBY", "drop": "", "tint": Color(0.8, 0.85, 1.0), "glow": true, "pitch": 0.45},
 }
 
 var spawn_id := -1
@@ -105,10 +109,13 @@ func setup(t: String, lvl: Level, pos: Vector3, p_yaw: float) -> void:
 	col_shape.position = Vector3(0, height * 0.5, 0)
 	add_child(col_shape)
 	var sc := float(def.get("scale", 1.0))
-	if def["model"] == "gorbino":
-		model = Models.gorbino(def["color"], {"gun": def.get("gun", false), "glow_eyes": def.get("glow_eyes", false), "launcher": def.get("launcher", false)})
-	else:
-		model = Models.snirby({"tint": def.get("tint", Color(1, 1, 1)), "glow": def.get("glow", false), "fly": def.get("fly", false)})
+	match def["model"]:
+		"gorbino":
+			model = Models.gorbino(def["color"], {"skin": etype, "gun": def.get("gun", false), "glow_eyes": def.get("glow_eyes", false), "launcher": def.get("launcher", false)})
+		"snotling":
+			model = Models.snotling({"tint": def.get("tint", Color(1, 1, 1))})
+		_:
+			model = Models.snirby({"tint": def.get("tint", Color(1, 1, 1)), "glow": def.get("glow", false), "fly": def.get("fly", false)})
 	model.scale = Vector3.ONE * sc
 	add_child(model)
 	parts = model.get_meta("parts")
@@ -139,7 +146,7 @@ func alert() -> void:
 	attack_timer = randf_range(0.6, 1.6) / Game.diff()["aggro"]
 	var spoke := false
 	if not def.get("boss", false) and randf() < 0.45:
-		spoke = Audio.voice_line(center_point(), 0.9 if def["model"] == "gorbino" else 1.12)
+		spoke = Audio.voice_line(center_point(), {"gorbino": 0.9, "snirby": 1.12}.get(def["model"], 1.35))
 	if not spoke:
 		Audio.play_at(def["sight"], center_point(), 2.0 if def.get("boss", false) else 0.0, float(def.get("pitch", 1.0)) * randf_range(0.92, 1.08))
 	if def.get("boss", false) and level.world:
@@ -356,7 +363,10 @@ func _muzzle_point() -> Vector3:
 	if def.get("launcher", false):
 		return global_position + Vector3(0, 1.2 * sc, 0) + global_transform.basis.x * 0.5 * sc + fwd * 0.6 * sc
 	if def["model"] == "snirby":
-		return global_position + Vector3(0, 1.4 * sc, 0) + fwd * 0.75 * sc
+		# the tip of the beak
+		return global_position + Vector3(0, 0.62 * sc, 0) + fwd * 0.9 * sc
+	if def["model"] == "snotling":
+		return global_position + Vector3(0, 0.5 * sc, 0) + fwd * 0.5 * sc
 	return global_position + Vector3(0, 0.75 * sc, 0) + fwd * 0.6 * sc
 
 
@@ -406,7 +416,7 @@ func _fire_proj(mp: Vector3, target: Vector3, pl: Node) -> void:
 	# light leading of the target
 	var lead: Vector3 = pl.velocity * (mp.distance_to(target) / spd) * 0.35 if "velocity" in pl else Vector3.ZERO
 	var aim := (target + lead - mp).normalized()
-	Audio.play_at("snirb_spit" if def["model"] == "snirby" else "proj_launch", mp, 0.0, float(def.get("pitch", 1.0)))
+	Audio.play_at("proj_launch" if def["model"] == "gorbino" else "snirb_spit", mp, 0.0, float(def.get("pitch", 1.0)))
 	for k in n:
 		var off := 0.0 if n == 1 else (float(k) / (n - 1) - 0.5) * 2.0 * spread
 		var dir := aim.rotated(Vector3.UP, off)
@@ -448,7 +458,7 @@ func _boss_attack(pl: Node, mp: Vector3, target: Vector3) -> void:
 					continue
 				var en := Enemy.new()
 				level.entity_root().add_child(en)
-				en.setup("skysnirby" if k % 2 == 1 else "snirby", level, Vector3(sp.x, level.floor_h[ci], sp.z), a)
+				en.setup(["snirby", "skysnirby", "snotling"][k % 3], level, Vector3(sp.x, level.floor_h[ci], sp.z), a)
 				en.summoned = true
 				level.enemies.append(en)
 				en.alert()
@@ -486,7 +496,7 @@ func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") ->
 	var kb := amount * (0.06 if kind != "explosion" else 0.12) / sqrt(max_hp / 60.0)
 	if not def.get("boss", false):
 		knock += Vector3(dir.x, 0, dir.z) * minf(kb, 9.0)
-	var bc := Color(0.8, 0.25, 0.04) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
+	var bc := Color(0.15, 0.3, 0.05) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
 	Fx.blood(level, center_point() - dir * 0.2, bc, clampi(int(amount / 6.0), 2, 10))
 	if not alerted:
 		alert()
@@ -504,11 +514,11 @@ func _die(amount: float, kind: String, dir: Vector3) -> void:
 	dead = true
 	state = "dead"
 	col_shape.disabled = true
-	var bc := Color(0.8, 0.25, 0.04) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
+	var bc := Color(0.15, 0.3, 0.05) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
 	if not def.get("boss", false) and (hp < -max_hp * 0.6 or (kind == "explosion" and hp < -15.0) or amount >= max_hp * 1.4):
 		gibbed = true
 		model.visible = false
-		var skin: Color = def.get("color", Color(1.0, 0.6, 0.7))
+		var skin: Color = def.get("color", Color(0.2, 0.45, 0.85))
 		Fx.gibs(level, center_point(), skin, bc, 9 if def["model"] == "gorbino" else 7)
 		Audio.play_at("hit_flesh", center_point(), 4.0, 0.6)
 	Audio.play_at(def["death"], center_point(), 2.0 if def.get("boss", false) else 0.0, float(def.get("pitch", 1.0)) * randf_range(0.95, 1.05))

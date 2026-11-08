@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ippopl4lu6tc"
-path="res://.godot/imported/cr_snirby_eye.png-633a089c3fe78886ddb3e69c090be841.ctex"
+uid="uid://cwgp8gtx1oegw"
+path="res://.godot/imported/cr_snirby_feet.png-7483b015a0c4a2c154dd91cca920d682.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/cr_snirby_eye.png"
-dest_files=["res://.godot/imported/cr_snirby_eye.png-633a089c3fe78886ddb3e69c090be841.ctex"]
+source_file="res://assets/textures/cr_snirby_feet.png"
+dest_files=["res://.godot/imported/cr_snirby_feet.png-7483b015a0c4a2c154dd91cca920d682.ctex"]
 
 [params]
 

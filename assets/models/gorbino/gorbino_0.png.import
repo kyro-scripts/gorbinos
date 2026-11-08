@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://euwg706ublvd"
-path="res://.godot/imported/cr_gorbino_eye_red.png-5a606b41d63f4f7d954babf1e9f11d53.ctex"
+uid="uid://ugtjycrgdl56"
+path="res://.godot/imported/gorbino_0.png-0f962b1d039a7c1a6cfa158f88c14f8b.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "93d036089f1556c3a6330cb9d699e166"
 }
 
 [deps]
 
-source_file="res://assets/textures/cr_gorbino_eye_red.png"
-dest_files=["res://.godot/imported/cr_gorbino_eye_red.png-5a606b41d63f4f7d954babf1e9f11d53.ctex"]
+source_file="res://assets/models/gorbino/gorbino_0.png"
+dest_files=["res://.godot/imported/gorbino_0.png-0f962b1d039a7c1a6cfa158f88c14f8b.ctex"]
 
 [params]
 
@@ -23,7 +26,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

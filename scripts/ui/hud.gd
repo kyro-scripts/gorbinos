@@ -10,8 +10,10 @@ var center_msg := ""
 var center_t := 0.0
 var boss: Node = null
 var show_map := false
-var _lump: Texture2D
-var _lump_t := 0.0
+var _jar: Texture2D
+var _specimen: Texture2D
+var _jar_t := 0.0
+var _bubbles: Array = []
 var _noise_t := 0.0
 var _noise_seed := 0
 var _shown_hp := 100.0
@@ -26,7 +28,8 @@ const BORDER_COLS := [Color(1, 0.2, 0.3), Color(0.25, 1, 0.3), Color(0.3, 0.4, 1
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_lump = load("res://assets/ui/hp_lump.png")
+	_jar = load("res://assets/ui/hud_jar.png")
+	_specimen = load("res://assets/ui/hud_gorb.png")
 	_death_tex = load("res://assets/ui/death.png")
 
 
@@ -49,8 +52,13 @@ func _process(delta: float) -> void:
 	center_t -= delta
 	if player:
 		var hp := float(player.health)
-		# the lump beats faster the closer you are to death
-		_lump_t += delta * (8.0 + (100.0 - clampf(hp, 0, 100)) * 0.22)
+		# the specimen gets more agitated the closer you are to death
+		_jar_t += delta * (1.0 + (100.0 - clampf(hp, 0, 100)) * 0.05)
+		if randf() < delta * 3.0 and hp > 0:
+			_bubbles.append(Vector3(randf_range(0.1, 0.9), 1.0, randf_range(0.6, 1.4)))
+		for b in _bubbles:
+			b.y -= delta * 0.5 * b.z
+		_bubbles = _bubbles.filter(func(b): return b.y > 0.0)
 		_shown_hp = move_toward(_shown_hp, hp, delta * 160.0)
 		if player.health < _last_hp:
 			_hit_t = 0.25
@@ -146,22 +154,48 @@ func _draw_crosshair(W: float, H: float) -> void:
 
 func _draw_health() -> void:
 	var hp := player.health
-	var frames := 16
-	var fw := float(_lump.get_width()) / frames
-	var f := int(_lump_t) % frames
-	var s := 62.0 + (6.0 if _hit_t > 0.0 else 0.0)
-	var k := clampf(hp / 100.0, 0.0, 1.0)
-	var tint := Color(1, 1, 1).lerp(Color(1.0, 0.35, 0.3), 1.0 - k)
+	var shake := Vector2(randf_range(-1, 1), randf_range(-1, 1)) * (1.5 if _hit_t > 0.0 else 0.0)
+	var pos := Vector2(8, 6) + shake
+	var js := Vector2(40, 70)
+	# interior of the jar (texture box 16..64 x 20..120 on an 80x140 image)
+	var inner := Rect2(pos + Vector2(8, 10), Vector2(24, 50))
+	draw_rect(inner, Color(0.02, 0.03, 0.03, 0.75))
+	var frac := clampf(_shown_hp / 100.0, 0.0, 1.0)
+	var col := Color(0.35, 0.95, 0.25)
+	if hp < 60:
+		col = Color(0.95, 0.75, 0.15)
+	if hp < 30:
+		col = Color(0.95, 0.15, 0.12)
 	if hp > 100:
-		tint = Color(0.8, 1.0, 0.7)
+		col = Color(0.3, 1.0, 0.8)
 	if player.dead:
-		tint = Color(0.3, 0.3, 0.3)
-	var pos := Vector2(10, 8) - Vector2(s - 62.0, s - 62.0) * 0.5
-	draw_texture_rect_region(_lump, Rect2(pos, Vector2(s, s)), Rect2(f * fw, 0, fw, _lump.get_height()), tint)
-	UI.text(self, "anton", Vector2(76, 10), str(int(round(_shown_hp))), Color(1, 0.3, 0.25) if hp <= 25 else UI.BONE, 34)
+		col = Color(0.25, 0.2, 0.2)
+	var top := inner.end.y - inner.size.y * frac
+	if frac > 0.0:
+		var pts := PackedVector2Array()
+		var steps := 8
+		for k in steps + 1:
+			var x := inner.position.x + inner.size.x * k / steps
+			pts.append(Vector2(x, clampf(top + sin(_jar_t * 3.0 + k * 0.9) * 1.2, inner.position.y, inner.end.y)))
+		pts.append(inner.end)
+		pts.append(Vector2(inner.position.x, inner.end.y))
+		draw_colored_polygon(pts, Color(col, 0.75))
+		draw_rect(Rect2(inner.position.x, top, inner.size.x, 2), Color(col.lightened(0.5), 0.8))
+		for b in _bubbles:
+			var by: float = lerpf(inner.end.y, top, 1.0 - b.y)
+			if by > top + 1:
+				draw_circle(Vector2(inner.position.x + inner.size.x * b.x, by), 1.0, Color(1, 1, 1, 0.6))
+	# the specimen floats in the fluid; it twitches when you are hurt
+	var agit := 1.0 - clampf(hp / 100.0, 0.0, 1.0)
+	var sy := clampf(maxf(top, inner.position.y) + 6.0, inner.position.y + 4, inner.end.y - 20)
+	var sp := Vector2(inner.get_center().x - 10 + sin(_jar_t * 2.0) * 2.0 + randf_range(-1, 1) * agit * 2.0, sy + sin(_jar_t * 1.3) * 3.0)
+	var sm := Color(1, 1, 1) if not player.dead else Color(0.4, 0.4, 0.4)
+	draw_texture_rect(_specimen, Rect2(sp, Vector2(20, 20)), false, sm)
+	draw_texture_rect(_jar, Rect2(pos, js), false)
+	UI.text(self, "anton", Vector2(54, 10), str(int(round(_shown_hp))), Color(1, 0.3, 0.25) if hp <= 25 else UI.BONE, 34)
 	if player.armor > 0:
 		var ac := Color(0.55, 0.85, 1.0) if player.armor_type == 2 else Color(0.75, 0.95, 0.55)
-		UI.text(self, "anton", Vector2(78, 50), "%d ARMOR" % player.armor, ac, 16)
+		UI.text(self, "anton", Vector2(56, 50), "%d ARMOR" % player.armor, ac, 16)
 
 
 func _draw_keys() -> void:
@@ -169,7 +203,7 @@ func _draw_keys() -> void:
 	var x := 14.0
 	for kn in ["red", "blue", "yellow"]:
 		if player.has_key(kn):
-			var r := Rect2(x, 76, 16, 10)
+			var r := Rect2(x, 80, 16, 10)
 			draw_rect(Rect2(r.position + Vector2(2, 2), r.size), Color(0, 0, 0, 0.6))
 			draw_rect(r, kcols[kn])
 			draw_rect(Rect2(r.position + Vector2(2, 2), Vector2(5, 2)), Color(1, 1, 1))

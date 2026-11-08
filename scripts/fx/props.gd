@@ -50,7 +50,7 @@ static func make_prop(kind: String, level: Node, pos: Vector3) -> Node3D:
 		"checkpoint":
 			root = _body(0.3, 1.6)
 			root.add_child(Models.mi(Models.box(0.5, 1.4, 0.5), Mat.world("checkpoint", {"origin": true, "fullbright": 0.7}), Vector3(0, 0.7, 0)))
-			var head := Models.gorbino(Color(0.4, 1.0, 0.4))
+			var head := Models.gorbino(Color(0.25, 0.45, 0.12))
 			head.scale = Vector3.ONE * 0.35
 			head.position = Vector3(0, 1.4, 0)
 			root.add_child(head)
