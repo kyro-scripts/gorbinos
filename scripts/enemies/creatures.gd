@@ -3,8 +3,8 @@ extends RefCounted
 ## The creatures of Gorbino's Quest:
 ##  - Gorbino: the supplied model (assets/models/gorbino), a glossy round blob
 ##    on two round feet, recoloured per variant.
-##  - Snirby: a blue ball wearing the supplied face texture, with a long dark
-##    beak and orange shoes.
+##  - Snirby: a blue ball wearing the supplied face texture, with a long beak
+##    in the same blue skin and orange shoes.
 ##  - Snotling: a little pink, lumpy, snot-nosed blob.
 ## Each model stores its animatable parts in the "parts" metadata, and
 ## animate() / death_pose() drive them.
@@ -213,6 +213,32 @@ static func snirby_body_mesh(rings := 14, segs := 22) -> ArrayMesh:
 	return mesh
 
 
+## The beak: a cone pointing down -Z from its base at the origin, slightly
+## flattened. Its UVs sample the plain blue of the face texture so it is
+## the same skin as the body.
+static func snirby_beak_mesh(length := 1.05, radius := 0.2, flat := 0.85, segs := 12) -> ArrayMesh:
+	var key := "snirby_beak%s%s%s%d" % [length, radius, flat, segs]
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var tip := Vector3(0, 0, -length)
+	for j in segs:
+		var a0 := float(j) / segs * TAU
+		var a1 := float(j + 1) / segs * TAU
+		var tri := [[a0, 0.0], [a1, 0.0], [(a0 + a1) * 0.5, 1.0]]
+		for k in [0, 2, 1]:
+			var a: float = tri[k][0]
+			var t: float = tri[k][1]
+			var ring := Vector3(cos(a) * radius, sin(a) * radius * flat, 0.0)
+			st.set_normal(Vector3(cos(a), sin(a) / flat, radius / length).normalized())
+			st.set_uv(Vector2(0.015 + 0.045 * a / TAU, 0.27 + 0.16 * t))
+			st.add_vertex(tip if t > 0.5 else ring)
+	var mesh := st.commit()
+	_mesh_cache[key] = mesh
+	return mesh
+
+
 ## Point on the Snirby's face for a texture coordinate (puff-local).
 static func _snirby_face_point(uv: Vector2) -> Vector3:
 	var x := (0.5 - uv.x) * 2.0
@@ -226,7 +252,6 @@ static func snirby(opts := {}) -> Node3D:
 	var parts := {"kind": "snirby"}
 	var tint: Color = opts.get("tint", Color(1, 1, 1))
 	var skin := Mat.make("cr_snirby_face", {"origin": true, "tint": tint, "shade": 0.85, "gloss": 0.6, "fullbright": 0.12})
-	var beak_m := Mat.make("white", {"origin": true, "tint": Color(0.09, 0.12, 0.15), "shade": 0.9, "gloss": 1.0})
 	var foot_m := Mat.make("cr_snirby_feet", {"origin": true, "shade": 0.85, "gloss": 0.9})
 	parts["skin_mat"] = skin
 	var body := Models.pivot()
@@ -236,10 +261,10 @@ static func snirby(opts := {}) -> Node3D:
 	body.add_child(puff)
 	parts["puff"] = puff
 	puff.add_child(_part(snirby_body_mesh(), skin))
-	# the long beak grows out of the nose
+	# the long beak grows out of the nose, in the same skin as the body
 	var beak := Models.pivot(_snirby_face_point(Vector2(0.5, 0.585)) * 0.85)
 	puff.add_child(beak)
-	beak.add_child(_part(Models.cyl(0.0, 0.2, 1.05, 10), beak_m, Vector3(0, 0, -0.525), Vector3(1.0, 1.0, 0.85), Vector3(-90, 0, 0)))
+	beak.add_child(_part(snirby_beak_mesh(), skin))
 	parts["beak"] = beak
 	var eyes := []
 	if opts.get("glow", false):
