@@ -159,7 +159,8 @@ func _process(delta: float) -> void:
 	position = pos
 	arm.rotation = arm_rot
 	hand.rotation = hand_rot
-	knife.position = Vector3(0, 0.005, -0.015) + k_pos
+	# knife offsets are given in arm space (up is up on screen), undo the wrist turn
+	knife.position = Vector3(0, 0.005, -0.015) + Basis.from_euler(hand_rot).inverse() * k_pos
 	knife.rotation = k_rot
 
 
@@ -167,7 +168,7 @@ func _ease(k: float) -> float:
 	return k * k * (3.0 - 2.0 * k)
 
 
-## [arm position offset, wrist rotation offset, knife offset, knife rotation]
+## [arm position offset, wrist rotation offset, knife offset (arm space), knife rotation]
 func _trick_pose(delta: float) -> Array:
 	var ap := Vector3.ZERO
 	var hr := Vector3.ZERO
@@ -199,7 +200,7 @@ func _trick_pose(delta: float) -> Array:
 			# flicked up, spins twice in the air, caught
 			var q := clampf((k - 0.15) / 0.68, 0.0, 1.0)
 			if k > 0.15 and k < 0.83:
-				kp += Vector3(0, 0.32, -0.22) * sin(q * PI)
+				kp += Vector3(0.03, 0.3, -0.12) * sin(q * PI)
 				kr.x += TAU * 2.0 * q
 			hr.x -= 0.5 * (k / 0.15 if k < 0.15 else 0.0)
 			ap.y -= 0.012 * bump

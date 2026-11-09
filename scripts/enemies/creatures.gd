@@ -2,9 +2,9 @@ class_name Creatures
 extends RefCounted
 ## The creatures of Gorbino's Quest:
 ##  - Gorbino: the supplied model (assets/models/gorbino), a glossy round blob
-##    on two round feet, recoloured per variant.
+##    on two round feet, recoloured per variant. Moves with the hop style.
 ##  - Snirby: a blue ball wearing the supplied face texture, with a long beak
-##    in the same blue skin and orange shoes.
+##    in the same blue skin and orange shoes. Moves with the wobble style.
 ##  - Snotling: a little pink, lumpy, snot-nosed blob.
 ## Each model stores its animatable parts in the "parts" metadata, and
 ## animate() / death_pose() drive them.
@@ -131,6 +131,11 @@ static func gorbino(color: Color, opts := {}) -> Node3D:
 	var squash := Models.pivot(Vector3(0, GORB_SQUASH_Y * H, 0))
 	body.add_child(squash)
 	parts["squash"] = squash
+	parts["core"] = squash                  # pivot sits at the bottom of the body
+	parts["core_y"] = squash.position.y
+	parts["core_r"] = 0.0
+	parts["roll_cy"] = 0.55 * H             # body centre height, and radius, for rolling over
+	parts["roll_r"] = 0.42 * H
 	squash.add_child(_part(_gorb_mesh("body"), skin, Vector3(0, -GORB_SQUASH_Y * H, 0), Vector3.ONE * H))
 	# the two feet, each on its own pivot so they can step
 	var feet := []
@@ -260,6 +265,11 @@ static func snirby(opts := {}) -> Node3D:
 	var puff := Models.pivot(Vector3(0, SNIRBY_Y, 0))
 	body.add_child(puff)
 	parts["puff"] = puff
+	parts["core"] = puff                    # pivot sits at the centre of the ball
+	parts["core_y"] = SNIRBY_Y
+	parts["core_r"] = SNIRBY_R
+	parts["roll_cy"] = SNIRBY_Y
+	parts["roll_r"] = SNIRBY_R
 	puff.add_child(_part(snirby_body_mesh(), skin))
 	# the long beak grows out of the nose, in the same skin as the body
 	var beak := Models.pivot(_snirby_face_point(Vector2(0.5, 0.585)) * 0.85)
@@ -277,12 +287,16 @@ static func snirby(opts := {}) -> Node3D:
 	parts["eyes"] = eyes
 	# rounded orange shoes
 	var feet := []
+	var feet_base := []
 	for sx in [-1.0, 1.0]:
-		var f := Models.pivot(Vector3(0.21 * sx, 0.1, -0.1))
+		var fb := Vector3(0.21 * sx, 0.1, -0.1)
+		var f := Models.pivot(fb)
 		body.add_child(f)
 		f.add_child(_part(blob_mesh(0.17, Vector3(0.9, 0.62, 1.35), 5230, 0.03, 6, 10), foot_m))
 		feet.append(f)
+		feet_base.append(fb)
 	parts["feet"] = feet
+	parts["feet_base"] = feet_base
 	parts["fly"] = opts.get("fly", false)
 	root.set_meta("parts", parts)
 	animate(root, 0.0, 0.016, {})
@@ -380,34 +394,104 @@ static func gut_anchor(root: Node3D) -> Array:
 
 
 # ================================================================== animation
+## Two ways of moving, shared by the Gorbino and the Snirby:
+##  - hop: bouncy, breathing, puffs right up to fly, pecks, rolls over dead
+##    (the Gorbino moves like this)
+##  - wobble: jelly squash-and-stretch, rears up before it attacks, flattens
+##    when hurt and when it dies (the Snirby moves like this)
 ## st keys: move (0..1), windup, pain, blink, fly, look (Vector3, model local)
 static func animate(root: Node3D, t: float, delta: float, st: Dictionary) -> void:
 	var p: Dictionary = root.get_meta("parts")
 	match p.get("kind", ""):
 		"gorbino":
-			_anim_gorbino(p, t, delta, st)
+			_anim_hop(p, t, delta, st)
 		"snirby":
-			_anim_snirby(p, t, delta, st)
+			_anim_wobble(p, t, delta, st)
 		_:
 			_anim_snotling(p, t, delta, st)
 
 
-static func _anim_gorbino(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
+## Keep the bottom of the body on its feet whatever the core's scale is.
+static func _plant(p: Dictionary) -> void:
+	var core: Node3D = p["core"]
+	core.position.y = float(p["core_y"]) + float(p["core_r"]) * (core.scale.y - 1.0)
+
+
+static func _anim_hop(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
 	var m := float(st.get("move", 0.0))
 	var windup: bool = st.get("windup", false)
 	var pain: bool = st.get("pain", false)
-	var fly: bool = st.get("fly", false)
+	var fly: bool = st.get("fly", false) or p.get("fly", false)
 	var body: Node3D = p["body"]
-	var sq: Node3D = p["squash"]
+	var core: Node3D = p["core"]
+	var step := t * (9.0 + 6.0 * m)
+	var breathe := 1.0 + 0.04 * sin(t * 2.0)
+	if fly:
+		core.scale = Vector3(1.3, 1.25, 1.3) * breathe
+		body.position.y = 0.2 + sin(t * 2.4) * 0.12
+	else:
+		var squish := absf(sin(step)) * m
+		core.scale = Vector3(breathe + 0.05 * squish, breathe - 0.07 * squish, breathe) * (0.85 if pain else 1.0)
+		body.position.y = absf(sin(step)) * 0.14 * m
+	_plant(p)
+	body.rotation.x = (0.3 if pain else 0.0) - (0.25 if windup else 0.0)
+	body.rotation.z = sin(step * 0.5) * 0.1 * m
+	# the peck: a beak rears up and jabs; a mouth snaps open
+	if p.has("beak"):
+		var beak: Node3D = p["beak"]
+		var bx := 0.35 if windup else (-0.25 if pain else sin(t * 1.7) * 0.06 + sin(step) * 0.08 * m)
+		beak.rotation.x = lerpf(beak.rotation.x, bx, clampf(delta * 14.0, 0.0, 1.0))
+		beak.rotation.y = sin(t * 0.9) * 0.08
+	if p.has("mouth"):
+		var mouth: Node3D = p["mouth"]
+		var open := 6.0 if windup else (3.0 if pain else 1.0 + 1.5 * maxf(0.0, sin(t * 1.7)) * maxf(0.0, sin(t * 0.6)))
+		mouth.scale = mouth.scale.lerp(Vector3(1.0 + (open - 1.0) * 0.04, open, 1.0), clampf(delta * 14.0, 0.0, 1.0))
+	if p.has("arm"):
+		p["arm"].rotation.x = -0.25 if windup else 0.1 + sin(t * 2.0) * 0.08
+	var feet: Array = p["feet"]
+	var base: Array = p["feet_base"]
+	for i in feet.size():
+		var f: Node3D = feet[i]
+		var b: Vector3 = base[i]
+		if fly:
+			f.rotation.x = 0.5 + sin(t * 3.0 + i) * 0.2
+			f.position = b + Vector3(0, 0.02, 0.06)
+		else:
+			f.rotation.x = 0.0
+			f.position = b + Vector3(0, maxf(0.0, sin(step + i * PI)) * 0.08 * m, sin(step + i * PI) * 0.16 * m)
+	for e in p["eyes"]:
+		e.scale = Vector3.ONE * (1.0 + 0.2 * sin(t * 7.0))
+
+
+static func _anim_wobble(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
+	var m := float(st.get("move", 0.0))
+	var windup: bool = st.get("windup", false)
+	var pain: bool = st.get("pain", false)
+	var fly: bool = st.get("fly", false) or p.get("fly", false)
+	var body: Node3D = p["body"]
+	var core: Node3D = p["core"]
 	var step := t * (8.0 + 6.0 * m)
 	# jelly wobble; it stretches up before attacking and flattens when hurt
 	var wob := sin(t * 3.1) * 0.03 + sin(step * 2.0) * 0.06 * m
 	var sy := 1.0 + wob + (0.16 if windup else 0.0) - (0.2 if pain else 0.0)
 	var sxz := 1.0 / sqrt(maxf(sy, 0.3))
-	sq.scale = sq.scale.lerp(Vector3(sxz, sy, sxz), clampf(delta * 16.0, 0.0, 1.0))
+	core.scale = core.scale.lerp(Vector3(sxz, sy, sxz), clampf(delta * 16.0, 0.0, 1.0))
+	_plant(p)
 	body.position.y = absf(sin(step)) * 0.1 * m + (0.25 + sin(t * 2.0) * 0.1 if fly else 0.0)
 	body.rotation.x = (-0.2 if windup else 0.0) + sin(step) * 0.05 * m
 	body.rotation.z = sin(step * 0.5) * 0.08 * m
+	# the gape: a mouth stretches open; a beak lifts open
+	if p.has("mouth"):
+		var mouth: Node3D = p["mouth"]
+		var open := 7.0 if windup else (4.0 if pain else 1.0)
+		mouth.scale = mouth.scale.lerp(Vector3(1.0 + (open - 1.0) * 0.04, open, 1.0), clampf(delta * 14.0, 0.0, 1.0))
+	if p.has("beak"):
+		var beak: Node3D = p["beak"]
+		var bx := 0.55 if windup else (0.3 if pain else sin(t * 1.2) * 0.04)
+		beak.rotation.x = lerpf(beak.rotation.x, bx, clampf(delta * 14.0, 0.0, 1.0))
+		beak.rotation.y = 0.0
+	if p.has("arm"):
+		p["arm"].rotation.x = -0.25 if windup else 0.1 + sin(t * 2.0) * 0.08
 	var feet: Array = p["feet"]
 	var base: Array = p["feet_base"]
 	for i in feet.size():
@@ -420,51 +504,9 @@ static func _anim_gorbino(p: Dictionary, t: float, delta: float, st: Dictionary)
 		else:
 			f.rotation.x = -maxf(0.0, sin(step + ph)) * 0.5 * m
 			f.position = b + Vector3(0, maxf(0.0, sin(step + ph)) * 0.12 * m, -sin(step + ph) * 0.12 * m)
-	var mouth: Node3D = p["mouth"]
-	var open := 7.0 if windup else (4.0 if pain else 1.0)
-	mouth.scale = mouth.scale.lerp(Vector3(1.0 + (open - 1.0) * 0.04, open, 1.0), clampf(delta * 14.0, 0.0, 1.0))
-	if p.has("arm"):
-		p["arm"].rotation.x = -0.25 if windup else 0.1 + sin(t * 2.0) * 0.08
 	var blink: bool = st.get("blink", false)
 	for e in p["eyes"]:
 		e.scale = Vector3.ONE * (0.4 if blink else (1.0 + 0.15 * sin(t * 9.0)))
-
-
-static func _anim_snirby(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
-	var m := float(st.get("move", 0.0))
-	var windup: bool = st.get("windup", false)
-	var pain: bool = st.get("pain", false)
-	var fly: bool = st.get("fly", false) or p.get("fly", false)
-	var body: Node3D = p["body"]
-	var puff: Node3D = p["puff"]
-	var step := t * (9.0 + 6.0 * m)
-	var breathe := 1.0 + 0.04 * sin(t * 2.0)
-	if fly:
-		puff.scale = Vector3(1.3, 1.25, 1.3) * breathe
-		body.position.y = 0.2 + sin(t * 2.4) * 0.12
-	else:
-		var squish := absf(sin(step)) * m
-		puff.scale = Vector3(breathe + 0.05 * squish, breathe - 0.07 * squish, breathe) * (0.85 if pain else 1.0)
-		body.position.y = absf(sin(step)) * 0.14 * m
-	body.rotation.x = (0.3 if pain else 0.0) - (0.25 if windup else 0.0)
-	body.rotation.z = sin(step * 0.5) * 0.1 * m
-	# the beak jabs: it rears up on the windup and pecks down
-	var beak: Node3D = p["beak"]
-	var bx := 0.35 if windup else (-0.25 if pain else sin(t * 1.7) * 0.06 + sin(step) * 0.08 * m)
-	beak.rotation.x = lerpf(beak.rotation.x, bx, clampf(delta * 14.0, 0.0, 1.0))
-	beak.rotation.y = sin(t * 0.9) * 0.08
-	var feet: Array = p["feet"]
-	for i in feet.size():
-		var f: Node3D = feet[i]
-		if fly:
-			f.rotation.x = 0.5 + sin(t * 3.0 + i) * 0.2
-			f.position = Vector3(f.position.x, 0.12, -0.04)
-		else:
-			f.rotation.x = 0.0
-			f.position.z = -0.1 + sin(step + i * PI) * 0.16 * m
-			f.position.y = 0.1 + maxf(0.0, sin(step + i * PI)) * 0.08 * m
-	for e in p["eyes"]:
-		e.scale = Vector3.ONE * (1.0 + 0.2 * sin(t * 7.0))
 
 
 static func _anim_snotling(p: Dictionary, t: float, delta: float, st: Dictionary) -> void:
@@ -516,26 +558,15 @@ static func _anim_snotling(p: Dictionary, t: float, delta: float, st: Dictionary
 		lid.scale.y = 1.9 if blink else 1.15
 
 
-## k: 0..1 death progress
+## k: 0..1 death progress. The Gorbino rolls over; the Snirby flattens.
 static func death_pose(root: Node3D, k: float) -> void:
 	var p: Dictionary = root.get_meta("parts")
 	var body: Node3D = p["body"]
 	match p.get("kind", ""):
 		"gorbino":
-			var sq: Node3D = p["squash"]
-			sq.scale = Vector3(1.0 + 0.45 * k, 1.0 - 0.6 * k, 1.0 + 0.45 * k)
-			body.position.y = 0.0
-			body.rotation.x = lerpf(0.0, 0.2, k)
-			p["mouth"].scale = Vector3(1.3, 6.0, 1.0)
-			for e in p["eyes"]:
-				e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)
+			_death_roll(p, k)
 		"snirby":
-			body.rotation.z = lerpf(0.0, deg_to_rad(80), k * k)
-			body.position.y = lerpf(0.0, 0.05, k)
-			p["puff"].scale = Vector3(1.0 + 0.2 * k, 1.0 - 0.35 * k, 1.0 + 0.2 * k)
-			p["beak"].rotation.x = lerpf(0.0, -0.5, k)
-			for e in p["eyes"]:
-				e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)
+			_death_flatten(p, k)
 		_:
 			body.rotation.z = lerpf(0.0, deg_to_rad(80), k * k)
 			body.position.y = lerpf(0.0, 0.05, k)
@@ -543,3 +574,37 @@ static func death_pose(root: Node3D, k: float) -> void:
 			p["mouth"].scale = Vector3(1.5, 3.0, 1.0)
 			for lid in p["lids"]:
 				lid.position.y = 0.0
+
+
+## Topples onto its side and lies there, mouth or beak hanging open.
+static func _death_roll(p: Dictionary, k: float) -> void:
+	var body: Node3D = p["body"]
+	var core: Node3D = p["core"]
+	var a := deg_to_rad(80) * k * k
+	body.rotation = Vector3(0, 0, a)
+	# lift so the ball rests on its side instead of sinking into the floor
+	body.position.y = maxf(0.0, float(p["roll_r"]) - float(p["roll_cy"]) * cos(a)) * k
+	core.scale = Vector3(1.0 + 0.2 * k, 1.0 - 0.35 * k, 1.0 + 0.2 * k)
+	_plant(p)
+	if p.has("mouth"):
+		p["mouth"].scale = Vector3(1.3, 5.0, 1.0)
+	if p.has("beak"):
+		p["beak"].rotation.x = lerpf(0.0, -0.5, k)
+	for e in p["eyes"]:
+		e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)
+
+
+## Sags into a puddle where it stood.
+static func _death_flatten(p: Dictionary, k: float) -> void:
+	var body: Node3D = p["body"]
+	var core: Node3D = p["core"]
+	core.scale = Vector3(1.0 + 0.45 * k, 1.0 - 0.6 * k, 1.0 + 0.45 * k)
+	_plant(p)
+	body.position.y = 0.0
+	body.rotation = Vector3(lerpf(0.0, 0.2, k), 0, 0)
+	if p.has("mouth"):
+		p["mouth"].scale = Vector3(1.3, 6.0, 1.0)
+	if p.has("beak"):
+		p["beak"].rotation.x = lerpf(0.0, -0.3, k)
+	for e in p["eyes"]:
+		e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)

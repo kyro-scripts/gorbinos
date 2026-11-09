@@ -81,16 +81,16 @@ Recoil, muzzle flashes, dynamic muzzle lighting, ejected casings, viewmodel sway
 
 ### Bestiary
 
-All Gorbinos share one model in different colours. All Snirbies share another.
+All Gorbinos share one model in different colours, and move the same way: they hop and bounce, breathe, snap their mouths, and roll over when they die. All Snirbies share another model and wobble like jelly instead: they stretch up before they attack, flatten when they're hurt and sag into a puddle when they die.
 
 - **Gorbino** (green): lobs goo.
 - **Yellow Gorbino**: holds a pistol in one tentacle and fires 3-round hitscan bursts while keeping its distance.
 - **Red Gorbino**: a fast melee charger that bites.
 - **Blue Gorbino**: a slow tank that fires spreads of ice orbs.
-- **Purple Gorbino**: floats and fires homing orbs.
+- **Purple Gorbino**: puffs itself up, floats and fires homing orbs.
 - **Black Gorbino**: a big elite with glowing eyes and a shoulder rocket launcher.
 - **Snirby**: hops fast, pecks and spits.
-- **Sky Snirby**: puffs itself up and floats.
+- **Sky Snirby**: floats, wobbling.
 - **Snotling**: the little pink guys. They come in packs of three, scratch and spit.
 - **The Great Snirby**: the final boss. It cycles spit fans, summons Snirbies, fires homing barrages and rains fire.
 
