@@ -105,11 +105,20 @@ static func blood(level: Node, pos: Vector3, color: Color, amount: int, size := 
 
 static func gibs(level: Node, pos: Vector3, skin: Color, goo: Color, n: int) -> void:
 	blood(level, pos, goo, 14)
+	var meat := Mat.make("gore_organ", {"tint": skin.lerp(Color(1, 1, 1), 0.3), "origin": true, "shade": 0.7, "gloss": 1.0})
+	var guts := Mat.make("gore_guts", {"origin": true, "shade": 0.7, "gloss": 1.0})
+	var bone := Mat.world("white", {"origin": true, "tint": Color(0.92, 0.88, 0.75)})
 	for k in n:
 		var g := Gib.new()
-		var sz := randf_range(0.12, 0.3)
-		var mat := Mat.make("gorbino_skin", {"tint": skin if k % 3 != 0 else goo, "origin": true})
-		g.add_child(Models.mi(Models.box(sz, sz * randf_range(0.6, 1.2), sz), mat))
+		var sz := randf_range(0.09, 0.2)
+		# lumpy chunks of meat, a string of gut now and then, and bone shards
+		match k % 4:
+			0, 1:
+				g.add_child(Models.mi(Creatures.blob_mesh(sz, Vector3(1.0, randf_range(0.6, 1.0), randf_range(0.8, 1.3)), 8000 + k % 5, 0.15, 6, 8), meat))
+			2:
+				g.add_child(Models.mi(Creatures.blob_mesh(sz * 0.7, Vector3(2.2, 0.55, 0.55), 8010 + k % 3, 0.1, 6, 8), guts))
+			_:
+				g.add_child(Models.mi(Models.box(sz * 0.25, sz * 0.25, sz * 1.4), bone, Vector3.ZERO, Vector3(randf() * 90, randf() * 90, 0)))
 		level.fx_root().add_child(g)
 		g.global_position = pos + Vector3(randf_range(-0.3, 0.3), randf_range(-0.2, 0.4), randf_range(-0.3, 0.3))
 		g.vel = Vector3(randf_range(-5, 5), randf_range(3, 8), randf_range(-5, 5))

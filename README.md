@@ -15,6 +15,7 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 | ![In game](docs/screenshots/ingame_village.png) | ![Gorbinos](docs/screenshots/gorbinos_closeup.png) |
 | ![Death](docs/screenshots/death.png) | ![Options](docs/screenshots/options.png) |
 | ![Butterfly knife](docs/screenshots/butterfly_knife.png) | ![Gutting](docs/screenshots/gutting.png) |
+| ![Arsenal](docs/screenshots/arsenal.png) | ![Pickups](docs/screenshots/pickups.png) |
 
 ## Playing it
 
@@ -70,12 +71,12 @@ Get close to a creature (a red **[F] GUT** appears under the crosshair) and pres
 
 | Slot | Weapon | Ammo | Notes |
 |---|---|---|---|
-| 1 | Pistol | bullets | 12-round mag, accurate |
-| 2 | Shotgun | shells | 6 shells, loaded one at a time (fire to interrupt), pump action |
-| 3 | Double shotgun | shells | 20 pellets, break-action reload |
-| 4 | Machine gun | bullets | spinning-barrel machine gun, 60-round drum, spread blooms |
-| 5 | Rocket launcher | rockets | splash damage; rocket jumping works |
-| 6 | Plasma rifle | cells | plasma bolts; no mag but it overheats (press R to vent) |
+| 1 | Pistol | bullets | 12-round mag, accurate. Checkered grip, a Gorbino keychain swinging off it |
+| 2 | Shotgun | shells | 6 shells, loaded one at a time (fire to interrupt), pump action. Spare shells duct-taped to the side |
+| 3 | Double shotgun | shells | 20 pellets, break-action reload. Engraved brass, a Snirby sticker on the stock |
+| 4 | Machine gun | bullets | six spinning barrels, 60-round drum, spread blooms. Hazard paint |
+| 5 | Rocket launcher | rockets | splash damage; rocket jumping works. Shark face painted on the tube |
+| 6 | Plasma rifle | cells | plasma bolts; no mag but it overheats (press R to vent). A specimen jar on top, something floating in it |
 
 Recoil, muzzle flashes, dynamic muzzle lighting, ejected casings, viewmodel sway and bob, and procedural reload animations are all included.
 

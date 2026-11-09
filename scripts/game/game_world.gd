@@ -106,6 +106,12 @@ func _ready() -> void:
 			_debug_shots("face", [2.0], true)
 		elif a == "--armshots":
 			_debug_shots("arm", [0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0, 6.6, 7.2, 7.8, 8.4], true)
+		elif a.begins_with("--gallery="):
+			_debug_gallery(a.substr(10))
+		elif a == "--gibtest":
+			_debug_gibtest()
+		elif a == "--vmshots":
+			_debug_viewmodels()
 		elif a == "--ammolineup":
 			player.weapons.visible = false
 			player.offhand.visible = false
@@ -159,6 +165,87 @@ func _debug_guttest(etype: String) -> void:
 	await get_tree().create_timer(1.0).timeout
 	player.finisher.start(en)
 	_debug_shots("gut", [0.05, 0.3, 0.42, 0.65, 0.95, 1.25, 1.5, 1.8, 2.05, 2.3, 2.6, 3.2, 4.5], true)
+
+
+## Debug: line up every model of a group in front of the player and
+## screenshot it from two angles (art review).
+func _debug_gallery(group: String) -> void:
+	player.weapons.visible = false
+	player.offhand.visible = false
+	player.offhand.set_process(false)
+	var names: Array = []
+	match group:
+		"pickups":
+			names = ["juice", "medkit", "mega", "armor_bonus", "armor_green", "armor_blue", "backpack",
+				"key_red", "key_blue", "key_yellow", "bullets", "bullets_box", "shells", "shells_box",
+				"rocket", "rockets_box", "cells", "cells_box"]
+		"weapons":
+			names = ["w_shotgun", "w_ssg", "w_mg", "w_rocket", "w_plasma"]
+		"props":
+			names = ["lamp", "statue", "tree", "machine", "checkpoint", "barrel"]
+	var yaw := level.start_yaw
+	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+	var right := Vector3(cos(yaw), 0, -sin(yaw))
+	var cols: int = {"pickups": 6, "props": 3}.get(group, 4)
+	var gap: float = {"pickups": 1.0, "props": 3.2}.get(group, 2.0)
+	for i in names.size():
+		var row := i / cols
+		var col := i % cols
+		var p: Vector3 = level.player_start + fwd * ((6.5 if group == "props" else 3.0) + row * gap * 1.2) + right * (col - (cols - 1) * 0.5) * gap
+		p.y = level.floor_at(p)
+		var n: String = names[i]
+		if group == "props":
+			if n == "barrel":
+				var b := Barrel.new()
+				level.entity_root().add_child(b)
+				b.setup(level, p)
+			else:
+				var pr := Props.make_prop(n, level, p)
+				level.entity_root().add_child(pr)
+		else:
+			var pk := Pickup.new()
+			level.entity_root().add_child(pk)
+			pk.setup(n, p)
+	player.pitch = deg_to_rad(-22.0)
+	_debug_shots("gallery_" + group, [3.0, 3.6], true)
+
+
+## Debug: blow a few creatures apart in front of the player.
+func _debug_gibtest() -> void:
+	player.offhand.visible = false
+	var yaw := level.start_yaw
+	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+	var right := Vector3(cos(yaw), 0, -sin(yaw))
+	var ens := []
+	for k in 3:
+		var p: Vector3 = level.player_start + fwd * 4.0 + right * (k - 1) * 1.6
+		p.y = level.floor_at(p)
+		var en := Enemy.new()
+		level.entity_root().add_child(en)
+		en.setup(["green", "snirby", "snotling"][k], level, p, yaw + PI)
+		level.enemies.append(en)
+		ens.append(en)
+	Game.cheats["god"] = true
+	player.pitch = deg_to_rad(-25.0)
+	await get_tree().create_timer(1.0).timeout
+	for en in ens:
+		en.take_damage(400.0, player, fwd, "explosion")
+	_debug_shots("gib", [0.12, 0.45, 1.6], true)
+
+
+## Debug: screenshot the view model of every weapon.
+func _debug_viewmodels() -> void:
+	player.offhand.visible = false
+	var order: Array = Weapons.ORDER
+	var t := 1.5
+	for w in order:
+		await get_tree().create_timer(t).timeout
+		t = 0.9
+		player.weapons.switch_to(w)
+		await get_tree().create_timer(0.6).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("user://shots/vm_%s.png" % w)
+	get_tree().quit()
 
 
 ## Debug: force one knife trick and screenshot it frame by frame.

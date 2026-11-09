@@ -465,7 +465,7 @@ func _animate(delta: float) -> void:
 	var bob_x := sin(_bob_t * 0.5) * 0.006 * _bob_a
 	var bob_y := absf(cos(_bob_t * 0.5)) * 0.005 * _bob_a
 	var pos := BASE_POS + Vector3(bob_x - sway_v.x, -bob_y + sway_v.y, recoil * 0.18)
-	var rot := Vector3(recoil * 1.2, 0, 0)
+	var rot := Vector3(recoil * 1.2, 0.1, 0)      # turned in a little so the side of the gun shows
 	var d := cur()
 	match state:
 		"lower":
@@ -513,6 +513,14 @@ func _animate(delta: float) -> void:
 	if vm_parts.has("spin"):
 		_spin_speed = move_toward(_spin_speed, 0.0, delta * 50.0)
 		vm_parts["spin"].rotation.z += _spin_speed * delta
+	if vm_parts.has("charm"):
+		var ch: Node3D = vm_parts["charm"]
+		ch.rotation = Vector3(clampf(-sway_v.y * 30.0 + recoil * 4.0, -1.0, 1.0), 0, clampf(sway_v.x * 30.0 + sin(_bob_t * 0.5) * 0.3 * _bob_a, -1.0, 1.0))
+	if vm_parts.has("specimen"):
+		var sp: Node3D = vm_parts["specimen"]
+		var tt := Time.get_ticks_msec() * 0.001
+		sp.position = Vector3(sin(tt * 1.3) * 0.006, 0.11 + sin(tt * 2.1) * 0.012, -0.022)
+		sp.rotation.y = tt * 0.8
 	if vm_parts.has("core"):
 		vm_parts["core"].scale = Vector3.ONE * (1.0 + 0.3 * sin(Time.get_ticks_msec() * 0.02) + heat * 0.01)
 	pos += Vector3(0.03, -0.2, 0.05) * holster

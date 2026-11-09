@@ -68,6 +68,11 @@ func sound() -> String:
 func _process(delta: float) -> void:
 	_t += delta
 	model.rotation.y = _t * 2.0
+	if ptype == "mega":
+		var beat := model.get_node_or_null("Beat")
+		if beat:
+			var b := fmod(_t, 0.8)
+			beat.scale = Vector3.ONE * (1.0 + 0.12 * exp(-b * 18.0) + 0.07 * exp(-maxf(b - 0.18, 0.0) * 18.0) * float(b > 0.18))
 	model.position.y = _base_y + sin(_t * 3.0) * 0.08
 
 
