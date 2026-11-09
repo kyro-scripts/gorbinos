@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d3bto7bc4itap"
-path="res://.godot/imported/bali_blade.png-174a4834cdf652a99318c7f6a952ee63.ctex"
+uid="uid://cjc6ukf4qmfpf"
+path="res://.godot/imported/cs_flesh.png-2a0a17e326803ff03633e319f09c1e8e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/bali_blade.png"
-dest_files=["res://.godot/imported/bali_blade.png-174a4834cdf652a99318c7f6a952ee63.ctex"]
+source_file="res://assets/textures/cs_flesh.png"
+dest_files=["res://.godot/imported/cs_flesh.png-2a0a17e326803ff03633e319f09c1e8e.ctex"]
 
 [params]
 

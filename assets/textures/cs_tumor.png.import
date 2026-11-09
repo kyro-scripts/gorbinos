@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d2x1fpxsrhsg7"
-path="res://.godot/imported/sleeve.png-c6575e142b0ffc69a5012f5ec49828fe.ctex"
+uid="uid://6j2ksk4612h"
+path="res://.godot/imported/cs_tumor.png-570142b7a0beebd92673de75a0efe837.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/sleeve.png"
-dest_files=["res://.godot/imported/sleeve.png-c6575e142b0ffc69a5012f5ec49828fe.ctex"]
+source_file="res://assets/textures/cs_tumor.png"
+dest_files=["res://.godot/imported/cs_tumor.png-570142b7a0beebd92673de75a0efe837.ctex"]
 
 [params]
 

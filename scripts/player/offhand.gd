@@ -2,10 +2,16 @@ class_name Offhand
 extends Node3D
 ## The player's left arm and a butterfly knife that never sits still.
 ## Between fights it fans the knife open and shut, rolls it over the
-## knuckles, flips it into the air and turns the weird blade to the light;
-## the Finisher drives it for slashes and for gutting.
+## knuckles, flips it into the air and turns it to the light; the Finisher
+## drives it for slashes and for gutting.
 ##
-## Rig: this node (camera space) > arm (forearm, moves) > hand (wrist,
+## The arm is built like the gun hand: one straight yellow block running in
+## from the bottom-left corner, following the wrist through every trick.
+## The knife looks ripped out of something worse: a crude, bent, low-poly
+## blade in crunchy scratched chrome, raw-meat handles studded with teeth
+## and a green growth on the pivot.
+##
+## Rig: this node (camera space) > arm (the block, moves) > hand (wrist,
 ## twists) > knife (the held "safe" handle; spins). The blade and the free
 ## "bite" handle hang off the pivot pin at the top of the safe handle and
 ## swing round it when the knife is flipped open or shut.
@@ -20,6 +26,7 @@ const TRICK_DUR := {"fan": 1.6, "rollover": 1.1, "aerial": 1.3, "inspect": 1.7, 
 const PIN_Z := -0.03            # pivot pin, knife space
 const BLADE_LEN := 0.27
 const HANDLE_LEN := 0.15
+const STEEL := Color(1, 1, 1)
 
 var player: Node
 var arm: Node3D
@@ -48,31 +55,16 @@ func _ready() -> void:
 
 
 func _build() -> void:
-	var sleeve := Mat.world("sleeve", {"origin": true})
-	var cuff := Mat.world("sleeve", {"origin": true, "tint": Color(0.7, 0.72, 0.6)})
-	var glove := Mat.make("glove", {"origin": true, "shade": 0.6, "gloss": 0.25})
 	arm = Models.pivot()
 	add_child(arm)
-	# forearm: a tapered sleeve coming in from the bottom-left corner of the
-	# screen to the wrist, a rolled cuff, and the glove's gauntlet
+	# one straight block, one colour: the knife handle sits in its end the
+	# way the pistol grip sits in the gun hand
 	var axis := Vector3(-0.45, -0.67, 0.6).normalized()
-	var wrist := Vector3(0.0, -0.035, 0.05)
-	arm.add_child(_along(Models.cyl(0.07, 0.052, 0.85, 9), sleeve, wrist, axis, 0.55))
-	arm.add_child(_along(Models.cyl(0.07, 0.07, 0.07, 9), cuff, wrist, axis, 0.15))
-	arm.add_child(_along(Models.cyl(0.065, 0.065, 0.025, 9), cuff, wrist, axis, 0.2))
-	arm.add_child(_along(Models.cyl(0.052, 0.046, 0.1, 9), glove, wrist, axis, 0.05))
+	var block := BoxMesh.new()
+	block.size = Vector3(0.085, 1.0, 0.1)
+	arm.add_child(_along(block, Mat.world("glove", {"origin": true}), Vector3(0.0, -0.01, 0.02), axis, 0.48))
 	hand = Models.pivot()
 	arm.add_child(hand)
-	# gloved fist wrapped round the handle: palm, four knuckles, curled
-	# fingers underneath and the thumb laid along the top
-	hand.add_child(Models.mi(Creatures.blob_mesh(0.048, Vector3(0.8, 0.9, 1.15), 6101, 0.03, 8, 12), glove, Vector3(0.0, -0.012, 0.035)))
-	for i in 4:
-		var z := -0.008 + i * 0.022
-		hand.add_child(Models.mi(Models.sphere(0.016, 7, 5), glove, Vector3(-0.038, 0.016 - i * 0.003, z)))
-		hand.add_child(Models.mi(Models.box(0.032, 0.022, 0.018), glove, Vector3(-0.018, -0.03, z), Vector3(0, 0, 25)))
-		hand.add_child(Models.mi(Models.sphere(0.012, 6, 4), glove, Vector3(0.01, -0.026, z)))
-	hand.add_child(Models.mi(Models.cyl(0.013, 0.016, 0.07, 7), glove, Vector3(0.025, 0.034, -0.002), Vector3(-80, 0, 0)))
-	hand.add_child(Models.mi(Models.sphere(0.014, 7, 5), glove, Vector3(0.025, 0.038, -0.038)))
 	_build_knife()
 
 
@@ -80,32 +72,41 @@ func _build_knife() -> void:
 	knife = Models.pivot(Vector3(0, 0.005, -0.015))
 	knife.scale = Vector3.ONE * KNIFE_SCALE
 	hand.add_child(knife)
-	var handle_m := Mat.make("bali_handle", {"origin": true, "shade": 0.6, "gloss": 0.7})
+	var meat := Mat.make("cs_flesh", {"origin": true, "shade": 0.6, "gloss": 0.9})
+	var bone := Mat.world("white", {"origin": true, "tint": Color(0.95, 0.88, 0.7)})
 	var brass := Mat.world("gun_brass", {"origin": true})
-	var eye_m := Mat.make("bali_eye", {"origin": true, "shade": 0.5, "gloss": 1.0, "fullbright": 0.2})
-	# the safe handle, in the fist
-	var hl := HANDLE_LEN
-	knife.add_child(Models.mi(_handle_mesh(), handle_m, Vector3(0.011, 0, PIN_Z)))
-	knife.add_child(Models.mi(Models.cyl(0.006, 0.006, 0.05, 6), brass, Vector3(0, 0, PIN_Z), Vector3(0, 0, 90)))
-	# blade on the pin
+	# the safe handle, held: raw meat on a bar, teeth along the top
+	knife.add_child(Models.mi(_handle_mesh(), meat, Vector3(0.013, 0, PIN_Z)))
+	_teeth(knife, 0.013, PIN_Z, bone)
+	knife.add_child(Models.mi(Models.box(0.054, 0.018, 0.018), brass, Vector3(0, 0, PIN_Z)))
+	# something growing out of the pivot
+	knife.add_child(Models.mi(Models.sphere(0.024, 5, 4), Mat.make("cs_tumor", {"origin": true, "shade": 0.6, "gloss": 1.0}),
+		Vector3(0.03, 0.012, PIN_Z + 0.012), Vector3(20, 40, 0), Vector3(1.0, 0.8, 1.3)))
+	# the blade: three crude chunks, bent up a little towards a fat point
 	blade_pivot = Models.pivot(Vector3(0, 0, PIN_Z))
 	knife.add_child(blade_pivot)
-	blade_mat = Mat.make("bali_blade", {"origin": true, "shade": 0.6, "gloss": 1.0, "fullbright": 0.15})
-	var blade := MeshInstance3D.new()
-	blade.mesh = _blade_mesh()
-	blade.material_override = blade_mat
-	blade_pivot.add_child(blade)
+	blade_mat = Mat.make("cs_blade", {"origin": true, "shade": 0.5, "gloss": 0.9, "fullbright": 0.1})
+	blade_pivot.add_child(Models.mi(Models.box(0.012, 0.042, 0.13), blade_mat, Vector3(0, 0, -0.065)))
+	blade_pivot.add_child(Models.mi(Models.box(0.011, 0.036, 0.1), blade_mat, Vector3(0, 0.005, -0.168), Vector3(7, 0, 0)))
+	blade_pivot.add_child(Models.mi(Models.cyl(0.0, 0.026, 0.075, 4), blade_mat, Vector3(0, 0.011, -0.25), Vector3(-83, 0, 45), Vector3(0.45, 1.0, 1.0)))
+	blade_pivot.add_child(Models.mi(Models.box(0.014, 0.008, 0.05), Mat.world("gun_dark", {"origin": true}), Vector3(0, 0.022, -0.04)))
 	tip_marker = Marker3D.new()
-	tip_marker.position = Vector3(0, 0, -BLADE_LEN * 0.85)
+	tip_marker.position = Vector3(0, 0.01, -BLADE_LEN * 0.85)
 	blade_pivot.add_child(tip_marker)
-	# the bite handle swings free on the same pin, with an eyeball for a latch
+	# the bite handle swings free on the same pin
 	bite_pivot = Models.pivot(Vector3(0, 0, PIN_Z))
 	knife.add_child(bite_pivot)
-	bite_pivot.add_child(Models.mi(_handle_mesh(), handle_m, Vector3(-0.011, 0, 0)))
-	bite_pivot.add_child(Models.mi(Models.sphere(0.017, 8, 6), eye_m, Vector3(-0.011, 0.0, hl + 0.012), Vector3(0, 180, 0)))
+	bite_pivot.add_child(Models.mi(_handle_mesh(), meat, Vector3(-0.013, 0, 0)))
+	_teeth(bite_pivot, -0.013, 0.0, bone)
 
 
-## A cylinder laid along `axis`, its centre `offset` along it from `start`.
+## Three blocky teeth along the top of a handle.
+func _teeth(parent: Node3D, x: float, z0: float, mat: Material) -> void:
+	for i in 3:
+		parent.add_child(Models.mi(Models.box(0.009, 0.016, 0.011), mat, Vector3(x, 0.022, z0 + 0.035 + i * 0.04), Vector3(0, 0, -10 + i * 12)))
+
+
+## A mesh laid along `axis` (its local Y), its centre `offset` along it from `start`.
 func _along(mesh: Mesh, mat: Material, start: Vector3, axis: Vector3, offset: float) -> MeshInstance3D:
 	var y := axis.normalized()
 	var x := y.cross(Vector3.FORWARD).normalized()
@@ -120,7 +121,7 @@ func _along(mesh: Mesh, mat: Material, start: Vector3, axis: Vector3, offset: fl
 ## One balisong handle: a flat bar from the pin back along +Z.
 func _handle_mesh() -> Mesh:
 	var b := BoxMesh.new()
-	b.size = Vector3(0.016, 0.03, HANDLE_LEN)
+	b.size = Vector3(0.02, 0.034, HANDLE_LEN)
 	var m := ArrayMesh.new()
 	var arr := b.get_mesh_arrays()
 	var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
@@ -129,52 +130,6 @@ func _handle_mesh() -> Mesh:
 	arr[Mesh.ARRAY_VERTEX] = v
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	return m
-
-
-## The weird blade: a saw-toothed spine, a wavy edge and a hooked point.
-func _blade_mesh() -> ArrayMesh:
-	var L := BLADE_LEN
-	var prof := PackedVector2Array()       # (z, y), counter-clockwise
-	prof.append(Vector2(0.0, -0.016))
-	# wavy cutting edge, out to the point
-	for i in range(1, 9):
-		var z := -L * 0.86 * i / 8.0
-		prof.append(Vector2(z, -0.02 - 0.009 * sin(i * PI * 0.9)))
-	prof.append(Vector2(-L * 0.95, -0.006))
-	prof.append(Vector2(-L, 0.02))           # hooked point
-	prof.append(Vector2(-L * 0.93, 0.034))
-	prof.append(Vector2(-L * 0.84, 0.022))
-	# saw teeth back along the spine
-	for i in range(8, 0, -1):
-		var z := -L * 0.8 * i / 8.0
-		prof.append(Vector2(z + 0.008, 0.026))
-		prof.append(Vector2(z, 0.016))
-	prof.append(Vector2(0.0, 0.016))
-	var tris := Geometry2D.triangulate_polygon(prof)
-	if tris.is_empty():
-		prof.reverse()
-		tris = Geometry2D.triangulate_polygon(prof)
-	var th := 0.005
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for side in [1.0, -1.0]:
-		for i in range(0, tris.size(), 3):
-			var order := [0, 1, 2] if side > 0.0 else [0, 2, 1]
-			for o in order:
-				var q: Vector2 = prof[tris[i + o]]
-				st.set_normal(Vector3(side, 0, 0))
-				st.set_uv(Vector2(-q.x / L, clampf((q.y + 0.025) / 0.06, 0.0, 1.0)))
-				st.add_vertex(Vector3(th * side, q.y, q.x))
-	for i in prof.size():
-		var a: Vector2 = prof[i]
-		var b: Vector2 = prof[(i + 1) % prof.size()]
-		var n := Vector3(0, b.x - a.x, -(b.y - a.y)).normalized()
-		var quad := [Vector3(th, a.y, a.x), Vector3(-th, a.y, a.x), Vector3(th, b.y, b.x), Vector3(-th, b.y, b.x)]
-		for q in [0, 2, 1, 1, 2, 3]:
-			st.set_normal(n)
-			st.set_uv(Vector2(-quad[q].z / L, 0.05))
-			st.add_vertex(quad[q])
-	return st.commit()
 
 
 ## Distance from the knife pivot to its point, in camera space.
@@ -204,7 +159,7 @@ func _process(delta: float) -> void:
 	if player == null:
 		return
 	blood = move_toward(blood, 0.0, delta * 0.06)
-	blade_mat.set_shader_parameter("tint", Color(1, 1, 1).lerp(Color(0.55, 0.04, 0.05), clampf(blood, 0.0, 1.0)))
+	blade_mat.set_shader_parameter("tint", STEEL.lerp(Color(0.55, 0.04, 0.05), clampf(blood, 0.0, 1.0)))
 	visible = not player.dead
 	var w = player.weapons
 	var bob_x: float = sin(w._bob_t * 0.5 + PI) * 0.006 * w._bob_a
@@ -238,7 +193,10 @@ func _process(delta: float) -> void:
 		_:
 			var r := _trick_pose(delta)
 			pos += r[0]
-			hand_rot += r[1]
+			# the whole arm follows the wrist, so tricks move the arm too
+			var hr: Vector3 = r[1]
+			arm_rot = ARM_REST + Vector3(hr.x * 0.45, hr.y * 0.4, hr.z * 0.4)
+			hand_rot = HAND_REST + hr * 0.7
 			k_pos = r[2]
 			k_rot = r[3]
 			open_k = r[4]
@@ -305,6 +263,8 @@ func _trick_pose(delta: float) -> Array:
 		"rollover":
 			# rolled over the knuckles around the handle, then snapped shut and open
 			kr.z += TAU * _ease(clampf(k / 0.6, 0.0, 1.0))
+			hr.z += sin(clampf(k / 0.6, 0.0, 1.0) * TAU) * 0.45
+			ap.x += sin(clampf(k / 0.6, 0.0, 1.0) * PI) * 0.01
 			if k > 0.6:
 				var q := (k - 0.6) / 0.4
 				var f := _flip(clampf(q * 2.0, 0.0, 1.0), false) if q < 0.5 else _flip(q * 2.0 - 1.0, true)
@@ -341,7 +301,7 @@ func _trick_pose(delta: float) -> Array:
 			_cue(0.05, "knife_flip", -15.0, 1.3)
 			_cue(0.92, "knife_catch", -14.0)
 		"inspect":
-			# brought up to the face and turned so the oily blade catches the light
+			# brought up to the face and turned so the blade catches the light
 			ap += Vector3(0.035, 0.03, -0.015) * bump
 			hr.y += 0.7 * bump
 			hr.z += sin(k * TAU * 1.5) * 0.8 * bump
