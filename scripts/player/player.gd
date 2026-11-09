@@ -26,6 +26,7 @@ var finisher: Finisher
 var gutting := false              # mid-finisher: locked in place and untouchable
 var gut_move_to := Vector3.INF
 var gut_crouch := 0.0
+var gut_grace := 0.0              # a moment of safety after a gut ends
 var yaw := 0.0
 var pitch := 0.0
 var health := 100
@@ -320,6 +321,7 @@ func _footsteps(delta: float) -> void:
 
 
 func _process(delta: float) -> void:
+	gut_grace = maxf(0.0, gut_grace - delta)
 	var f := Engine.get_physics_interpolation_fraction()
 	_update_head(f)
 	_update_view_fx(delta)
@@ -375,7 +377,8 @@ func teleport_to(pos: Vector3) -> void:
 
 # ------------------------------------------------------------------ damage
 func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") -> void:
-	if dead or gutting:
+	# nothing touches you while you're gutting something, or just after
+	if dead or gutting or gut_grace > 0.0:
 		return
 	if source != self and source != null:
 		amount *= float(Game.diff()["dmg"])

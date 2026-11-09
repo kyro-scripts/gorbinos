@@ -28,11 +28,7 @@ const INFO := {
 	"key_yellow": {"msg": "YELLOW KEYCARD", "snd": "pickup_key", "item": false},
 }
 
-## which ammo a pickup gives, and the colour it glows in the world and on the HUD
-const AMMO_KIND := {"bullets": "bullets", "bullets_box": "bullets", "shells": "shells", "shells_box": "shells",
-	"rocket": "rockets", "rockets_box": "rockets", "cells": "cells", "cells_box": "cells", "backpack": "all"}
-const AMMO_COLOR := {"bullets": Color(1.0, 0.82, 0.2), "shells": Color(1.0, 0.32, 0.2),
-	"rockets": Color(0.45, 1.0, 0.3), "cells": Color(0.3, 0.9, 1.0), "all": Color(1, 1, 1)}
+const AMMO := ["bullets", "bullets_box", "shells", "shells_box", "rocket", "rockets_box", "cells", "cells_box"]
 
 var ptype := ""
 var spawn_id := -1
@@ -41,14 +37,15 @@ var counts_as_item := false
 var model: Node3D
 var _t := 0.0
 var _base_y := 0.0
-var _ring: Node3D
-var _marker: Node3D
 
 
 func setup(t: String, pos: Vector3) -> void:
 	ptype = t
 	counts_as_item = INFO.get(t, {}).get("item", false) and spawn_id >= 0
 	model = Models.pickup(t)
+	if t in AMMO:
+		# small real objects: blown up so they read from across a room
+		model.scale = Vector3.ONE * (2.0 if t in ["bullets", "shells", "cells"] else 1.5)
 	add_child(model)
 	global_position = pos
 	_base_y = 0.05
@@ -58,23 +55,6 @@ func setup(t: String, pos: Vector3) -> void:
 		Fx.light(get_parent().get_parent(), pos + Vector3(0, 0.6, 0), c, 3.5, 1.0, -1.0, self)
 	elif t == "mega":
 		Fx.light(get_parent().get_parent(), pos + Vector3(0, 0.6, 0), Color(1, 0.3, 0.9), 4.0, 1.2, -1.0, self)
-	if AMMO_KIND.has(t):
-		_add_beacon(AMMO_COLOR[AMMO_KIND[t]])
-
-
-## Ammo is hard to miss: bigger, a glowing ring on the floor and a
-## spinning diamond over it, in the ammo's HUD colour.
-func _add_beacon(c: Color) -> void:
-	model.scale = Vector3.ONE * 1.5
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(1.1, 1.1)
-	_ring = Models.mi(pm, Mat.make("beacon", {"tint": c, "fullbright": 1.0, "alpha_cut": 0.3}), Vector3(0, 0.035, 0))
-	add_child(_ring)
-	_marker = Models.pivot(Vector3(0, 1.0, 0))
-	add_child(_marker)
-	var mm := Mat.make("white", {"tint": c, "fullbright": 1.0})
-	_marker.add_child(Models.mi(Models.cyl(0.0, 0.1, 0.14, 4), mm, Vector3(0, -0.07, 0), Vector3(180, 0, 0)))
-	_marker.add_child(Models.mi(Models.cyl(0.0, 0.1, 0.08, 4), mm, Vector3(0, 0.04, 0)))
 
 
 func message() -> String:
@@ -89,10 +69,7 @@ func _process(delta: float) -> void:
 	_t += delta
 	model.rotation.y = _t * 2.0
 	model.position.y = _base_y + sin(_t * 3.0) * 0.08
-	if _ring:
-		_ring.scale = Vector3.ONE * (1.0 + 0.12 * sin(_t * 4.0))
-		_marker.position.y = 1.0 + sin(_t * 3.0) * 0.07
-		_marker.rotation.y = _t * 3.0
+
 
 
 func collected() -> void:

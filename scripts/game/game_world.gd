@@ -106,6 +106,20 @@ func _ready() -> void:
 			_debug_shots("face", [2.0], true)
 		elif a == "--armshots":
 			_debug_shots("arm", [0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0, 6.6, 7.2, 7.8, 8.4], true)
+		elif a == "--ammolineup":
+			player.weapons.visible = false
+			player.offhand.visible = false
+			player.offhand.set_process(false)
+			var yaw := level.start_yaw
+			var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+			var right := Vector3(cos(yaw), 0, -sin(yaw))
+			for i in Pickup.AMMO.size():
+				var pk := Pickup.new()
+				level.entity_root().add_child(pk)
+				var pp: Vector3 = level.player_start + fwd * (4.5 + (i / 4) * 1.6) + right * ((i % 4) - 1.5) * 1.3
+				pk.setup(Pickup.AMMO[i], Vector3(pp.x, level.floor_at(pp), pp.z))
+		elif a.begins_with("--armshots="):
+			_debug_trick(a.substr(11))
 
 
 ## Debug: put a creature in reach, gut it, and screenshot every phase.
@@ -118,10 +132,47 @@ func _debug_guttest(etype: String) -> void:
 	level.entity_root().add_child(en)
 	en.setup(etype, level, p, yaw + PI)
 	level.enemies.append(en)
+	if OS.get_cmdline_user_args().has("--gutfire"):
+		# mortal, with two shooters already on the player: health must not move
+		var right := Vector3(cos(yaw), 0, -sin(yaw))
+		for k in 2:
+			var sp: Vector3 = level.player_start + fwd * 6.0 + right * (3.0 if k == 0 else -3.0)
+			sp.y = level.floor_at(sp)
+			var sh := Enemy.new()
+			level.entity_root().add_child(sh)
+			sh.setup("yellow" if k == 0 else "green", level, sp, yaw + PI)
+			level.enemies.append(sh)
+			sh.alert()
+		await get_tree().create_timer(1.0).timeout
+		var before: int = player.health
+		player.finisher.start(en)
+		var t := 0.0
+		while player.finisher.active() or player.gut_grace > 0.0:
+			await get_tree().process_frame
+			t += get_process_delta_time()
+		print("GUTFIRE health before=%d after=%d (%.1fs)" % [before, player.health, t])
+		await get_tree().create_timer(2.0).timeout
+		print("GUTFIRE health 2s after the gut=%d (should drop: shooters are real)" % player.health)
+		get_tree().quit()
+		return
 	Game.cheats["god"] = true
 	await get_tree().create_timer(1.0).timeout
 	player.finisher.start(en)
 	_debug_shots("gut", [0.05, 0.3, 0.42, 0.65, 0.95, 1.25, 1.5, 1.8, 2.05, 2.3, 2.6, 3.2, 4.5], true)
+
+
+## Debug: force one knife trick and screenshot it frame by frame.
+func _debug_trick(trick: String) -> void:
+	await get_tree().create_timer(1.5).timeout
+	var oh: Offhand = player.offhand
+	oh.trick = trick
+	oh.trick_t = 0.0
+	oh._sounds = {}
+	var dur: float = Offhand.TRICK_DUR[trick]
+	var times := []
+	for i in 10:
+		times.append(dur * (i + 0.5) / 10.0)
+	_debug_shots("trick_" + trick, times, true)
 
 
 func _debug_shots(tag: String, times: Array, quit_after: bool) -> void:

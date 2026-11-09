@@ -26,7 +26,6 @@
    * Rockets damage you too, and push you.
    * Checkpoints save your progress when you touch them.
    * Nothing can hurt you while you are gutting something.
-   * Ammo colours: yellow bullets, red shells, green rockets, cyan cells.
 
  DIFFICULTY
    MERCY .......... less damage taken, double ammo

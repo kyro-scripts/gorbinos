@@ -137,10 +137,8 @@ func _enter(p: String) -> void:
 			Audio.play("knife_stab", 2.0, randf_range(0.9, 1.05))
 			Fx.blood(lvl, cut, bc, 16, 0.035)
 			player.shake(0.3)
-			player.flash_color = Color(0.7, 0.0, 0.0, 0.2)
 			offhand.blood = 0.6
 			Audio.play_at(target.def["pain_snd"], target.center_point(), 3.0, pitch * 1.45)
-			player.world.hud.splatter(3)
 		"slice":
 			Audio.play("gut_slice", 1.0, randf_range(0.92, 1.05))
 		"rip":
@@ -150,14 +148,12 @@ func _enter(p: String) -> void:
 			player.shake(0.25)
 			offhand.blood = 1.0
 			_spill(cut, bc)
-			player.world.hud.splatter(6)
 		"yank":
 			Audio.play("knife_pull", 0.0)
 			# the knife comes out with a loop of gut snagged on it
 			if _rope and is_instance_valid(_rope):
 				_rope.anchor = offhand.tip_marker
 			Fx.blood(lvl, cut + (player.eye_point() - cut).normalized() * 0.15, bc, 12, 0.035)
-			player.world.hud.splatter(4)
 		"return":
 			var dir: Vector3 = (target.global_position - player.global_position).normalized()
 			target.gut_finish(dir)
@@ -243,6 +239,8 @@ func _end() -> void:
 	phase = ""
 	target = null
 	player.gutting = false
+	# shots already in the air when the gut ends can't hit you either
+	player.gut_grace = 0.8
 	player.gut_move_to = Vector3.INF
 	offhand.mode = "idle"
 	offhand.wait_t = randf_range(0.8, 1.5)

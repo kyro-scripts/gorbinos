@@ -14,7 +14,7 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 |---|---|
 | ![In game](docs/screenshots/ingame_village.png) | ![Gorbinos](docs/screenshots/gorbinos_closeup.png) |
 | ![Death](docs/screenshots/death.png) | ![Options](docs/screenshots/options.png) |
-| ![Knife arm and ammo marker](docs/screenshots/knife_and_ammo.png) | ![Gutting](docs/screenshots/gutting.png) |
+| ![Butterfly knife](docs/screenshots/butterfly_knife.png) | ![Gutting](docs/screenshots/gutting.png) |
 
 ## Playing it
 
@@ -56,15 +56,15 @@ Each level has its own palette, architecture, music track and ambience, plus 3 s
 
 Your health is the specimen jar in the top-left corner. The fluid drains and turns from green to amber to red as you take damage.
 
-Ammo is colour-coded everywhere: yellow bullets, red shells, green rockets, cyan cells. Pickups float over a glowing ring with a spinning marker above them, the bottom-right of the HUD shows all four reserves with the one you're using boxed, and when you run low a marker points to the nearest ammo of the right kind with its distance. Ammo you've seen shows on the automap.
+Ammo pickups are proper objects: trays of brass cartridges, olive ammo cans with a belt hanging off, red shotgun shells on brass heads, finned rockets on a crate, batteries with a glowing band. The HUD shows the ammo of the weapon you're holding.
 
 It is not a comfortable place. Corpses keep twitching, enemies whisper at you while they hunt you, the lights sometimes falter, and things breathe, knock and drag metal around just out of sight. Below 35 health you hear your heart. Between levels there's a story screen and a stats tally (kills, items, secrets, time vs. par) with an S/A/B/C/D rank. Finish level 6 for the ending and credits.
 
 ### The knife
 
-Your left hand holds a knife, and it never sits still: it twirls, gets tossed and caught, spins on your palm and stabs at nothing. Press **F** with nobody in reach for a quick slash.
+Your left hand holds a butterfly knife, and it never sits still: it fans open and shut with the handles whipping round the pin, rolls over your knuckles, gets flipped into the air and caught, and gets turned to the light so you can admire the blade. It's a strange knife: an oily, rainbow-sheened blade with a wavy edge, a saw-toothed spine, a hooked point and an eye etched into it, skeleton handles with raw meat showing through the slots and teeth along the edges, and an eyeball for a latch. Press **F** with nobody in reach for a quick slash.
 
-Get close to a creature (a red **[F] GUT** appears under the crosshair) and press **F** to gut it. The camera locks on and you drop to the cut. The knife goes in, slices across the belly and rips it open, the guts slide out, and a loop of intestine comes out snagged on the blade. Nothing can hurt you while you're doing it. It works on everything that walks; flyers and the final boss are too big or too high.
+Get close to a creature (a red **[F] GUT** appears under the crosshair) and press **F** to gut it. The camera locks on and you drop to the cut. The knife goes in, slices across the belly and rips it open, the guts slide out, and a loop of intestine comes out snagged on the blade. Nothing can hurt you while you're doing it, or for a moment after. It works on everything that walks; flyers and the final boss are too big or too high.
 
 ### Arsenal
 
@@ -144,7 +144,7 @@ python3 tools/import_user_models.py  # supplied Gorbino texture -> 6 colour vari
 godot --headless --path . -s scripts/tools/import_gorbino.gd  # supplied Gorbino mesh -> body + feet
 python3 tools/gen_clay.py       # "pre-rendered clay" UI: health jar, DEATH, menu tiles, logo, cursor, icon
 python3 tools/import_user_audio.py  # weapon sounds, voice lines, enemy shot (idk.wav) from tools/user_audio/
-python3 tools/gen_gore.py       # knife, sleeve, wound, guts and ammo-beacon textures
+python3 tools/gen_gore.py       # butterfly knife, sleeve, wound and guts textures
 python3 tools/gen_audio_extra.py  # knife, gore, heartbeat and dread sounds
 python3 tools/levels/level1_village.py   # ...and so on for each level
 ```

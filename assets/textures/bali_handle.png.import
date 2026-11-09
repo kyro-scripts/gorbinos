@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ix1arrwsh8ka"
-path="res://.godot/imported/knife_handle.png-2f2bde119b8187ae2ca150ec3481fe56.ctex"
+uid="uid://5640b56etc8n"
+path="res://.godot/imported/bali_handle.png-9946bc776f2246ef1b31cbf89ba0976f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/knife_handle.png"
-dest_files=["res://.godot/imported/knife_handle.png-2f2bde119b8187ae2ca150ec3481fe56.ctex"]
+source_file="res://assets/textures/bali_handle.png"
+dest_files=["res://.godot/imported/bali_handle.png-9946bc776f2246ef1b31cbf89ba0976f.ctex"]
 
 [params]
 

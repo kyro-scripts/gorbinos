@@ -195,23 +195,43 @@ static func pickup(ptype: String) -> Node3D:
 			root.add_child(mi(box(0.16, 0.2, 0.22), m, Vector3(-0.2, 0.75, 0)))
 			root.add_child(mi(box(0.16, 0.2, 0.22), m, Vector3(0.2, 0.75, 0)))
 		"bullets":
-			root.add_child(mi(box(0.28, 0.18, 0.16), Mat.world("pk_bullets", o), Vector3(0, 0.09, 0)))
+			# a cardboard tray of standing cartridges, two spilled beside it
+			root.add_child(mi(box(0.24, 0.05, 0.15), Mat.world("pk_bullets", o), Vector3(0, 0.025, 0)))
+			for i in 8:
+				_cartridge(root, Vector3(-0.08 + (i % 4) * 0.053, 0.05, -0.035 + (i / 4) * 0.07), Vector3.ZERO)
+			_cartridge(root, Vector3(0.17, 0.02, 0.06), Vector3(90, 0, 70))
+			_cartridge(root, Vector3(-0.16, 0.02, -0.07), Vector3(90, 0, -30))
 		"bullets_box":
-			root.add_child(mi(box(0.6, 0.32, 0.36), Mat.world("pk_bullets", o), Vector3(0, 0.16, 0)))
+			# an olive ammo can with its lid latched, a loose belt hanging off it
+			var can := Mat.world("gun_green", o)
+			var dk := Mat.world("gun_dark", o)
+			root.add_child(mi(box(0.46, 0.28, 0.22), can, Vector3(0, 0.14, 0)))
+			root.add_child(mi(box(0.48, 0.04, 0.24), dk, Vector3(0, 0.3, 0)))
+			root.add_child(mi(box(0.18, 0.025, 0.03), dk, Vector3(0, 0.335, 0)))
+			root.add_child(mi(box(0.1, 0.06, 0.006), Mat.world("gun_brass", o), Vector3(0, 0.18, -0.113)))
+			for i in 9:
+				_cartridge(root, Vector3(-0.2 + i * 0.05, 0.035, -0.17 - 0.02 * sin(i * 0.9)), Vector3(90, 0, 0), 1.2)
 		"shells":
-			for k in 4:
-				root.add_child(mi(cyl(0.035, 0.035, 0.16, 6), Mat.world("gun_red", o), Vector3(-0.12 + k * 0.08, 0.08, 0)))
+			# loose shotgun shells: red hulls on brass heads
+			for i in 4:
+				_shell(root, Vector3(-0.09 + i * 0.06, 0.0, 0.0), Vector3.ZERO)
+			_shell(root, Vector3(0.0, 0.03, 0.09), Vector3(90, 0, 60))
 		"shells_box":
-			root.add_child(mi(box(0.55, 0.28, 0.32), Mat.world("pk_shells", o), Vector3(0, 0.14, 0)))
+			root.add_child(mi(box(0.4, 0.18, 0.26), Mat.world("pk_shells", o), Vector3(0, 0.09, 0)))
+			for i in 6:
+				_shell(root, Vector3(-0.15 + i * 0.06, 0.12, 0.0), Vector3.ZERO)
 		"rocket":
-			root.add_child(mi(cyl(0.06, 0.06, 0.45, 8), Mat.world("gun_green", o), Vector3(0, 0.06, 0), Vector3(90, 0, 0)))
-			root.add_child(mi(cyl(0.0, 0.06, 0.15, 8), Mat.world("gun_red", o), Vector3(0, 0.06, -0.3), Vector3(-90, 0, 0)))
+			_rocket(root, Vector3(0, 0.07, 0), Vector3(90, 0, 0))
 		"rockets_box":
-			root.add_child(mi(box(0.8, 0.35, 0.4), Mat.world("pk_rockets", o), Vector3(0, 0.18, 0)))
+			root.add_child(mi(box(0.8, 0.28, 0.38), Mat.world("crate", o), Vector3(0, 0.14, 0)))
+			_rocket(root, Vector3(-0.1, 0.35, -0.06), Vector3(90, 0, 0))
+			_rocket(root, Vector3(0.12, 0.35, 0.08), Vector3(90, 8, 0))
 		"cells":
-			root.add_child(mi(cyl(0.1, 0.1, 0.3, 8), Mat.world("pk_cells", {"origin": true, "fullbright": 0.5}), Vector3(0, 0.15, 0)))
+			_cell(root, Vector3(0, 0.0, 0))
 		"cells_box":
-			root.add_child(mi(box(0.5, 0.35, 0.35), Mat.world("pk_cells", {"origin": true, "fullbright": 0.5}), Vector3(0, 0.18, 0)))
+			root.add_child(mi(box(0.36, 0.05, 0.36), Mat.world("gun_dark", o), Vector3(0, 0.025, 0)))
+			for i in 4:
+				_cell(root, Vector3(-0.08 + (i % 2) * 0.16, 0.05, -0.08 + (i / 2) * 0.16))
 		"backpack":
 			root.add_child(mi(box(0.5, 0.55, 0.3), Mat.world("v_planks", o), Vector3(0, 0.3, 0)))
 			root.add_child(mi(box(0.4, 0.2, 0.1), Mat.world("pk_bullets", o), Vector3(0, 0.25, -0.18)))
@@ -225,6 +245,40 @@ static func pickup(ptype: String) -> Node3D:
 				w.rotation_degrees = Vector3(0, 90, 0)
 				root.add_child(w)
 	return root
+
+
+## A brass cartridge with a copper bullet, standing on `pos` along +Y.
+static func _cartridge(root: Node3D, pos: Vector3, rot: Vector3, scl := 1.0) -> void:
+	var c := pivot(pos, rot)
+	c.scale = Vector3.ONE * scl
+	root.add_child(c)
+	c.add_child(mi(cyl(0.019, 0.019, 0.07, 8), Mat.world("gun_brass", {"origin": true}), Vector3(0, 0.035, 0)))
+	c.add_child(mi(cyl(0.004, 0.017, 0.035, 8), Mat.world("gun_brass", {"origin": true, "tint": Color(1.0, 0.55, 0.35)}), Vector3(0, 0.0875, 0)))
+
+
+static func _shell(root: Node3D, pos: Vector3, rot: Vector3) -> void:
+	var c := pivot(pos, rot)
+	root.add_child(c)
+	c.add_child(mi(cyl(0.028, 0.028, 0.11, 8), Mat.world("gun_red", {"origin": true}), Vector3(0, 0.075, 0)))
+	c.add_child(mi(cyl(0.03, 0.03, 0.03, 8), Mat.world("gun_brass", {"origin": true}), Vector3(0, 0.015, 0)))
+
+
+static func _rocket(root: Node3D, pos: Vector3, rot: Vector3) -> void:
+	var c := pivot(pos, rot)
+	root.add_child(c)
+	c.add_child(mi(cyl(0.06, 0.06, 0.42, 8), Mat.world("gun_green", {"origin": true})))
+	c.add_child(mi(cyl(0.0, 0.06, 0.15, 8), Mat.world("gun_red", {"origin": true}), Vector3(0, 0.285, 0)))
+	for k in 3:
+		c.add_child(mi(box(0.012, 0.1, 0.09), Mat.world("gun_dark", {"origin": true}), Vector3(0, -0.18, 0).rotated(Vector3.UP, k * TAU / 3.0) + Vector3(sin(k * TAU / 3.0), 0, cos(k * TAU / 3.0)) * 0.07, Vector3(0, rad_to_deg(k * TAU / 3.0), 0)))
+
+
+## A fat battery with a glowing band and a terminal on top.
+static func _cell(root: Node3D, pos: Vector3) -> void:
+	var c := pivot(pos)
+	root.add_child(c)
+	c.add_child(mi(cyl(0.065, 0.065, 0.24, 10), Mat.world("gun_dark", {"origin": true}), Vector3(0, 0.12, 0)))
+	c.add_child(mi(cyl(0.067, 0.067, 0.05, 10), Mat.world("pk_cells", {"origin": true, "fullbright": 0.9}), Vector3(0, 0.15, 0)))
+	c.add_child(mi(cyl(0.022, 0.022, 0.03, 8), Mat.world("gun_metal", {"origin": true}), Vector3(0, 0.255, 0)))
 
 
 # ================================================================== PROPS
