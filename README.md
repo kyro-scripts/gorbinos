@@ -62,7 +62,7 @@ It is not a comfortable place. Corpses keep twitching, enemies whisper at you wh
 
 ### The knife
 
-Your left hand holds a butterfly knife, and it never sits still: it fans open and shut with the handles whipping round the pin, rolls over your knuckles, gets flipped into the air and caught, and gets turned to the light. The arm is a plain yellow block like the gun hand, and it follows the knife through every trick. The knife looks like it was ripped out of something worse: a crude, bent, low-poly blade in crunchy scratched chrome with rust and old blood on it, raw-meat handles studded with teeth, and a green growth on the pivot. Press **F** with nobody in reach for a quick slash.
+Your left hand holds a butterfly knife, and it never sits still: it fans open and shut with the handles whipping round the pin, rolls over your knuckles, gets flipped into the air and caught, and gets turned to the light. The arm is a plain yellow block like the gun hand, and it follows the knife through every trick. The knife looks like it was ripped out of something worse: a crude, bent, low-poly blade, handles studded with teeth and a growth on the pivot, all of it covered in hard red-and-black checks. Press **F** with nobody in reach for a quick slash.
 
 Get close to a creature (a red **[F] GUT** appears under the crosshair) and press **F** to gut it. The camera locks on and you drop to the cut. The knife goes in, slices across the belly and rips it open, the guts slide out, and a loop of intestine comes out snagged on the blade. Nothing can hurt you while you're doing it, or for a moment after. It works on everything that walks; flyers and the final boss are too big or too high.
 

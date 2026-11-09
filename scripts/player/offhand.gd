@@ -8,8 +8,8 @@ extends Node3D
 ## The arm is built like the gun hand: one straight yellow block running in
 ## from the bottom-left corner, following the wrist through every trick.
 ## The knife looks ripped out of something worse: a crude, bent, low-poly
-## blade in crunchy scratched chrome, raw-meat handles studded with teeth
-## and a green growth on the pivot.
+## blade, handles studded with teeth and a growth on the pivot, all of it
+## in hard red-and-black checks.
 ##
 ## Rig: this node (camera space) > arm (the block, moves) > hand (wrist,
 ## twists) > knife (the held "safe" handle; spins). The blade and the free
@@ -72,24 +72,26 @@ func _build_knife() -> void:
 	knife = Models.pivot(Vector3(0, 0.005, -0.015))
 	knife.scale = Vector3.ONE * KNIFE_SCALE
 	hand.add_child(knife)
-	var meat := Mat.make("cs_flesh", {"origin": true, "shade": 0.6, "gloss": 0.9})
-	var bone := Mat.world("white", {"origin": true, "tint": Color(0.95, 0.88, 0.7)})
-	var brass := Mat.world("gun_brass", {"origin": true})
+	# every part of the knife wears the same red-and-black checks
+	var check := Mat.make("knife_checker", {"origin": true, "shade": 0.5, "gloss": 0.6})
+	var meat := check
+	var bone := check
+	var brass := check
 	# the safe handle, held: raw meat on a bar, teeth along the top
 	knife.add_child(Models.mi(_handle_mesh(), meat, Vector3(0.013, 0, PIN_Z)))
 	_teeth(knife, 0.013, PIN_Z, bone)
 	knife.add_child(Models.mi(Models.box(0.054, 0.018, 0.018), brass, Vector3(0, 0, PIN_Z)))
 	# something growing out of the pivot
-	knife.add_child(Models.mi(Models.sphere(0.024, 5, 4), Mat.make("cs_tumor", {"origin": true, "shade": 0.6, "gloss": 1.0}),
+	knife.add_child(Models.mi(Models.sphere(0.024, 5, 4), check,
 		Vector3(0.03, 0.012, PIN_Z + 0.012), Vector3(20, 40, 0), Vector3(1.0, 0.8, 1.3)))
 	# the blade: three crude chunks, bent up a little towards a fat point
 	blade_pivot = Models.pivot(Vector3(0, 0, PIN_Z))
 	knife.add_child(blade_pivot)
-	blade_mat = Mat.make("cs_blade", {"origin": true, "shade": 0.5, "gloss": 0.9, "fullbright": 0.1})
+	blade_mat = Mat.make("knife_checker", {"origin": true, "shade": 0.5, "gloss": 0.9, "fullbright": 0.1})
 	blade_pivot.add_child(Models.mi(Models.box(0.012, 0.042, 0.13), blade_mat, Vector3(0, 0, -0.065)))
 	blade_pivot.add_child(Models.mi(Models.box(0.011, 0.036, 0.1), blade_mat, Vector3(0, 0.005, -0.168), Vector3(7, 0, 0)))
 	blade_pivot.add_child(Models.mi(Models.cyl(0.0, 0.026, 0.075, 4), blade_mat, Vector3(0, 0.011, -0.25), Vector3(-83, 0, 45), Vector3(0.45, 1.0, 1.0)))
-	blade_pivot.add_child(Models.mi(Models.box(0.014, 0.008, 0.05), Mat.world("gun_dark", {"origin": true}), Vector3(0, 0.022, -0.04)))
+	blade_pivot.add_child(Models.mi(Models.box(0.014, 0.008, 0.05), check, Vector3(0, 0.022, -0.04)))
 	tip_marker = Marker3D.new()
 	tip_marker.position = Vector3(0, 0.01, -BLADE_LEN * 0.85)
 	blade_pivot.add_child(tip_marker)

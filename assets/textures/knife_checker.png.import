@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c7pi4d327cmiv"
-path="res://.godot/imported/cs_blade.png-b2ef7ce335faf22e75cae11e57a38652.ctex"
+uid="uid://bu2oyut14ygue"
+path="res://.godot/imported/knife_checker.png-63b0a566d20d439f5a8bead5dfdb9d81.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/cs_blade.png"
-dest_files=["res://.godot/imported/cs_blade.png-b2ef7ce335faf22e75cae11e57a38652.ctex"]
+source_file="res://assets/textures/knife_checker.png"
+dest_files=["res://.godot/imported/knife_checker.png-63b0a566d20d439f5a8bead5dfdb9d81.ctex"]
 
 [params]
 

@@ -2,8 +2,7 @@
 
   gore_wound                             the slit that opens in a gutted creature
   gore_guts, gore_organ                  what spills out of it
-  cs_blade, cs_flesh, cs_tumor           the butterfly knife: crunchy over-processed
-                                         chrome, lurid meat handles, a green growth
+  knife_checker                          the butterfly knife: red and black checks all over
 
 Run: python3 tools/gen_gore.py
 """
@@ -58,63 +57,20 @@ def guts():
     save("gore_organ", a)
 
 
-def photo(a, seed, grain=0.08, block=2, sat=1.6, sharpen=220):
-    """Crude 'ripped photo' look: saturation pushed, grain, blocky
-    compression smear and a harsh sharpen."""
-    a = np.clip(np.asarray(a, np.float32), 0, 1)
-    grey = a.mean(-1, keepdims=True)
-    a = np.clip(grey + (a - grey) * sat, 0, 1)
-    a = a + (rng(seed).random(a.shape[:2])[..., None] - 0.5) * grain
-    im = to_img(a)
-    w, h = im.size
-    if block > 1:
-        im = im.resize((max(1, w // block), max(1, h // block)), Image.BILINEAR).resize((w, h), Image.NEAREST)
-    return im.filter(ImageFilter.UnsharpMask(radius=1.2, percent=sharpen, threshold=0))
-
-
-def cs_knife():
-    # blade: cheap chrome, teal-tinted, deep scratches, rust and old blood
-    W, H = 64, 16
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    n = value_noise(64, 16, 771, 3)[:H, :]
-    streak = value_noise(64, 32, 772, 2)[:H, :]
-    t = np.clip(0.35 + streak * 0.5 + (yy / H - 0.5) * 0.4 + (n - 0.5) * 0.3, 0, 1)
-    a = gradmap(t, [(0, (20, 45, 50)), (0.4, (90, 150, 150)), (0.7, (210, 235, 225)), (1, (255, 255, 200))])
-    r = rng(773)
-    for k in range(10):                                   # scratches
-        x0 = r.integers(0, W)
-        y0 = r.integers(0, H)
-        ln = r.integers(6, 20)
-        for j in range(ln):
-            x = (x0 + j) % W
-            y = int(np.clip(y0 + j * r.uniform(-0.3, 0.3), 0, H - 1))
-            a[y, x] = np.array([0.05, 0.08, 0.08])
-    rust = value_noise(64, 6, 774, 3)[:H, :] > 0.64
-    a[rust] = a[rust] * 0.3 + np.array([0.6, 0.25, 0.05]) * 0.7
-    blood = value_noise(64, 8, 775, 3)[:H, :] > 0.7
-    a[blood & (yy > H * 0.4)] = np.array([0.45, 0.0, 0.03])
-    a[yy < 2] = np.array([1.0, 1.0, 0.95])                # edge
-    photo(a, 776, sat=1.5).save(os.path.join(OUT, "cs_blade.png"))
-    print("wrote cs_blade")
-    # handles: raw lurid meat, purple veins, yellow fat
-    S = 32
-    n = value_noise(S, 6, 781, 4)
-    w1, w2, _ = worley(S, 14, 782)
-    t = np.clip(0.45 + (n - 0.5) * 0.8, 0, 1)
-    a = gradmap(t, [(0, (90, 0, 30)), (0.45, (230, 40, 90)), (0.75, (255, 120, 150)), (1, (255, 220, 120))])
-    a[(w2 - w1) < 0.9] = np.array([0.35, 0.05, 0.4])
-    photo(a, 783, sat=1.7).save(os.path.join(OUT, "cs_flesh.png"))
-    print("wrote cs_flesh")
-    # a growth on the pin: acid green with dark pocks
-    n = value_noise(S, 5, 791, 4)
-    w1, w2, _ = worley(S, 10, 792)
-    a = gradmap(np.clip(n, 0, 1), [(0, (30, 80, 0)), (0.5, (150, 230, 20)), (1, (240, 255, 120))])
-    a[w1 < 2.0] = np.array([0.1, 0.15, 0.0])
-    photo(a, 793, sat=1.6).save(os.path.join(OUT, "cs_tumor.png"))
-    print("wrote cs_tumor")
+def knife_checker():
+    """The butterfly knife's one texture: big hard red-and-black checks, so
+    every part of the knife wears the same pattern."""
+    S, N = 48, 6
+    yy, xx = np.mgrid[0:S, 0:S]
+    check = ((xx // (S // N)) + (yy // (S // N))) % 2 == 0
+    a = np.where(check[..., None], np.array([0.9, 0.02, 0.02]), np.array([0.02, 0.0, 0.0]))
+    n = value_noise(S, 6, 801, 2)
+    a = a * (0.92 + 0.12 * n[..., None])
+    to_img(np.clip(a, 0, 1)).save(os.path.join(OUT, "knife_checker.png"))
+    print("wrote knife_checker")
 
 
 if __name__ == "__main__":
     wound()
     guts()
-    cs_knife()
+    knife_checker()
