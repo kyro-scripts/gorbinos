@@ -81,7 +81,7 @@ Recoil, muzzle flashes, dynamic muzzle lighting, ejected casings, viewmodel sway
 
 ### Bestiary
 
-All Gorbinos share one model in different colours, and move the same way: they hop and bounce, breathe, snap their mouths, and roll over when they die. All Snirbies share another model and wobble like jelly instead: they stretch up before they attack, flatten when they're hurt and sag into a puddle when they die.
+All Gorbinos share one model in different colours, and move the same way: they hop and bounce, breathe, snap their mouths, and roll over when they die. All Snirbies share another model and wobble like jelly instead, while still hopping along and pecking in quick bursts: they stretch up before they attack, flatten when they're hurt and sag into a puddle when they die.
 
 - **Gorbino** (green): lobs goo.
 - **Yellow Gorbino**: holds a pistol in one tentacle and fires 3-round hitscan bursts while keeping its distance.

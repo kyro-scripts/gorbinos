@@ -298,6 +298,8 @@ static func snirby(opts := {}) -> Node3D:
 	parts["feet"] = feet
 	parts["feet_base"] = feet_base
 	parts["fly"] = opts.get("fly", false)
+	parts["hop"] = true                     # wobbles, but still hops and pecks
+	parts["peck_off"] = randf() * 2.0
 	root.set_meta("parts", parts)
 	animate(root, 0.0, 0.016, {})
 	return root
@@ -398,7 +400,8 @@ static func gut_anchor(root: Node3D) -> Array:
 ##  - hop: bouncy, breathing, puffs right up to fly, pecks, rolls over dead
 ##    (the Gorbino moves like this)
 ##  - wobble: jelly squash-and-stretch, rears up before it attacks, flattens
-##    when hurt and when it dies (the Snirby moves like this)
+##    when hurt and when it dies (the Snirby moves like this, and with "hop"
+##    set it also hops along and pecks in quick bursts)
 ## st keys: move (0..1), windup, pain, blink, fly, look (Vector3, model local)
 static func animate(root: Node3D, t: float, delta: float, st: Dictionary) -> void:
 	var p: Dictionary = root.get_meta("parts")
@@ -470,14 +473,18 @@ static func _anim_wobble(p: Dictionary, t: float, delta: float, st: Dictionary) 
 	var fly: bool = st.get("fly", false) or p.get("fly", false)
 	var body: Node3D = p["body"]
 	var core: Node3D = p["core"]
-	var step := t * (8.0 + 6.0 * m)
+	var hop: bool = p.get("hop", false)
+	var step := t * ((9.0 if hop else 8.0) + 6.0 * m)
 	# jelly wobble; it stretches up before attacking and flattens when hurt
 	var wob := sin(t * 3.1) * 0.03 + sin(step * 2.0) * 0.06 * m
 	var sy := 1.0 + wob + (0.16 if windup else 0.0) - (0.2 if pain else 0.0)
+	if hop and not fly:
+		# squashes as it lands from each hop
+		sy -= pow(1.0 - absf(sin(step)), 4.0) * 0.14 * m
 	var sxz := 1.0 / sqrt(maxf(sy, 0.3))
 	core.scale = core.scale.lerp(Vector3(sxz, sy, sxz), clampf(delta * 16.0, 0.0, 1.0))
 	_plant(p)
-	body.position.y = absf(sin(step)) * 0.1 * m + (0.25 + sin(t * 2.0) * 0.1 if fly else 0.0)
+	body.position.y = absf(sin(step)) * (0.14 if hop else 0.1) * m + (0.25 + sin(t * 2.0) * 0.1 if fly else 0.0)
 	body.rotation.x = (-0.2 if windup else 0.0) + sin(step) * 0.05 * m
 	body.rotation.z = sin(step * 0.5) * 0.08 * m
 	# the gape: a mouth stretches open; a beak lifts open
@@ -488,7 +495,13 @@ static func _anim_wobble(p: Dictionary, t: float, delta: float, st: Dictionary) 
 	if p.has("beak"):
 		var beak: Node3D = p["beak"]
 		var bx := 0.55 if windup else (0.3 if pain else sin(t * 1.2) * 0.04)
-		beak.rotation.x = lerpf(beak.rotation.x, bx, clampf(delta * 14.0, 0.0, 1.0))
+		if hop and not windup and not pain:
+			# quick pecks: bursts of fast jabs, and a peck with every hop
+			var burst := fmod(t + float(p.get("peck_off", 0.0)), 1.6) < 0.65
+			var jab := pow(maxf(0.0, sin(t * 30.0)), 2.0) if burst else 0.0
+			bx += -0.5 * jab - 0.12 * maxf(0.0, sin(step)) * m
+			body.rotation.x -= 0.12 * jab
+		beak.rotation.x = lerpf(beak.rotation.x, bx, clampf(delta * 45.0, 0.0, 1.0))
 		beak.rotation.y = 0.0
 	if p.has("arm"):
 		p["arm"].rotation.x = -0.25 if windup else 0.1 + sin(t * 2.0) * 0.08
