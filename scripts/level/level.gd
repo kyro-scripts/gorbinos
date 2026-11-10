@@ -70,8 +70,6 @@ var triggers_fired := {}
 var exit_cells := {}
 var seen := PackedByteArray()
 var boss: Node = null
-var target: Node = null              # this level's contract target
-var contract := {}
 var finished := false
 var dyn_lights: Array = []
 var _player_cell := -1
@@ -214,13 +212,7 @@ func build() -> void:
 	_build_secrets()
 	_build_environment()
 	_spawn_entities()
-	Dressing.dress(self)
-	Contracts.place(self)
 	Civilian.populate(self)
-	if not contract.is_empty():
-		stats["contract"] = contract["name"]
-		stats["target_down"] = false
-		stats["target_gutted"] = false
 
 
 func fx_root() -> Node3D:
@@ -861,34 +853,11 @@ func _on_player_enter_cell(i: int) -> void:
 		triggers_fired[i] = true
 		fire_tag(trig)
 	if exit_cells.has(i) and not finished:
-		if exit_sealed():
-			_sealed_msg()
+		if boss != null and is_instance_valid(boss) and not boss.dead:
+			if world:
+				world.message("THE EXIT IS SEALED", true)
 		else:
 			complete()
-
-
-## The exit won't open while the boss or the contract target is alive.
-func exit_sealed() -> bool:
-	for n in [boss, target]:
-		if n != null and is_instance_valid(n) and not n.dead:
-			return true
-	return false
-
-
-func _sealed_msg() -> void:
-	if world == null:
-		return
-	if target != null and is_instance_valid(target) and not target.dead and target != boss:
-		world.message("CONTRACT OPEN: " + String(contract.get("name", "")) + " STILL BREATHES", true)
-	else:
-		world.message("THE EXIT IS SEALED", true)
-
-
-func target_down(en: Node) -> void:
-	stats["target_down"] = true
-	stats["target_gutted"] = en.death_kind == "gut"
-	if world:
-		world.target_down(en)
 
 
 func fire_tag(tag: int) -> void:
@@ -969,9 +938,10 @@ func use_at(hit: Dictionary, user: Node) -> bool:
 			"exit":
 				u["used"] = true
 				Audio.play_at("switch", p)
-				if exit_sealed():
+				if boss != null and is_instance_valid(boss) and not boss.dead:
 					u["used"] = false
-					_sealed_msg()
+					if world:
+						world.message("THE EXIT IS SEALED", true)
 					return true
 				complete()
 			"switch":

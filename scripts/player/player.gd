@@ -65,7 +65,7 @@ var auto_sprint := false
 
 func _ready() -> void:
 	collision_layer = 2
-	collision_mask = 1 | 4 | 8 | 16      # 16: set-dressing props
+	collision_mask = 1 | 4 | 8
 	floor_snap_length = 0.6
 	floor_max_angle = deg_to_rad(46)
 	floor_constant_speed = true
@@ -277,7 +277,7 @@ func _move_with_steps(delta: float, was_on_floor: bool) -> void:
 		for side in [0.0, 0.6, -0.6]:
 			var d := dir.rotated(Vector3.UP, side)
 			var probe := global_position + d * (RADIUS + 0.14)
-			var hit := level.ray(probe + Vector3(0, max_h + 0.05, 0), probe + Vector3(0, 0.02, 0), 1 | 8 | 16, [get_rid()])
+			var hit := level.ray(probe + Vector3(0, max_h + 0.05, 0), probe + Vector3(0, 0.02, 0), 1 | 8, [get_rid()])
 			if hit.is_empty() or hit["normal"].y < 0.7:
 				continue
 			var h: float = hit["position"].y - global_position.y

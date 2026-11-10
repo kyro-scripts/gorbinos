@@ -1,49 +1,107 @@
 class_name Civilian
 extends AnimatableBody3D
-## Bystanders. They stand about muttering to themselves, say something weird
-## when you get close, scatter screaming when the shooting starts, and cost
-## you money if you kill them. The creatures ignore them.
+## The locals: little pastel Gorbinos in smocks and hats who live here and
+## would rather not be part of any of this. They stand about in pairs having
+## gurgly conversations, say something to you if you get close, scatter
+## squealing when the shooting starts and get out of your way. The monsters
+## ignore them; your bullets don't.
 
+# what they say to you when you walk up to them
 const LINES := {
-	"village": ["THE WELL HAS BEEN SINGING SINCE TUESDAY.", "I SOLD MY LEGS TO THE MAYOR. HE SAID HE NEEDED THEM.",
-		"DON'T EAT THE MEAT. OR DO. I'M NOT YOUR DAD.", "HAVE YOU SEEN MY SON? HE'S ROUND. HE HOPS.",
-		"THE MAYOR WAVES AT ME FROM THE WELL EVERY NIGHT.", "WE USED TO HAVE A BAKERY. NOW WE HAVE A HOLE."],
-	"industrial": ["I'VE BEEN ON BREAK FOR NINE YEARS. NOBODY HAS NOTICED.", "THE CHUTE TALKS TO ME. IT KNOWS MY NAME.",
-		"IF YOU SEE THE FOREMAN, I WAS NEVER HERE.", "I PACK THEM. I DON'T ASK WHAT THEY ARE.",
-		"MY UNION REP WENT INTO THE CHUTE.", "THE BOXES ARE WARM. WHY ARE THE BOXES WARM."],
-	"mines": ["THERE'S SOMETHING DOWN THERE THAT HUMS IN A MAJOR KEY.", "MY CANARY DIED. THEN IT CAME BACK. NOW IT WATCHES.",
-		"GUS SAYS THE ROCKS ARE WARM BECAUSE THEY'RE ALIVE.", "I'VE BEEN DIGGING SO LONG I FORGOT WHICH WAY IS UP.",
-		"DON'T LICK THE PURPLE ONES. TRUST ME."],
-	"hq": ["I'M IN A MEETING.", "WE'RE A FAMILY HERE. THE FAMILY IS ON FIRE.", "SYNERGY. SYNERGY. SYNERGY.",
-		"I HAVEN'T SEEN A WINDOW SINCE THE MERGER.", "THE CFO PUT MY PENSION IN A JAR. SOMETIMES I SEE IT. IT'S BEAUTIFUL.",
-		"CAN YOU CIRCLE BACK? I CAN'T STOP CIRCLING BACK."],
-	"facility": ["I VOLUNTEERED. I DON'T REMEMBER VOLUNTEERING.", "DO YOU HAVE ANY OF MY ORIGINAL PARTS?",
-		"THE DOCTOR SAYS I'M PROMISING.", "PLEASE DON'T TELL THEM I CAN STILL FEEL MY FEET.",
-		"I USED TO BE TALLER. AND ONE PERSON."],
-	"dimension": ["YOU'VE BEEN HERE BEFORE. YOU ALWAYS COME BACK.", "I WAS A DOOR ONCE.", "IT'S NICE HERE. THE WALLS ARE SOFT.",
-		"THE CLIENT IS WATCHING. WAVE.", "WHICH ONE OF US IS DREAMING?"],
+	"village": ["GORB. YOU ARE VERY TALL. IS IT CATCHING?", "THE WELL HAS BEEN GURGLING MY NAME SINCE TUESDAY. GORB.",
+		"I HOPPED INTO TOWN FOR ONE BREAD. THAT WAS FOUR YEARS AGO.", "DON'T EAT THE PURPLE ONES. THAT'S MY COUSIN.",
+		"BLORP. SORRY. THAT WAS MY STOMACH. OR MY BROTHER.", "WE HAD A BAKERY. NOW WE HAVE A HOLE. GORB."],
+	"industrial": ["GORB. I PACK THE BOXES. I DON'T ASK WHAT'S IN THE BOXES.", "MY SHIFT ENDED IN 1991. NOBODY TOLD ME TO STOP.",
+		"THE CHUTE KNOWS MY NAME. IT SAYS IT ALL WET.", "IF YOU SEE THE FOREMAN, I'M A BOX.",
+		"I GOT PROMOTED. NOW I'M IN CHARGE OF THE SMELL.", "BLUB. THE MACHINES ARE WARM. I SLEEP IN THE WARM ONE."],
+	"mines": ["GORB. SOMETHING DOWN THERE HUMS IN A MAJOR KEY.", "I LICKED THE PURPLE ROCK. NOW I CAN HEAR COLOURS.",
+		"MY CANARY DIED. THEN IT CAME BACK ROUND. NOW IT'S A GORBINO.", "DIG DIG DIG. GORB. DIG.",
+		"I'VE BEEN DOWN HERE SO LONG MY FEET WENT DARK."],
+	"hq": ["GORB. I'M IN A MEETING.", "WE'RE ALL ONE BIG GORBINO FAMILY HERE. THE FAMILY IS ON FIRE.",
+		"SYNERGY. SYNERGY. BLORP. SYNERGY.", "MY PENSION IS IN A JAR. SOMETIMES I GO AND LOOK AT IT.",
+		"I HAVEN'T SEEN A WINDOW SINCE THE MERGER. IS IT STILL BLUE?", "CAN YOU CIRCLE BACK? I CAN'T STOP CIRCLING BACK. GORB."],
+	"facility": ["GORB. I WAS GROWN IN VAT NINE. NINE IS THE GOOD VAT.", "DO YOU HAVE ANY OF MY ORIGINAL PARTS?",
+		"THE DOCTOR SAYS I'M PROMISING. I PROMISE.", "I USED TO BE ONE GORBINO. NOW I'M MOSTLY THREE.",
+		"PLEASE DON'T TELL THEM I CAN STILL FEEL MY FEET. BLUB."],
+	"dimension": ["GORB. YOU'VE BEEN HERE BEFORE. YOU ALWAYS COME BACK.", "I WAS A DOOR ONCE. IT WAS NICE.",
+		"THE WALLS ARE SOFT HERE. I LIKE THE WALLS.", "WHICH ONE OF US IS DREAMING? NOT ME. GORB.",
+		"THE BIG SNIRBY SINGS US TO SLEEP. WE DON'T SLEEP."],
 }
-const PANIC := ["AAAAAAA!", "NOT THE FACE!", "I HAVE A FAMILY! THEY'RE ALSO HERE!", "TAKE THE INTERN!", "I'M JUST A GUY!"]
-const TITLES := {"village": "VILLAGER", "industrial": "PACKER", "mines": "MINER", "hq": "ASSOCIATE",
-	"facility": "TEST SUBJECT", "dimension": "SOMEONE"}
-const TINTS := [Color(0.85, 0.85, 0.8), Color(0.75, 0.8, 0.95), Color(0.95, 0.8, 0.6), Color(0.7, 0.9, 0.75), Color(0.9, 0.7, 0.8)]
+# what they say to each other when you're within earshot (alternating speakers)
+const CHATS := {
+	"village": [
+		["DID YOU HEAR THAT, GORB?", "HEAR WHAT, GORB?", "EXACTLY. GORB."],
+		["MY FEET ARE ON BACKWARDS AGAIN.", "WHICH WAY ARE YOU GOING?", "BACKWARDS, GORB."],
+		["THE HUMAN HAS A GUN.", "DON'T LOOK AT IT.", "I'M LOOKING AT IT.", "BLORP."],
+		["WANT TO HOP TO THE POND LATER?", "THE POND HOPS TO US NOW.", "OH. NICE. GORB."],
+	],
+	"industrial": [
+		["WHAT ARE WE PACKING TODAY?", "GORBINOS.", "WHAT ARE WE?", "...KEEP PACKING."],
+		["I PUT MY LUNCH IN THE CHUTE.", "WHY?", "IT LOOKED HUNGRY. GORB."],
+		["FOREMAN SAYS WE GET A BREAK SOON.", "HOW SOON?", "HE DIDN'T SAY A YEAR. BLUB."],
+		["DO YOU EVER THINK ABOUT THE BOXES?", "I AM THE BOXES.", "GORB. ME TOO."],
+	],
+	"mines": [
+		["FOUND A ROCK.", "WHAT KIND?", "THE KIND THAT BLINKS. GORB."],
+		["HOW DEEP DOES IT GO?", "ALL THE WAY TO THE OTHER GORBINOS.", "THERE ARE OTHER GORBINOS?", "ALWAYS. BLORP."],
+		["MY LAMP WENT OUT.", "YOUR LAMP IS YOUR EYE, GUS.", "OH. GORB."],
+	],
+	"hq": [
+		["LET'S TAKE THIS OFFLINE.", "WE ARE OFFLINE.", "THEN LET'S TAKE IT ONLINE. GORB."],
+		["HAVE YOU SEEN THE QUARTERLY NUMBERS?", "THEY'RE ALL NINE.", "GOOD NUMBER. GORB."],
+		["I'VE BEEN PROMOTED TO SENIOR GORBINO.", "WHAT CHANGES?", "I'M ROUNDER NOW. BLUB."],
+		["IS THAT HUMAN FROM HR?", "HR IS A GORBINO IN A JAR.", "THEN WHO IS THAT?", "...GORB."],
+	],
+	"facility": [
+		["WHICH VAT ARE YOU FROM?", "THE WARM ONE.", "THEY'RE ALL WARM.", "THEN ALL OF THEM. GORB."],
+		["I GREW A NEW FOOT TODAY.", "WHERE?", "DON'T ASK. BLUB."],
+		["THE DOCTOR WANTS ANOTHER SAMPLE.", "OF WHAT?", "OF ME. ALL OF ME. GORB."],
+	],
+	"dimension": [
+		["ARE WE STILL GORBINOS HERE?", "WE ARE MORE GORBINO THAN EVER.", "OH NO. GORB."],
+		["THE FLOOR IS BREATHING.", "LET IT. IT WORKED HARD.", "BLORP."],
+		["I CAN SEE MY OWN BACK.", "THAT'S MY BACK, GORB.", "OH. IT'S NICE."],
+	],
+}
+const PANIC := ["GORB GORB GORB!", "NOT THE FACE! I ONLY HAVE THE ONE!", "BLORP! HELP!", "I'M JUST A LITTLE GUY!",
+	"TAKE HIM, HE'S ROUNDER!", "AAAAGORB!"]
+const NAMES := ["GLORBO", "BLUBBERT", "GORBERT", "SNORF", "DORBY", "PLUMBO", "GURT", "WEMBO", "NUBBIN", "GLIMP",
+	"SPLORBO", "LIL GORB", "OLD GORB", "BRENDA", "FUNGUS", "MR. GORB", "BOBBO", "GUS", "DONK", "SLUMPY"]
+const SKINS := ["civ_pink", "civ_mint", "civ_peach", "civ_lilac", "civ_grey"]
+const SMOCKS := {
+	"village": [Color(0.45, 0.35, 0.2), Color(0.3, 0.45, 0.25), Color(0.6, 0.55, 0.45)],
+	"industrial": [Color(1.0, 0.55, 0.05), Color(0.95, 0.85, 0.1)],
+	"mines": [Color(0.35, 0.35, 0.38), Color(0.4, 0.3, 0.2)],
+	"hq": [Color(0.92, 0.92, 0.9), Color(0.8, 0.85, 0.95)],
+	"facility": [Color(0.6, 0.8, 0.85), Color(0.85, 0.9, 0.85)],
+	"dimension": [Color(1.0, 0.3, 0.8), Color(0.3, 1.0, 0.8), Color(0.95, 0.95, 0.3)],
+}
 const CIV_ID := 950000
+const SCALE := 0.62
 
 var level: Level
 var model: Node3D
 var parts: Dictionary
 var spawn_id := -1
-var title := "BYSTANDER"
+var who := "GORBINO"
+var theme := ""
 var lines: Array = []
 var line_i := 0
+var partner: Civilian = null
+var lead := false                 # the one of a pair that starts the conversations
 var dead := false
 var hp := 30.0
-var radius := 0.4
-var height := 1.0
+var radius := 0.36
+var height := 0.9
 var home := Vector3.ZERO
+var home_yaw := 0.0
 var yaw := 0.0
 var panic_t := 0.0
 var talk_cd := 0.0
+var chat_cd := 0.0
+var _chat: Array = []
+var _chat_i := 0
+var _chat_t := 0.0
 var _goal := Vector3.ZERO
 var _goal_t := 0.0
 var _anim_t := 0.0
@@ -53,16 +111,17 @@ var _death_t := -1.0
 var _death_side := 0.0
 var _skin_mat: Material
 var _flash := 0.0
+var _talk_t := 0.0                # mouth flapping while speaking
 
 
 static func populate(lv: Level) -> void:
-	var theme := String(lv.data.get("dress", lv.data.get("music", "")))
-	if not LINES.has(theme):
+	var th := String(lv.data.get("dress", lv.data.get("music", "")))
+	if not LINES.has(th):
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(String(lv.data.get("name", "")) + "civ")
 	var W: int = lv.W
-	# reachable cells, the way the player walks
+	# cells the player can walk to
 	var keys := {"red": true, "blue": true, "yellow": true}
 	var tags := {99: true}
 	for t in lv.tagged.keys():
@@ -78,20 +137,19 @@ static func populate(lv: Level) -> void:
 				seen[n] = true
 				q.append(n)
 	var avoid := []
-	for e in lv.entity_specs:
-		if String(e["type"]) in Level.ENEMY_TYPES:
-			avoid.append(e["cell"])
-	if lv.target != null:
-		avoid.append(lv.cell_of(lv.target.global_position))
 	var taken := {}
 	for e in lv.entity_specs:
 		taken[lv.idx_of(e["cell"])] = true
+		if String(e["type"]) in Level.ENEMY_TYPES:
+			avoid.append(e["cell"])
+	var ok_cell := func(i: int) -> bool:
+		if not seen.has(i) or taken.has(i) or lv.movers.has(i) or lv.solid[i] != 0:
+			return false
+		var sec: Dictionary = lv.cells[i]
+		return not sec.get("secret", false) and String(sec.get("liquid", "")) == "" and float(sec.get("damage", 0.0)) <= 0.0
 	var cands := []
 	for i in seen.keys():
-		if taken.has(i) or lv.movers.has(i) or lv.solid[i] != 0:
-			continue
-		var sec: Dictionary = lv.cells[i]
-		if sec.get("secret", false) or String(sec.get("liquid", "")) != "" or float(sec.get("damage", 0.0)) > 0.0:
+		if not ok_cell.call(i):
 			continue
 		var c := Vector2i(i % W, i / W)
 		var far := true
@@ -102,50 +160,83 @@ static func populate(lv: Level) -> void:
 		if far:
 			cands.append(i)
 	cands.sort()
+	var names := NAMES.duplicate()
 	var placed := []
-	var want := int(lv.data.get("civilians", 6))
+	var groups := int(lv.data.get("civilian_pairs", 4))
 	var tries := 0
-	while placed.size() < want and not cands.is_empty() and tries < 400:
+	while placed.size() < groups and not cands.is_empty() and tries < 400:
 		tries += 1
 		var i: int = cands[rng.randi_range(0, cands.size() - 1)]
 		var c := Vector2i(i % W, i / W)
-		var ok := true
+		var spaced := true
 		for p in placed:
-			if maxi(absi(p.x - c.x), absi(p.y - c.y)) < 6:
-				ok = false
+			if maxi(absi(p.x - c.x), absi(p.y - c.y)) < 7:
+				spaced = false
 				break
-		if not ok:
+		if not spaced:
 			continue
+		# a second Gorbino next to the first, so they can talk
+		var mate := Vector2i(-1, -1)
+		var dirs: Array = Level.DIRS4.duplicate()
+		for k in range(dirs.size() - 1, 0, -1):
+			var j := rng.randi_range(0, k)
+			var tmp = dirs[k]
+			dirs[k] = dirs[j]
+			dirs[j] = tmp
+		for dv in dirs:
+			var n := lv._idx(c.x + dv.x, c.y + dv.y)
+			if n >= 0 and ok_cell.call(n) and absf(lv.floor_h[n] - lv.floor_h[i]) < 0.3:
+				mate = Vector2i(c.x + dv.x, c.y + dv.y)
+				break
 		placed.append(c)
-		var cv := Civilian.new()
-		cv.spawn_id = CIV_ID + placed.size()
-		lv.entity_root().add_child(cv)
-		cv.setup(lv, lv.cell_center(c), theme, rng)
-		lv.civilians.append(cv)
+		var a_pos := lv.cell_center(c)
+		var a := _spawn(lv, th, rng, names, a_pos, placed.size() * 2)
+		if mate.x >= 0:
+			# stand facing each other, a step apart, in the middle of the two cells
+			var b_pos := lv.cell_center(mate)
+			var mid := (a_pos + b_pos) * 0.5
+			var dir := (b_pos - a_pos).normalized()
+			a.global_position = mid - dir * 0.55
+			a.home = a.global_position
+			var b := _spawn(lv, th, rng, names, mid + dir * 0.55, placed.size() * 2 + 1)
+			a.home_yaw = atan2(-dir.x, -dir.z)
+			b.home_yaw = atan2(dir.x, dir.z)
+			a.yaw = a.home_yaw
+			b.yaw = b.home_yaw
+			a.partner = b
+			b.partner = a
+			a.lead = true
+			a.chat_cd = rng.randf_range(0.5, 3.0)
 
 
-func setup(lv: Level, pos: Vector3, theme: String, rng: RandomNumberGenerator) -> void:
+static func _spawn(lv: Level, th: String, rng: RandomNumberGenerator, names: Array, pos: Vector3, id: int) -> Civilian:
+	var cv := Civilian.new()
+	cv.spawn_id = CIV_ID + id
+	lv.entity_root().add_child(cv)
+	var nm := "GORBINO"
+	if not names.is_empty():
+		nm = names.pop_at(rng.randi_range(0, names.size() - 1))
+	cv.setup(lv, pos, th, rng, nm)
+	lv.civilians.append(cv)
+	return cv
+
+
+func setup(lv: Level, pos: Vector3, p_theme: String, rng: RandomNumberGenerator, p_name: String) -> void:
 	level = lv
+	theme = p_theme
+	who = p_name
 	collision_layer = 32         # shots hit them; you can brush past them
 	collision_mask = 0
 	sync_to_physics = false
-	var big := rng.randf() < 0.3
-	var tint: Color = TINTS[rng.randi_range(0, TINTS.size() - 1)]
-	if big:
-		model = Models.snirby({"tint": tint})
-		model.scale = Vector3.ONE * 0.8
-		height = 1.1
-		radius = 0.42
-	else:
-		model = Models.snotling({"tint": tint})
-		model.scale = Vector3.ONE * 0.9
-		height = 0.95
-		radius = 0.38
+	var skin: String = SKINS[rng.randi_range(0, SKINS.size() - 1)]
+	model = Models.gorbino(Color(0.85, 0.82, 0.8), {"skin": skin})
+	model.scale = Vector3.ONE * SCALE
 	add_child(model)
 	parts = model.get_meta("parts")
 	_skin_mat = parts.get("skin_mat")
-	_clothes(theme, rng)
-	_dress(rng.randi_range(0, 4))
+	_clothes(rng)
+	_hat(rng.randi_range(0, 5))
+	height = Creatures.GORB_H * SCALE
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = radius
@@ -157,71 +248,59 @@ func setup(lv: Level, pos: Vector3, theme: String, rng: RandomNumberGenerator) -
 	home = pos
 	_goal = pos
 	yaw = rng.randf() * TAU
+	home_yaw = yaw
 	rotation.y = yaw
-	title = TITLES.get(theme, "BYSTANDER")
 	lines = LINES[theme].duplicate()
 	line_i = rng.randi_range(0, lines.size() - 1)
 	_anim_t = rng.randf() * 10.0
 	talk_cd = rng.randf_range(0.0, 2.0)
 
 
-const SMOCKS := {
-	"village": [Color(0.45, 0.35, 0.2), Color(0.3, 0.45, 0.25), Color(0.6, 0.55, 0.45)],
-	"industrial": [Color(1.0, 0.55, 0.05), Color(0.95, 0.85, 0.1)],
-	"mines": [Color(0.35, 0.35, 0.38), Color(0.4, 0.3, 0.2)],
-	"hq": [Color(0.92, 0.92, 0.9), Color(0.8, 0.85, 0.95)],
-	"facility": [Color(0.6, 0.8, 0.85), Color(0.85, 0.9, 0.85)],
-	"dimension": [Color(1.0, 0.3, 0.8), Color(0.3, 1.0, 0.8), Color(0.95, 0.95, 0.3)],
-}
-
-
-## Work clothes in the level's colours: the quickest way to tell a person
-## from a monster at a glance.
-func _clothes(theme: String, rng: RandomNumberGenerator) -> void:
-	var body: Node3D = parts.get("core", parts.get("puff"))
+## A smock round the belly in the level's work colours.
+func _clothes(rng: RandomNumberGenerator) -> void:
+	var body: Node3D = parts.get("squash")
 	if body == null:
 		return
 	var cols: Array = SMOCKS.get(theme, [Color(0.6, 0.6, 0.6)])
 	var c: Color = cols[rng.randi_range(0, cols.size() - 1)]
-	var m := Mat.world("dr_fabric", {"origin": true, "shade": 0.7, "tint": c * 1.6})
-	var snot := String(parts.get("kind", "")) == "snotling"
-	var r := 0.5 if snot else Creatures.SNIRBY_R
-	var smock := Models.mi(Models.cyl(r * 0.92, r * 1.06, r * 0.75, 14), m, Vector3(0, -r * 0.38, 0))
-	body.add_child(smock)
+	var m := Mat.world("white", {"origin": true, "shade": 0.7, "tint": c})
+	var H := Creatures.GORB_H
+	body.add_child(Models.mi(Models.cyl(0.47 * H, 0.43 * H, 0.26 * H, 16), m, Vector3(0, 0.2 * H, 0.0)))
 	if theme == "industrial":
-		# reflective stripes on the hi-vis vest
-		body.add_child(Models.mi(Models.cyl(r * 1.0, r * 1.02, 0.05, 14), Mat.world("white", {"origin": true, "fullbright": 0.5}), Vector3(0, -r * 0.3, 0)))
+		body.add_child(Models.mi(Models.cyl(0.475 * H, 0.47 * H, 0.04 * H, 16), Mat.world("white", {"origin": true, "fullbright": 0.5}), Vector3(0, 0.24 * H, 0)))
 
 
-## Something to wear, so they read as people rather than monsters.
-func _dress(kind: int) -> void:
-	var head: Node3D = parts.get("core", parts.get("puff"))
+## Something on the head: flat cap, bowler, bucket, party hat, a sprout, or nothing.
+func _hat(kind: int) -> void:
+	var head: Node3D = parts.get("squash")
 	if head == null:
 		return
-	var top := 0.42 if parts.get("kind", "") == "snotling" else Creatures.SNIRBY_R * 0.86
+	var top := (1.0 - Creatures.GORB_SQUASH_Y) * Creatures.GORB_H - 0.12
 	var o := {"origin": true, "shade": 0.6}
 	match kind:
-		0:  # flat cap
-			var m := Mat.world("dr_fabric", o.merged({"tint": Color(0.45, 0.4, 0.35)}))
-			var cap := Models.mi(Models.sphere(0.3, 10, 5), m, Vector3(0, top, 0))
+		0:
+			var m := Mat.world("white", o.merged({"tint": Color(0.4, 0.35, 0.3)}))
+			var cap := Models.mi(Models.sphere(0.33, 10, 5), m, Vector3(0, top, 0))
 			cap.scale = Vector3(1, 0.35, 1.1)
 			head.add_child(cap)
-			head.add_child(Models.mi(Models.box(0.36, 0.03, 0.2), m, Vector3(0, top - 0.02, -0.3)))
-		1:  # tie
-			var tie := Mat.world("white", o.merged({"tint": [Color(0.8, 0.1, 0.1), Color(0.1, 0.2, 0.7), Color(0.2, 0.6, 0.2)][randi() % 3]}))
-			head.add_child(Models.mi(Models.box(0.1, 0.32, 0.03), tie, Vector3(0, -0.18, -0.47), Vector3(-15, 0, 0)))
-			head.add_child(Models.mi(Models.box(0.12, 0.07, 0.04), tie, Vector3(0, -0.02, -0.48)))
-		2:  # glasses
-			var fr := Mat.world("black", o)
-			for sx in [-1, 1]:
-				head.add_child(Models.mi(Models.cyl(0.09, 0.09, 0.02, 10), fr, Vector3(sx * 0.15, 0.08, -0.47), Vector3(90, 0, 0)))
-			head.add_child(Models.mi(Models.box(0.12, 0.02, 0.02), fr, Vector3(0, 0.1, -0.48)))
-		3:  # a bucket on its head
-			var b := Mat.world("gun_metal", o.merged({"tint": Color(0.7, 0.75, 0.8)}))
-			head.add_child(Models.mi(Models.cyl(0.22, 0.28, 0.32, 10), b, Vector3(0, top + 0.08, 0), Vector3(12, 0, 0)))
-		_:  # paper party hat
-			var h := Mat.world("white", o.merged({"tint": Color(1.0, 0.4, 0.7)}))
-			head.add_child(Models.mi(Models.cyl(0.0, 0.16, 0.4, 8), h, Vector3(0.05, top + 0.16, 0), Vector3(0, 0, -12)))
+			head.add_child(Models.mi(Models.box(0.4, 0.03, 0.22), m, Vector3(0, top - 0.02, -0.33)))
+		1:
+			var m := Mat.world("black", o.merged({"tint": Color(0.15, 0.12, 0.1)}))
+			var dome := Models.mi(Models.sphere(0.25, 10, 5), m, Vector3(0, top + 0.08, 0))
+			dome.scale = Vector3(1, 0.85, 1)
+			head.add_child(dome)
+			head.add_child(Models.mi(Models.cyl(0.36, 0.36, 0.03, 14), m, Vector3(0, top - 0.02, 0)))
+		2:
+			head.add_child(Models.mi(Models.cyl(0.24, 0.3, 0.34, 10), Mat.world("gun_metal", o.merged({"tint": Color(0.7, 0.75, 0.8)})), Vector3(0, top + 0.12, 0), Vector3(14, 0, 0)))
+		3:
+			head.add_child(Models.mi(Models.cyl(0.0, 0.17, 0.42, 8), Mat.world("white", o.merged({"tint": Color(1.0, 0.4, 0.7)})), Vector3(0.05, top + 0.2, 0), Vector3(0, 0, -12)))
+		4:
+			# a little sprout growing out of its head
+			var g := Mat.world("white", o.merged({"tint": Color(0.3, 0.75, 0.2)}))
+			head.add_child(Models.mi(Models.cyl(0.015, 0.02, 0.2, 5), g, Vector3(0, top + 0.08, 0)))
+			var leaf := Models.mi(Models.sphere(0.07, 6, 4), g, Vector3(0.05, top + 0.18, 0))
+			leaf.scale = Vector3(1.6, 0.3, 0.8)
+			head.add_child(leaf)
 
 
 func center_point() -> Vector3:
@@ -229,7 +308,14 @@ func center_point() -> Vector3:
 
 
 func blood_color() -> Color:
-	return Color(0.55, 0.0, 0.05)
+	return Color(0.1, 0.3, 0.05)
+
+
+func _say(text: String, loud := false) -> void:
+	if level.world:
+		level.world.say(who, text)
+	Audio.play_at("gorb_talk_" + ["a", "b", "c", "d", "e", "f"][randi() % 6], center_point(), 0.0 if loud else -3.0, randf_range(0.9, 1.25))
+	_talk_t = clampf(text.length() * 0.06, 0.8, 2.4)
 
 
 ## Gunfire or a death nearby: run.
@@ -237,9 +323,10 @@ func panic(from: Vector3) -> void:
 	if dead:
 		return
 	if panic_t <= 0.0:
-		Audio.play_at("civ_scream_" + ["a", "b"][randi() % 2], center_point(), -2.0, randf_range(0.9, 1.25))
-		if level.world and global_position.distance_to(level.player.global_position) < 12.0 and randf() < 0.6:
-			level.world.say(title, PANIC[randi() % PANIC.size()])
+		_chat = []
+		Audio.play_at("gorb_yelp_" + ["a", "b"][randi() % 2], center_point(), -1.0, randf_range(0.9, 1.3))
+		if level.world and global_position.distance_to(level.player.global_position) < 12.0 and randf() < 0.5:
+			level.world.say(who, PANIC[randi() % PANIC.size()])
 	panic_t = randf_range(5.0, 8.0)
 	_pick_flee(from)
 
@@ -268,18 +355,18 @@ func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") ->
 	if _skin_mat:
 		_skin_mat.set_shader_parameter("flash", _flash)
 	Fx.blood(level, center_point() - dir * 0.2, blood_color(), clampi(int(amount / 6.0), 3, 10))
-	var by_player: bool = source != null and source == level.player
-	if by_player and level.world:
+	if source != null and source == level.player and level.world:
 		level.world.hud.hit_marker(hp <= 0.0)
 	if hp <= 0.0:
-		_die(amount, dir, by_player)
+		_die(amount, dir)
 	else:
 		panic(source.global_position if source is Node3D else global_position - dir)
 
 
-func _die(amount: float, dir: Vector3, by_player: bool, quiet := false) -> void:
+func _die(amount: float, dir: Vector3, quiet := false) -> void:
 	dead = true
 	collision_layer = 0
+	_chat = []
 	var local := global_transform.basis.inverse() * Vector3(dir.x, 0, dir.z).normalized()
 	_death_side = signf(local.x) if absf(local.x) > 0.45 else 0.0
 	_death_t = 0.0
@@ -287,17 +374,15 @@ func _die(amount: float, dir: Vector3, by_player: bool, quiet := false) -> void:
 		_death_t = 10.0
 		Creatures.death_pose(model, 1.0, _death_side)
 		return
-	Audio.play_at("civ_scream_" + ["a", "b"][randi() % 2], center_point(), 0.0, randf_range(1.2, 1.5))
+	Audio.play_at("gorb_yelp_" + ["a", "b"][randi() % 2], center_point(), 0.0, randf_range(1.2, 1.5))
 	Fx.blood(level, center_point(), blood_color(), 14, 0.07, (Vector3(dir.x, 0.4, dir.z)).normalized(), 50.0)
 	if amount > 60.0:
-		Fx.gibs(level, center_point(), Color(0.9, 0.7, 0.75), blood_color(), 6)
+		Fx.gibs(level, center_point(), Color(0.9, 0.75, 0.8), blood_color(), 6)
 		model.visible = false
 	Fx.pool(level, Vector3(global_position.x, level.floor_at(global_position), global_position.z), blood_color(), 0.9)
-	if by_player:
-		level.stats["civilians"] = int(level.stats.get("civilians", 0)) + 1
-		if level.world:
-			level.world.hud.message("COLLATERAL  -$250")
-	# the others nearby lose it
+	if partner and is_instance_valid(partner) and not partner.dead and level.world and randf() < 0.7:
+		level.world.say(partner.who, [who + "! NOOO! GORB!", "THEY GOT " + who + "!", "I'LL PACK YOUR BOXES, " + who + "..."][randi() % 3])
+	# everyone nearby loses it
 	for c in level.civilians:
 		if c != self and is_instance_valid(c) and c.global_position.distance_to(global_position) < 14.0:
 			c.panic(global_position)
@@ -321,29 +406,39 @@ func _physics_process(delta: float) -> void:
 	var dist := to_p.length()
 	panic_t -= delta
 	talk_cd -= delta
+	chat_cd -= delta
+	_talk_t -= delta
 	var speed := 0.0
+	var face := Vector3.ZERO
 	if panic_t > 0.0:
 		speed = 4.6
 		_goal_t -= delta
 		if _goal_t <= 0.0 or global_position.distance_to(_goal) < 0.4:
 			_pick_flee(pl.global_position)
 	else:
-		# shuffle about near home, turn to look at you, and talk when you're close
 		_goal_t -= delta
-		if _goal_t <= 0.0:
-			_goal_t = randf_range(3.0, 7.0)
-			var a := randf() * TAU
-			var p := home + Vector3(cos(a), 0, sin(a)) * randf_range(0.0, 1.6)
-			_goal = p if not level.circle_blocked(p, radius, global_position.y, false, height) else global_position
-		speed = 0.9
+		if partner == null or not is_instance_valid(partner) or partner.dead:
+			# on their own: shuffle about near home
+			if _goal_t <= 0.0:
+				_goal_t = randf_range(3.0, 7.0)
+				var a := randf() * TAU
+				var p := home + Vector3(cos(a), 0, sin(a)) * randf_range(0.0, 1.6)
+				_goal = p if not level.circle_blocked(p, radius, global_position.y, false, height) else global_position
+			speed = 0.9
+		else:
+			# back to their spot, facing their friend
+			_goal = home
+			speed = 1.2
+			face = partner.global_position - global_position
 		_scan -= delta
-		if dist < 4.5 and _scan <= 0.0:
+		if dist < 3.6 and _scan <= 0.0:
 			_scan = 0.3
-			if talk_cd <= 0.0 and level.world and level.has_los(center_point(), pl.eye_point()):
+			if talk_cd <= 0.0 and _chat.is_empty() and level.world and level.has_los(center_point(), pl.eye_point()):
 				talk_cd = randf_range(7.0, 10.0)
-				level.world.say(title, String(lines[line_i % lines.size()]))
+				if partner:
+					partner.talk_cd = maxf(partner.talk_cd, 4.0)
+				_say(String(lines[line_i % lines.size()]), true)
 				line_i += 1
-				Audio.play_at("civ_mumble_" + ["a", "b", "c"][randi() % 3], center_point(), -2.0, randf_range(0.85, 1.2))
 		if dist < 1.7 and dist > 0.01:
 			# you're walking into them: shuffle out of the way
 			var away := -to_p / dist
@@ -353,8 +448,9 @@ func _physics_process(delta: float) -> void:
 					_goal = cand
 					break
 			speed = 2.4
-		elif dist < 4.5:
-			_goal = global_position
+		if dist < 6.0:
+			face = to_p
+		_chat_tick(delta, dist)
 	var d := _goal - global_position
 	d.y = 0.0
 	var moving := d.length() > 0.15
@@ -366,13 +462,49 @@ func _physics_process(delta: float) -> void:
 			global_position = np
 		else:
 			_goal_t = 0.0
-		yaw = lerp_angle(yaw, atan2(-d.x, -d.z), clampf(delta * 8.0, 0.0, 1.0))
-	elif dist < 6.0:
-		yaw = lerp_angle(yaw, atan2(-to_p.x, -to_p.z), clampf(delta * 4.0, 0.0, 1.0))
+		if face == Vector3.ZERO or panic_t > 0.0:
+			face = d
+	if face != Vector3.ZERO:
+		yaw = lerp_angle(yaw, atan2(-face.x, -face.z), clampf(delta * 6.0, 0.0, 1.0))
+	elif not moving:
+		yaw = lerp_angle(yaw, home_yaw, clampf(delta * 2.0, 0.0, 1.0))
 	rotation.y = yaw
-	_move = move_toward(_move, (1.0 if panic_t > 0.0 else 0.4) if moving else 0.0, delta * 4.0)
+	_move = move_toward(_move, (1.0 if panic_t > 0.0 else 0.35) if moving else 0.0, delta * 4.0)
+	# a talking Gorbino flaps its mouth
+	var talking := _talk_t > 0.0 and fmod(_anim_t * 7.0, 1.0) < 0.5
 	Creatures.animate(model, _anim_t * (1.8 if panic_t > 0.0 else 1.0), delta, {"move": _move, "pain": panic_t > 0.0 and fmod(_anim_t, 0.6) < 0.1,
-		"blink": fmod(_anim_t, 3.3) < 0.12, "look": model.to_local(pl.global_position + Vector3(0, 1.5, 0))})
+		"windup": talking, "blink": fmod(_anim_t, 3.3) < 0.12, "look": model.to_local(pl.global_position + Vector3(0, 1.5, 0))})
+
+
+## A pair keeps up a conversation while you're in earshot. The lead one
+## starts it; lines alternate between the two.
+func _chat_tick(delta: float, dist: float) -> void:
+	if not lead or partner == null or not is_instance_valid(partner) or partner.dead or partner.panic_t > 0.0:
+		_chat = []
+		return
+	if _chat.is_empty():
+		if chat_cd > 0.0 or dist > 11.0 or dist < 3.0 or level.world == null:
+			return
+		if level.world.hud.subtitle_busy():
+			return
+		if not (level.has_los(center_point(), level.player.eye_point()) or dist < 6.0):
+			return
+		var pool: Array = CHATS.get(theme, CHATS["village"])
+		_chat = pool[randi() % pool.size()]
+		_chat_i = 0
+		_chat_t = 0.0
+	_chat_t -= delta
+	if _chat_t > 0.0:
+		return
+	if _chat_i >= _chat.size() or dist > 16.0:
+		_chat = []
+		chat_cd = randf_range(10.0, 18.0)
+		return
+	var speaker: Civilian = self if _chat_i % 2 == 0 else partner
+	var line := String(_chat[_chat_i])
+	speaker._say(line)
+	_chat_t = 1.4 + line.length() * 0.055
+	_chat_i += 1
 
 
 func serialize() -> Dictionary:
@@ -382,4 +514,4 @@ func serialize() -> Dictionary:
 func restore(d: Dictionary) -> void:
 	global_position = Vector3(float(d["x"]), float(d["y"]), float(d["z"]))
 	if d.get("dead", false) and not dead:
-		_die(0.0, Vector3.FORWARD, false, true)
+		_die(0.0, Vector3.FORWARD, true)

@@ -23,6 +23,12 @@ VARIANTS = {
     "blue": (0.6, 1.25, 1.75),
     "purple": (0.79, 1.15, 1.8),
     "black": (None, 0.12, 0.6),
+    # the locals: washed-out pastels, nothing like the monsters
+    "civ_pink": (0.93, 0.45, 2.4),
+    "civ_mint": (0.42, 0.45, 2.1),
+    "civ_peach": (0.07, 0.55, 2.5),
+    "civ_lilac": (0.74, 0.35, 2.4),
+    "civ_grey": (None, 0.06, 1.9),
 }
 
 

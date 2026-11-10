@@ -27,11 +27,7 @@
    * Checkpoints save your progress when you touch them.
    * Nothing can hurt you while you are gutting something.
    * The crosshair flashes white on a hit and red on a kill.
-   * Every level is a contract. Kill the target (the one in the hat with
-     its name over its head), then find the exit. Gut the target for
-     double pay. Don't shoot the locals in work clothes: it comes out of
-     your fee.
-   * CONTRACTS on the title screen lets you replay any job you have done.
+   * The little pastel Gorbinos in smocks are locals. They don't fight.
 
  DIFFICULTY
    MERCY .......... less damage taken, double ammo

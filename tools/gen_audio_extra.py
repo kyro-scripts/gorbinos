@@ -215,60 +215,69 @@ def dread():
     save("creep_scrape", reverb(x * np.sin(np.pi * tt / d), 2.0, 0.55, 2200), 0.55)
 
 
-# ------------------------------------------------------------------ contracts
-def contract():
-    # target terminated: a cash register ka-ching over a filthy low stab
-    clunk = lp(noise(0.05), 2500) * env(int(SR * 0.05), 0.0005, 0.015, 5)
-    tt = t_(0.9)
-    bell = (np.sin(2 * np.pi * 2350 * tt) + 0.6 * np.sin(2 * np.pi * 3520 * tt) + 0.3 * np.sin(2 * np.pi * 5870 * tt)) * np.exp(-tt * 6)
-    d = 1.4
-    tt = t_(d)
-    chord = np.zeros(len(tt))
-    for f in (55.0, 65.4, 82.4, 110.0):
-        ph = 2 * np.pi * f * tt
-        chord += (ph / np.pi % 2 - 1)                      # saw
-    chord = lp(np.tanh(chord * 1.4), 1800) * np.clip(tt / 0.01, 0, 1) * np.exp(-tt * 2.2)
-    x = mix(clunk * 0.8, at(bell * 0.55, 0.03), at(chord * 0.7, 0.08))
-    save("contract_done", x, 0.9)
-    # the briefing: a fax machine handshake
-    d = 1.1
-    tt = t_(d)
-    f = np.where(tt < 0.35, 1100, np.where(tt < 0.7, 2100, 1650)) + 40 * np.sin(2 * np.pi * 9 * tt)
-    x = np.sign(np.sin(2 * np.pi * np.cumsum(f) / SR)) * 0.4 + bp(noise(d), 800, 3000) * 0.25
-    save("contract_fax", lp(x, 3500) * np.clip(tt / 0.02, 0, 1) * np.clip((d - tt) / 0.05, 0, 1), 0.45)
+# ------------------------------------------------------------------ gorbino talk
+def _bubbles(r, d, n, lo=180, hi=700):
+    out = np.zeros(int(SR * d))
+    for _ in range(n):
+        p = int(r.uniform(0, d - 0.06) * SR)
+        f = r.uniform(lo, hi)
+        ln = int(SR * r.uniform(0.02, 0.05))
+        tt = np.arange(ln) / SR
+        out[p:p + ln] += np.sin(2 * np.pi * f * (1 + tt / (ln / SR) * 1.2) * tt) * np.exp(-tt * 90) * r.uniform(0.3, 1.0)
+    return out
 
 
-# ------------------------------------------------------------------ bystanders
-def bystanders():
-    # mumbles: gibberish syllables, a buzzy glottal source through two vowel formants
-    vowels = [(730, 1090), (270, 2290), (300, 870), (530, 1840), (640, 1190), (390, 1990)]
-    for i, (pitch, n_syl) in enumerate([(150, 7), (210, 6), (120, 8)]):
-        r = np.random.default_rng(900 + i)
-        out = []
-        for k in range(n_syl):
-            d = r.uniform(0.07, 0.15)
-            tt = t_(d)
-            f0 = pitch * (1 + 0.25 * np.sin(np.pi * tt / d)) * r.uniform(0.85, 1.25)
-            src = (np.cumsum(f0) / SR % 1.0) * 2 - 1
-            f1, f2 = vowels[r.integers(0, len(vowels))]
-            v = bp(src, f1 * 0.8, f1 * 1.25) + 0.6 * bp(src, f2 * 0.85, f2 * 1.15)
-            v *= np.sin(np.pi * tt / d) ** 0.7
-            out.append(v)
-            out.append(np.zeros(int(SR * r.uniform(0.01, 0.06))))
-        save("civ_mumble_" + "abc"[i], np.tanh(np.concatenate(out) * 2.0), 0.6)
-    # screams: a strained glide up, wobbling, with breath
-    for i, (f_lo, f_hi, d) in enumerate([(500, 900, 0.9), (380, 760, 1.1)]):
+def _gorb_syllable(r, pitch, vowel, roll, d):
+    """One wet 'gorb'/'blub' syllable: a plosive pop, a buzzy vowel through two
+    formants, an optional rolled r, and a lip-smack closure."""
+    tt = t_(d)
+    f0 = pitch * (1.0 + 0.18 * np.sin(np.pi * tt / d)) * (1 + 0.04 * np.sin(2 * np.pi * r.uniform(5, 8) * tt))
+    f0 *= 1 + 0.012 * R.normal(0, 1, len(tt)).cumsum() / np.sqrt(np.arange(1, len(tt) + 1))
+    src = (np.cumsum(f0) / SR % 1.0) * 2 - 1
+    src = src + 0.35 * np.sign(src) * (np.abs(src) > 0.7)
+    f1, f2 = vowel
+    v = bp(src, f1 * 0.75, f1 * 1.3) + 0.55 * bp(src, f2 * 0.8, f2 * 1.2) + 0.25 * lp(src, 250)
+    env_ = np.clip(tt / 0.012, 0, 1) * np.clip((d - tt) / 0.03, 0, 1)
+    if roll:
+        # rolled r in the back half: the throat flaps at ~28 Hz
+        rr = np.where(tt > d * 0.45, 0.55 + 0.45 * np.sin(2 * np.pi * 28 * tt), 1.0)
+        env_ = env_ * rr
+    v *= env_
+    pop = lp(noise(0.02), 900) * env(int(SR * 0.02), 0.0005, 0.006, 5)
+    smack = lp(noise(0.015), 1800) * env(int(SR * 0.015), 0.0005, 0.004, 5)
+    return mix(pop * 0.6, at(v, 0.008), at(smack * 0.4, d - 0.01))
+
+
+def gorbino_talk():
+    vowels = {"o": (480, 820), "u": (320, 760), "a": (680, 1100), "e": (420, 1750), "oo": (290, 640)}
+    keys = list(vowels.keys())
+    for i, (pitch, n) in enumerate([(105, 5), (135, 4), (90, 6), (160, 5), (120, 7), (98, 4)]):
+        r = np.random.default_rng(1300 + i)
+        parts = []
+        for k in range(n):
+            d = r.uniform(0.11, 0.22)
+            vw = vowels[keys[r.integers(0, len(keys))]] if k % 2 else vowels[["o", "u", "oo"][r.integers(0, 3)]]
+            parts.append(_gorb_syllable(r, pitch * r.uniform(0.85, 1.2), vw, r.random() < 0.55, d))
+            parts.append(np.zeros(int(SR * r.uniform(0.015, 0.07))))
+        x = np.concatenate(parts)
+        x = x + _bubbles(r, len(x) / SR, 9) * 0.22
+        x = lp(np.tanh(x * 2.2), 3800)
+        save("gorb_talk_" + "abcdef"[i], reverb(x, 0.35, 0.18, 2500), 0.62)
+    # yelps: a gurgling squeal that runs up and cracks
+    for i, (f_lo, f_hi, d) in enumerate([(260, 720, 0.75), (200, 560, 0.95)]):
+        r = np.random.default_rng(1400 + i)
         tt = t_(d)
-        f = f_lo + (f_hi - f_lo) * np.clip(tt / 0.25, 0, 1) + 25 * np.sin(2 * np.pi * 7 * tt) + R.normal(0, 6, len(tt)).cumsum() * 0.01
+        f = f_lo + (f_hi - f_lo) * np.clip(tt / 0.22, 0, 1) ** 0.6 + 40 * np.sin(2 * np.pi * 11 * tt)
+        f = np.where((tt > d * 0.55) & (tt < d * 0.62), f * 1.6, f)
         src = (np.cumsum(f) / SR % 1.0) * 2 - 1
-        v = bp(src, 700, 1300) + 0.7 * bp(src, 2200, 3200) + bp(noise(d), 1500, 4000) * 0.3
-        v *= np.clip(tt / 0.03, 0, 1) * np.exp(-np.maximum(tt - d * 0.6, 0) * 6)
-        save("civ_scream_" + "ab"[i], np.tanh(v * 2.5), 0.7)
+        v = bp(src, 500, 1200) + 0.6 * bp(src, 1500, 2600)
+        v *= np.clip(tt / 0.02, 0, 1) * np.exp(-np.maximum(tt - d * 0.55, 0) * 7) * (0.7 + 0.3 * np.sin(2 * np.pi * 30 * tt))
+        v = v + _bubbles(r, d, 14, 300, 1100) * 0.4
+        save("gorb_yelp_" + "ab"[i], np.tanh(v * 2.6), 0.7)
 
 
 if __name__ == "__main__":
     knife()
     gore()
     dread()
-    contract()
-    bystanders()
+    gorbino_talk()

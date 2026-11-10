@@ -40,13 +40,6 @@ func _ready() -> void:
 			else:
 				Game.start_level(int(lv) - 1)
 			return
-	for a in args:
-		if a.begins_with("--briefing="):
-			Game.inventory = Game.new_inventory()
-			Game.level_index = int(a.substr(11)) - 1
-			var li := Game.level_index
-			show_story("", Game.level_name(li), func(): Game.start_level(li))
-			return
 	if Game.autoplay:
 		Game.new_game(1)
 		return
@@ -65,10 +58,6 @@ func _ui_test() -> void:
 		get_viewport().get_texture().get_image().save_png("user://shots/ui_%s.png" % n)
 	show_menu()
 	var mm = current
-	await snap.call("main")
-	mm.menu.push(mm._contracts_page())
-	await snap.call("contracts")
-	mm.menu.pop()
 	mm.menu.push(MenuView.options_page(mm.menu))
 	await snap.call("options")
 	mm.menu.push(MenuView.video_page(mm.menu, Callable()))
@@ -81,8 +70,7 @@ func _ui_test() -> void:
 	show_story(Game.STORY[1], Game.level_name(1), func(): pass)
 	await get_tree().create_timer(6.0).timeout
 	await snap.call("story")
-	show_intermission(0, {"kills": 27, "kills_total": 32, "items": 9, "items_total": 12, "secrets": 2, "secrets_total": 3, "time": 151.0,
-		"contract": "MAYOR GLORB", "target_down": true, "target_gutted": true, "civilians": 1})
+	show_intermission(0, {"kills": 27, "kills_total": 32, "items": 9, "items_total": 12, "secrets": 2, "secrets_total": 3, "time": 201.0})
 	await get_tree().create_timer(5.0).timeout
 	await snap.call("intermission")
 	show_ending()

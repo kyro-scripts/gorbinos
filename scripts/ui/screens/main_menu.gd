@@ -32,52 +32,21 @@ func _ready() -> void:
 
 
 func _root_page() -> Dictionary:
-	return {"title": "", "tiles": true, "cols": 3, "items": [
+	return {"title": "", "tiles": true, "cols": 2, "items": [
 		{"label": "NEW QUEST", "icon": "tile_new", "cb": func(): menu.push(_difficulty_page())},
 		{"label": "CONTINUE QUEST", "icon": "tile_continue", "enabled": func(): return Game.has_any_save(),
 			"cb": func(): menu.push(MenuView.load_page(menu, func(d): Game.load_from_save(d)))},
-		{"label": "CONTRACTS", "icon": "tile_contracts", "desc": "REPLAY A JOB. BEAT YOUR RANK. GET PAID.",
-			"cb": func(): menu.push(_contracts_page())},
 		{"label": "OPTIONS", "icon": "tile_options", "cb": func(): menu.push(MenuView.options_page(menu))},
 		{"label": "EXIT", "icon": "tile_exit", "cb": func(): menu.push(_quit_page())},
 	], "back": func(): menu.push(_quit_page())}
 
 
-## Every contract you've unlocked, with your best rank, time and earnings.
-func _contracts_page() -> Dictionary:
-	var items := []
-	var unlocked := int(Game.profile.get("unlocked", 1))
-	for i in Game.LEVELS.size():
-		var data := Game.level_data(i)
-		var c := Contracts.for_level(data)
-		var best: Dictionary = Game.profile.get("best", {}).get(str(i), {})
-		var idx := i
-		var open := i < unlocked
-		var label := ("#%s  %s" % [String(c.get("id", "")), String(c.get("name", ""))]) if open else "#????  CLASSIFIED"
-		var desc := String(data.get("name", "")) if open else "FINISH THE CONTRACT BEFORE IT TO UNLOCK"
-		if not best.is_empty():
-			desc += "   BEST %s  %s   PAID $%s" % [String(best.get("rank", "-")), Game.format_time(float(best.get("time", 0.0))), _money(int(best.get("paid", 0)))]
-		items.append({"label": label, "desc": desc, "enabled": func(): return open,
-			"cb": func(): menu.push(_difficulty_page(func(d): Game.play_contract(idx, d)))})
-	items.append({"label": "BACK", "cb": func(): menu.pop()})
-	return {"title": "CONTRACTS   BANK $" + _money(int(Game.profile.get("bank", 0))), "items": items, "wide": true}
-
-
-static func _money(v: int) -> String:
-	var s := str(absi(v))
-	var out := ""
-	while s.length() > 3:
-		out = "," + s.substr(s.length() - 3) + out
-		s = s.substr(0, s.length() - 3)
-	return s + out
-
-
-func _difficulty_page(start := Callable()) -> Dictionary:
+func _difficulty_page() -> Dictionary:
 	var items := []
 	for i in Game.DIFFICULTIES.size():
 		var d: Dictionary = Game.DIFFICULTIES[i]
 		var idx := i
-		items.append({"label": d["name"], "desc": d["desc"], "cb": func(): (start.call(idx) if start.is_valid() else Game.new_game(idx))})
+		items.append({"label": d["name"], "desc": d["desc"], "cb": func(): Game.new_game(idx)})
 	items.append({"label": "BACK", "cb": func(): menu.pop()})
 	return {"title": "DIFFICULTY", "items": items}
 

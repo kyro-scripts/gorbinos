@@ -68,8 +68,6 @@ func _test_level(path: String) -> bool:
 	var lv: Level = gw.level
 	print("grid %dx%d  enemies=%d pickups=%d secrets=%d movers=%d" % [lv.W, lv.H, lv.enemies.size(), lv.pickups.size(), lv.stats["secrets_total"], lv.movers.size()])
 	var ok := _validate_path(lv)
-	if lv.target != null:
-		print("contract target: %s at %s, %d civilians" % [lv.contract.get("name", ""), lv.cell_of(lv.target.global_position), lv.civilians.size()])
 	var t0 := Time.get_ticks_usec()
 	for k in 10:
 		lv.compute_flow(lv.idx_of(lv.cell_of(lv.player_start)), false)
