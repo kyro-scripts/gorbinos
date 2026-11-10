@@ -215,70 +215,7 @@ def dread():
     save("creep_scrape", reverb(x * np.sin(np.pi * tt / d), 2.0, 0.55, 2200), 0.55)
 
 
-# ------------------------------------------------------------------ update 6
-def voice_pulses(d, f0, formants, seed, jitter=0.03):
-    """Crude glottal buzz through a few formant bandpasses."""
-    r = np.random.default_rng(seed)
-    n = int(SR * d)
-    f = f0 * (1 + jitter * lp(r.normal(0, 1, n), 6) * 10)
-    ph = np.cumsum(f) / SR
-    src = (ph % 1.0) * 2 - 1
-    src = np.sign(src) * np.abs(src) ** 3
-    out = np.zeros(n)
-    for fc, bw, g in formants:
-        out += bp(src, fc - bw, fc + bw) * g
-    return out
-
-
-def update6():
-    # organ pickup: a fat wet squish
-    save("organ_pickup", mix(squelch(0.3, 220, 21) * env(int(SR * 0.3), 0.005, 0.1, 3),
-                             np.sin(2 * np.pi * np.cumsum(110 + 60 * np.exp(-t_(0.2) * 20)) / SR) * env(int(SR * 0.2), 0.002, 0.06, 4) * 0.6), 0.8)
-    # gullet: a hacking spit with a crunch of teeth in it
-    hack = squelch(0.28, 340, 22) * env(int(SR * 0.28), 0.003, 0.08, 4)
-    crunch = hp(noise(0.09), 2500) * env(int(SR * 0.09), 0.001, 0.025, 5)
-    gulp = np.sin(2 * np.pi * np.cumsum(260 - 160 * t_(0.18) / 0.18) / SR) * env(int(SR * 0.18), 0.004, 0.07, 4)
-    save("gullet_fire", mix(hack, at(crunch * 0.7, 0.02), gulp * 0.5), 0.95)
-    # tooth: tiny bony ricochet
-    tk = np.sin(2 * np.pi * 2300 * t_(0.08)) * env(int(SR * 0.08), 0.0005, 0.02, 6)
-    save("tooth_hit", mix(tk, hp(noise(0.03), 3000) * env(int(SR * 0.03), 0.0005, 0.01, 5) * 0.5), 0.5)
-    # slide: gritty scrape that fades
-    d = 0.6
-    save("slide", bp(noise(d), 300, 2600) * np.exp(-t_(d) * 3.5) * (0.7 + 0.3 * lp(noise(d), 40) * 8), 0.7)
-    # kick: whoosh, then a boot hitting meat
-    save("kick", bp(noise(0.18), 500, 3500) * np.sin(np.pi * t_(0.18) / 0.18) ** 2, 0.6)
-    thud = np.sin(2 * np.pi * np.cumsum(70 + 160 * np.exp(-t_(0.3) * 30)) / SR) * env(int(SR * 0.3), 0.001, 0.08, 4)
-    save("kick_hit", mix(thud * 1.2, squelch(0.2, 300, 23) * env(int(SR * 0.2), 0.002, 0.06, 4) * 0.6), 0.95)
-    # knife thunks into a wall
-    save("knife_thunk", mix(np.sin(2 * np.pi * np.cumsum(180 + 300 * np.exp(-t_(0.2) * 40)) / SR) * env(int(SR * 0.2), 0.001, 0.05, 4),
-                            np.sin(2 * np.pi * 1900 * t_(0.25)) * env(int(SR * 0.25), 0.001, 0.12, 4) * 0.3), 0.8)
-    # bloodlust: a low roar under a heartbeat thump
-    d = 1.2
-    roar = voice_pulses(d, 58, [(400, 120, 1.0), (900, 200, 0.5), (2400, 400, 0.2)], 24, 0.08)
-    roar = np.tanh(roar * 3) * np.clip(t_(d) / 0.08, 0, 1) * np.exp(-t_(d) * 2.2)
-    save("bloodlust", mix(roar, np.sin(2 * np.pi * 45 * t_(0.3)) * env(int(SR * 0.3), 0.003, 0.08, 3)), 0.9)
-    # the shopkeeper: a slow stoned "heh... heh heh", a cough, a long exhale
-    parts = []
-    for tm, f0 in [(0.0, 95), (0.55, 90), (0.8, 86)]:
-        hh = voice_pulses(0.22, f0, [(550, 150, 1.0), (1100, 200, 0.4)], 25 + int(tm * 10), 0.05)
-        breath = bp(noise(0.22), 800, 3000) * 0.35
-        parts.append(at((hh + breath) * env(int(SR * 0.22), 0.02, 0.1, 3), tm))
-    save("shop_laugh", reverb(mix(*parts), 0.8, 0.2, 2500), 0.7)
-    c = []
-    for tm in (0.0, 0.32, 0.55):
-        c.append(at(bp(noise(0.2), 250, 2200) * env(int(SR * 0.2), 0.004, 0.06, 4) + voice_pulses(0.2, 120, [(600, 200, 0.6)], 26) * env(int(SR * 0.2), 0.004, 0.05, 4), tm))
-    save("shop_cough", mix(*c), 0.7)
-    d = 1.6
-    ex = bp(noise(d), 500, 4000) * np.sin(np.pi * np.clip(t_(d) / d, 0, 1)) ** 1.5
-    save("shop_exhale", ex, 0.4)
-
-
 if __name__ == "__main__":
-    import sys
-    if "update6" in sys.argv[1:]:
-        update6()
-    else:
-        knife()
-        gore()
-        dread()
-        update6()
+    knife()
+    gore()
+    dread()

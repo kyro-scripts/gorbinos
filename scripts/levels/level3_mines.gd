@@ -139,7 +139,7 @@ const DATA := {
 			"damage": 10
 		},
 		"z": {
-			"floor": 0.5,
+			"floor": 0.0,
 			"ceil": 7.0,
 			"ftex": "m_dirt",
 			"ctex": "m_rock2",

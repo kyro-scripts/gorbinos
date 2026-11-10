@@ -65,7 +65,7 @@ It is not a comfortable place. Corpses keep twitching, enemies whisper at you wh
 
 Your left hand holds a butterfly knife, and it never sits still: it does real balisong tricks, fanning it open and shut, chaplins over the finger, zen rollovers across the knuckles, helixes, aerials, and flipping it open straight into a stab. The arm is a plain yellow block like the gun hand, and it follows the knife through every trick. The knife looks like it was ripped out of something worse: a crude, bent, low-poly blade, handles studded with teeth and a growth on the pivot, all of it covered in hard red-and-black checks. Press **F** with nobody in reach for a quick slash.
 
-Get close to a creature (a red **[F] GUT** appears under the crosshair) and press **F** to gut it. The camera locks on and you drop to the cut. The knife goes in, slices across the belly and rips it open, the guts slide out, and a loop of intestine comes out snagged on the blade. Nothing can hurt you while you're doing it, or for a moment after. It works on everything that walks; flyers and the final boss are too big or too high.
+Get close to a creature (a red **[F] GUT** appears under the crosshair) and press **F** to gut it. The camera locks on and you drop to the cut. The knife goes in with a jolt and a moment of slow motion, then drags across the belly while the wound opens behind it: a dark hole with a raw rim, the flaps of skin peeling back, the creature shaking and the cut spurting in pulses like a heartbeat. Then it rips open, the guts slop out onto the floor with a few loose organs, and a loop of intestine comes out snagged on the blade. The creature falls backwards with its belly open to the ceiling and bleeds out into a spreading pool. Nothing can hurt you while you're doing it, or for a moment after. It works on everything that walks; flyers and the final boss are too big or too high.
 
 ### Arsenal
 
@@ -78,11 +78,13 @@ Get close to a creature (a red **[F] GUT** appears under the crosshair) and pres
 | 5 | Rocket launcher | rockets | splash damage; rocket jumping works. Shark face painted on the tube |
 | 6 | Plasma rifle | cells | plasma bolts; no mag but it overheats (press R to vent). A specimen jar on top, something floating in it |
 
-Recoil, muzzle flashes, dynamic muzzle lighting, ejected casings, viewmodel sway and bob, and procedural reload animations are all included.
+Recoil, muzzle flashes, dynamic muzzle lighting, ejected casings, viewmodel sway and bob, and procedural reload animations are all included. Hits flash a small white marker on the crosshair; kills flash a bigger red one.
 
 ### Bestiary
 
-All Gorbinos share one model in different colours, and move the same way: they hop and bounce, breathe, snap their mouths, and roll over when they die. All Snirbies share another model and wobble like jelly instead, while still hopping along and pecking in quick bursts: they stretch up before they attack, flatten when they're hurt and sag into a puddle when they die.
+All Gorbinos share one model in different colours, and move the same way: they hop and bounce, breathe and snap their mouths. All Snirbies share another model and wobble like jelly instead, while still hopping along and pecking in quick bursts: they stretch up before they attack and flatten when they're hurt.
+
+Deaths read the hit. A creature shot from the side spins away from the shot and rolls over on that side; shot from the front it goes over backwards. It shudders in a death throe first, slides with the impact, overshoots and settles, splashes the nearest walls and bleeds out into a pool that slowly spreads. Gorbinos roll onto their backs, Snirbies sag flat with the beak flopped sideways, and flyers drop out of the air and splat. Overkill blows them apart: chunks of meat, bone, loose feet and beaks, strings of gut, and blood up the walls. Corpses keep twitching.
 
 - **Gorbino** (green): lobs goo.
 - **Yellow Gorbino**: holds a pistol in one tentacle and fires 3-round hitscan bursts while keeping its distance.
@@ -161,6 +163,7 @@ tools/check_scripts.sh                                   # static check of every
 godot --headless --path . -- --test                      # build every level, prove the exit is reachable
 godot --headless --path . -- --test --savetest           # save/load round trip
 godot --headless --path . -- --test --mousetest          # mouse look through the real input path
+godot --headless --path . -- --test --steptest           # walking only: lists every ledge you have to jump
 godot --headless --fixed-fps 120 --path . -- --autoplay  # a bot plays the whole campaign
 godot --headless --fixed-fps 120 --path . -- --autoplay --single --level=3 --arsenal
 godot --path . -- --level=1 --guttest=snirby                # gut a creature and screenshot each phase

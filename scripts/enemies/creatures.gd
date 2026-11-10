@@ -571,17 +571,25 @@ static func _anim_snotling(p: Dictionary, t: float, delta: float, st: Dictionary
 		lid.scale.y = 1.9 if blink else 1.15
 
 
-## k: 0..1 death progress. The Gorbino rolls over; the Snirby flattens.
-static func death_pose(root: Node3D, k: float) -> void:
+## k: 0..1 death progress. The Gorbino rolls over; the Snirby flattens;
+## side (+1 / -1) is which way the body goes (away from the killing shot),
+## 0 means straight over backwards.
+## The collapse overshoots a little so bodies land with a bounce.
+static func death_pose(root: Node3D, k: float, side := 1.0, gutted := false) -> void:
 	var p: Dictionary = root.get_meta("parts")
 	var body: Node3D = p["body"]
+	var ko := _out_back(k)
 	match p.get("kind", ""):
 		"gorbino":
-			_death_roll(p, k)
+			_death_roll(p, k, ko, side)
 		"snirby":
-			_death_flatten(p, k)
+			if gutted:
+				_death_tip_back(p, k, ko)
+			else:
+				_death_flatten(p, k, ko, side)
 		_:
-			body.rotation.z = lerpf(0.0, deg_to_rad(80), k * k)
+			var aa := deg_to_rad(80) * ko
+			body.rotation = Vector3(aa, 0, 0) if side == 0.0 else Vector3(0, 0, -side * aa)
 			body.position.y = lerpf(0.0, 0.05, k)
 			p["puff"].scale = Vector3(1.0 + 0.2 * k, 1.0 - 0.35 * k, 1.0 + 0.2 * k)
 			p["mouth"].scale = Vector3(1.5, 3.0, 1.0)
@@ -589,35 +597,59 @@ static func death_pose(root: Node3D, k: float) -> void:
 				lid.position.y = 0.0
 
 
+static func _out_back(k: float) -> float:
+	k = clampf(k, 0.0, 1.0)
+	var c1 := 1.7
+	return 1.0 + (c1 + 1.0) * pow(k - 1.0, 3.0) + c1 * pow(k - 1.0, 2.0)
+
+
 ## Topples onto its side and lies there, mouth or beak hanging open.
-static func _death_roll(p: Dictionary, k: float) -> void:
+static func _death_roll(p: Dictionary, k: float, ko: float, side: float) -> void:
 	var body: Node3D = p["body"]
 	var core: Node3D = p["core"]
-	var a := deg_to_rad(80) * k * k
-	body.rotation = Vector3(0, 0, a)
+	var a := deg_to_rad(80) * ko
+	body.rotation = Vector3(a, 0, 0) if side == 0.0 else Vector3(0, 0, -side * a)
 	# lift so the ball rests on its side instead of sinking into the floor
-	body.position.y = maxf(0.0, float(p["roll_r"]) - float(p["roll_cy"]) * cos(a)) * k
+	body.position.y = maxf(0.0, float(p["roll_r"]) - float(p["roll_cy"]) * cos(a)) * clampf(ko, 0.0, 1.0)
 	core.scale = Vector3(1.0 + 0.2 * k, 1.0 - 0.35 * k, 1.0 + 0.2 * k)
 	_plant(p)
 	if p.has("mouth"):
-		p["mouth"].scale = Vector3(1.3, 5.0, 1.0)
+		p["mouth"].scale = Vector3(1.3, lerpf(1.0, 5.0, k), 1.0)
 	if p.has("beak"):
 		p["beak"].rotation.x = lerpf(0.0, -0.5, k)
 	for e in p["eyes"]:
 		e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)
 
 
-## Sags into a puddle where it stood.
-static func _death_flatten(p: Dictionary, k: float) -> void:
+## Gutted: goes over on its back, the open belly facing up, beak to the sky.
+static func _death_tip_back(p: Dictionary, k: float, ko: float) -> void:
 	var body: Node3D = p["body"]
 	var core: Node3D = p["core"]
-	core.scale = Vector3(1.0 + 0.45 * k, 1.0 - 0.6 * k, 1.0 + 0.45 * k)
+	var a := deg_to_rad(72) * ko
+	body.rotation = Vector3(a, 0, 0)
+	body.position.y = maxf(0.0, float(p["roll_r"]) - float(p["roll_cy"]) * cos(a)) * clampf(ko, 0.0, 1.0)
+	core.scale = Vector3(1.0 + 0.2 * ko, maxf(0.5, 1.0 - 0.3 * ko), 1.0 + 0.2 * ko)
+	_plant(p)
+	if p.has("mouth"):
+		p["mouth"].scale = Vector3(1.3, lerpf(1.0, 6.0, k), 1.0)
+	if p.has("beak"):
+		p["beak"].rotation = Vector3(-0.4 * k, 0.35 * ko, 0)
+	for e in p["eyes"]:
+		e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)
+
+
+## Sags into a puddle where it stood, wobbling as it settles.
+static func _death_flatten(p: Dictionary, k: float, ko: float, side: float) -> void:
+	var body: Node3D = p["body"]
+	var core: Node3D = p["core"]
+	core.scale = Vector3(1.0 + 0.45 * ko, maxf(0.15, 1.0 - 0.6 * ko), 1.0 + 0.45 * ko)
 	_plant(p)
 	body.position.y = 0.0
-	body.rotation = Vector3(lerpf(0.0, 0.2, k), 0, 0)
+	body.rotation = Vector3(lerpf(0.0, 0.2, k), 0, -side * 0.15 * k)
 	if p.has("mouth"):
-		p["mouth"].scale = Vector3(1.3, 6.0, 1.0)
+		p["mouth"].scale = Vector3(1.3, lerpf(1.0, 6.0, k), 1.0)
 	if p.has("beak"):
-		p["beak"].rotation.x = lerpf(0.0, -0.3, k)
+		# the beak flops over sideways and lies along the floor
+		p["beak"].rotation = Vector3(-0.15 * k, (side if side != 0.0 else 1.0) * 1.0 * ko, 0)
 	for e in p["eyes"]:
 		e.scale = Vector3.ONE * maxf(0.05, 1.0 - k)

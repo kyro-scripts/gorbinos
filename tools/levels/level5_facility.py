@@ -50,6 +50,7 @@ L = {
     # overflow lab
     "/": lab(0.0, 5.0, ftex="f_tile_green", light=0.45, flicker=1),
     "`": lab(1.0, 5.0, ftex="metal_floor", light=0.55),
+    "{": lab(0.5, 5.0, ftex="metal_floor", light=0.55),   # a step up onto the platforms
     "D": {"door": "door_metal", "side": "f_dark"},
     "(": {"door": "door_blue", "key": "blue", "side": "f_dark"},
     ")": {"door": "door_yellow", "key": "yellow", "side": "f_dark"},
@@ -116,6 +117,7 @@ for x in range(45, 60, 4):
 m.box(43, 40, 61, 56, "%", "/")
 m.put(51, 40, ">")
 m.rect(46, 44, 49, 47, "`"); m.rect(55, 49, 58, 52, "`")
+m.rect(50, 45, 50, 46, "{"); m.rect(54, 50, 54, 51, "{")
 m.rect(52, 43, 53, 44, "n"); m.rect(46, 51, 47, 52, "n")
 # ---- north wing: stairs up from the blue door
 m.rect(30, 21, 32, 31, "^")

@@ -26,6 +26,7 @@
    * Rockets damage you too, and push you.
    * Checkpoints save your progress when you touch them.
    * Nothing can hurt you while you are gutting something.
+   * The crosshair flashes white on a hit and red on a kill.
 
  DIFFICULTY
    MERCY .......... less damage taken, double ammo

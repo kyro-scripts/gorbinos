@@ -66,17 +66,17 @@ static func telefog(level: Node, pos: Vector3) -> void:
 
 
 ## Spurt of coloured chunks (blood). Gorbinos bleed orange goo, Snirbies blue.
-static func blood(level: Node, pos: Vector3, color: Color, amount: int, size := 0.09) -> void:
+static func blood(level: Node, pos: Vector3, color: Color, amount: int, size := 0.09, dir := Vector3.UP, spread := 70.0, speed := Vector2(2.0, 5.0)) -> void:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.emitting = false
 	p.amount = maxi(amount * 2, 4)
 	p.lifetime = 0.7
 	p.explosiveness = 0.95
-	p.direction = Vector3.UP
-	p.spread = 70.0
-	p.initial_velocity_min = 2.0
-	p.initial_velocity_max = 5.0
+	p.direction = dir
+	p.spread = spread
+	p.initial_velocity_min = speed.x
+	p.initial_velocity_max = speed.y
 	p.gravity = Vector3(0, -16, 0)
 	p.scale_amount_min = 0.6
 	p.scale_amount_max = 1.2
@@ -120,6 +120,7 @@ static func gibs(level: Node, pos: Vector3, skin: Color, goo: Color, n: int) -> 
 			_:
 				g.add_child(Models.mi(Models.box(sz * 0.25, sz * 0.25, sz * 1.4), bone, Vector3.ZERO, Vector3(randf() * 90, randf() * 90, 0)))
 		level.fx_root().add_child(g)
+		g.splat = goo
 		g.global_position = pos + Vector3(randf_range(-0.3, 0.3), randf_range(-0.2, 0.4), randf_range(-0.3, 0.3))
 		g.vel = Vector3(randf_range(-5, 5), randf_range(3, 8), randf_range(-5, 5))
 		g.spin = Vector3(randf_range(-10, 10), randf_range(-10, 10), randf_range(-10, 10))
@@ -144,7 +145,7 @@ static func debris(level: Node, pos: Vector3, color: Color, n: int) -> void:
 		g.life = randf_range(0.8, 1.6)
 
 
-static func decal(level: Node, pos: Vector3, normal: Vector3, tname: String, size: float, color: Color) -> void:
+static func decal(level: Node, pos: Vector3, normal: Vector3, tname: String, size: float, color: Color) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
 	var q := QuadMesh.new()
 	q.size = Vector2(size, size)
@@ -167,6 +168,29 @@ static func decal(level: Node, pos: Vector3, normal: Vector3, tname: String, siz
 	var all := level.get_tree().get_nodes_in_group("decals")
 	if all.size() > MAX_DECALS:
 		all[0].queue_free()
+	return m
+
+
+## A pool of blood that spreads out over a few seconds under a body.
+static func pool(level: Node, pos: Vector3, color: Color, size: float) -> void:
+	var m := decal(level, pos, Vector3.UP, "splat", size, color.darkened(0.3))
+	m.scale = Vector3.ONE * 0.15
+	var tw := m.create_tween()
+	tw.tween_property(m, "scale", Vector3.ONE, randf_range(2.0, 3.2)).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+## Blood thrown onto the walls around a kill, mostly in the direction of the hit.
+static func splatter_walls(level: Node, center: Vector3, dir: Vector3, color: Color, n: int) -> void:
+	var d0 := Vector3(dir.x, 0, dir.z)
+	if d0.length() < 0.01:
+		d0 = Vector3.FORWARD
+	d0 = d0.normalized()
+	for i in n:
+		var d := d0.rotated(Vector3.UP, randf_range(-1.0, 1.0) if i > 0 else randf_range(-0.2, 0.2))
+		d.y = randf_range(-0.25, 0.4)
+		var hit: Dictionary = level.ray(center, center + d.normalized() * 3.5, 1)
+		if not hit.is_empty() and absf(hit["normal"].y) < 0.7:
+			decal(level, hit["position"], hit["normal"], "splat", randf_range(0.7, 1.6), color.darkened(0.1))
 
 
 # ------------------------------------------------------------------ dynamic lights

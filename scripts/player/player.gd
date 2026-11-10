@@ -27,6 +27,7 @@ var gutting := false              # mid-finisher: locked in place and untouchabl
 var gut_move_to := Vector3.INF
 var gut_crouch := 0.0
 var gut_grace := 0.0              # a moment of safety after a gut ends
+var fov_punch := 0.0              # brief zoom kicks (gutting)
 var yaw := 0.0
 var pitch := 0.0
 var health := 100
@@ -357,6 +358,8 @@ func _update_view_fx(delta: float) -> void:
 	roll = lerpf(roll, -side * 0.0045, clampf(delta * 10.0, 0.0, 1.0))
 	var shake := Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * shake_amt * 0.03
 	camera.position = Vector3(0, bob, 0) + shake
+	fov_punch = move_toward(fov_punch, 0.0, delta * (30.0 + absf(fov_punch) * 6.0))
+	camera.fov = float(Settings.get_v("fov")) + fov_punch
 	var death_roll := 0.0
 	if dead:
 		death_roll = lerpf(0.0, 0.8, clampf(death_t * 2.0, 0.0, 1.0))

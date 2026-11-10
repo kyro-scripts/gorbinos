@@ -1090,6 +1090,11 @@ func restore(st: Dictionary) -> void:
 ## Path validation helper used by tests: can the player walk from a to b
 ## given the keys held and the trigger tags already fired?
 ## The player can step 0.55 m and jump about 1.1 m.
+## Highest ledge the player gets onto with a jump (the level test lowers it
+## to a plain step to find places that need a jump).
+static var max_rise := 1.05
+
+
 func player_can_traverse(a: int, b: int, keys: Dictionary, tags: Dictionary) -> bool:
 	if solid[a] == 1 or solid[b] == 1:
 		return false
@@ -1110,6 +1115,6 @@ func player_can_traverse(a: int, b: int, keys: Dictionary, tags: Dictionary) -> 
 				return false
 		elif m.kind == "lower" and not tags.has(m.tag):
 			fb = m.top
-	if fb - fa > 1.05:
+	if fb - fa > max_rise:
 		return false
 	return ceil_h[b] - fb >= 1.75

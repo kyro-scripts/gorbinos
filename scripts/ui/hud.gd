@@ -22,6 +22,8 @@ var _last_hp := 100
 var _dead_t := 0.0
 var _death_tex: Texture2D
 var _face_t := 0.0                # subliminal face flash
+var _hm_t := 0.0                  # hit marker
+var _hm_kill := false
 var _face_kind := 0
 
 const BORDER_COLS := [Color(1, 0.2, 0.3), Color(0.25, 1, 0.3), Color(0.3, 0.4, 1), Color(1, 0.9, 0.2), Color(0.05, 0.05, 0.05)]
@@ -33,6 +35,13 @@ func _ready() -> void:
 	_jar = load("res://assets/ui/hud_jar.png")
 	_specimen = load("res://assets/ui/hud_gorb.png")
 	_death_tex = load("res://assets/ui/death.png")
+
+
+## Ticks round the crosshair when a shot lands; a bigger red X on a kill.
+func hit_marker(kill: bool) -> void:
+	if kill or not _hm_kill or _hm_t <= 0.0:
+		_hm_kill = kill
+		_hm_t = 0.32 if kill else 0.12
 
 
 ## A face, for a couple of frames.
@@ -73,6 +82,7 @@ func _process(delta: float) -> void:
 		_last_hp = player.health
 	_hit_t -= delta
 	_face_t -= delta
+	_hm_t -= delta
 	_dead_t = _dead_t + delta if player and player.dead else 0.0
 	_noise_t -= delta
 	if _noise_t <= 0.0:
@@ -90,6 +100,7 @@ func _draw() -> void:
 		_draw_automap(Rect2(0, 0, W, H))
 	_draw_border(W, H)
 	_draw_crosshair(W, H)
+	_draw_hit_marker(W, H)
 	_draw_gut_prompt(W, H)
 	_draw_health()
 	_draw_ammo(W, H)
@@ -251,6 +262,20 @@ func _draw_ammo(W: float, H: float) -> void:
 		if wp.overheat:
 			UI.text(self, "term", Vector2(right - UI.text_width("term", "OVERHEAT", 16), H - 90), "OVERHEAT", Color(1, 0.3, 0.2), 16)
 
+
+
+func _draw_hit_marker(W: float, H: float) -> void:
+	if _hm_t <= 0.0 or player.dead or show_map:
+		return
+	var c := Vector2(W, H) * 0.5
+	var a := clampf(_hm_t / (0.32 if _hm_kill else 0.12), 0.0, 1.0)
+	var r0 := 9.0 if _hm_kill else 7.0
+	var r1 := (17.0 if _hm_kill else 12.0) + (1.0 - a) * 3.0
+	var col := Color(1.0, 0.1, 0.1, a) if _hm_kill else Color(1, 1, 1, a)
+	for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		var n: Vector2 = d.normalized()
+		draw_line(c + n * r0 + Vector2(1, 1), c + n * r1 + Vector2(1, 1), Color(0, 0, 0, a * 0.6), 3.0 if _hm_kill else 2.0)
+		draw_line(c + n * r0, c + n * r1, col, 2.0 if _hm_kill else 1.5)
 
 
 func _draw_gut_prompt(W: float, H: float) -> void:

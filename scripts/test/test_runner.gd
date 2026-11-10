@@ -12,6 +12,9 @@ var frames := 240
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	shots = args.has("--shots")
+	if args.has("--steptest"):
+		# walking only, no jumps: anything that drops out needs a jump to reach
+		Level.max_rise = 0.6
 	var only := []
 	for a in args:
 		if a.begins_with("--levels="):
@@ -151,6 +154,14 @@ func _validate_path(lv: Level) -> bool:
 			tags[99] = true
 		if not changed:
 			break
+	if Level.max_rise < 1.0:
+		Level.max_rise = 1.05
+		for c in seen.keys():
+			for dv in Level.DIRS4:
+				var n := lv._idx(c % lv.W + dv.x, c / lv.W + dv.y)
+				if n >= 0 and not seen.has(n) and lv.player_can_traverse(c, n, keys, tags):
+					print("  JUMP edge ", Vector2i(c % lv.W, c / lv.W), " -> ", Vector2i(n % lv.W, n / lv.W), " rise ", lv.floor_h[n] - lv.floor_h[c])
+		Level.max_rise = 0.6
 	var open_cells := 0
 	for i in lv.W * lv.H:
 		if lv.solid[i] == 0:
@@ -183,6 +194,15 @@ func _save_test() -> bool:
 	gw.player.weapons.give_weapon("shotgun")
 	var victim: Enemy = lv.enemies[0]
 	victim.take_damage(9999.0, gw.player, Vector3.FORWARD, "bullet")
+	# and one gutted, which must come back lying on its back with the cut open
+	var gut_i := -1
+	for i in range(1, lv.enemies.size()):
+		if lv.enemies[i].can_be_gutted():
+			gut_i = i
+			break
+	if gut_i >= 0:
+		lv.enemies[gut_i].begin_gutted(gw.player)
+		lv.enemies[gut_i].gut_finish(Vector3.FORWARD)
 	var door: Mover = null
 	for m in lv.movers.values():
 		if m.kind == "door" and m.key == "" and not m.secret and not m.remote:
@@ -222,6 +242,9 @@ func _save_test() -> bool:
 		"kill counted": int(lv2.stats["kills"]) >= 1,
 		"door open": lv2.movers[door_idx].state == 2,
 	}
+	if gut_i >= 0:
+		var ge: Enemy = lv2.enemies[gut_i]
+		checks["gutted corpse"] = ge.dead and ge.death_kind == "gut" and ge._gut_wound != null
 	var still_there := false
 	for p in lv2.pickups:
 		if p.spawn_id == taken_id:

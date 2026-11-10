@@ -29,7 +29,7 @@ L = {
     "8": cave(1.5, ceil=7.0, light=0.55),
     "9": cave(2.0, ceil=7.0, light=0.6),
     "~": cave(-1.0, ceil=7.0, liquid="liq_magma", damage=10, light=0.9),
-    "z": cave(0.5, ceil=7.0, secret=True, light=0.7),
+    "z": cave(0.0, ceil=7.0, secret=True, light=0.7),  # wade the magma and hop up
     "a": cave(0.0, ceil=3.0, secret=True, light=0.6, ftex="m_planks"),
     "_": cave(-0.5),
     "-": cave(-1.0),

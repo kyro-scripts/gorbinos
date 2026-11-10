@@ -78,6 +78,11 @@ var flash_t := 0.0
 var idle_snd_t := 5.0
 var death_t := 0.0
 var gibbed := false
+var death_kind := ""
+var death_side := 1.0         # which way the body falls (away from the killing shot)
+var _death_slide := Vector3.ZERO
+var _pooled := false
+var _crashed := false
 var burst_left := 0
 var boss_phase := 0
 var summoned := false
@@ -87,6 +92,10 @@ var gut_phase := ""          # set by the finisher: stab, slice, rip, yank
 var gut_k := 0.0
 var _gut_wound: Node3D
 var _gut_base := Vector3.ONE
+var _gut_rim: Node3D
+var _gut_hole: Node3D
+var _gut_bulge: Node3D
+var _gut_flaps: Array = []
 var _whisper_t := 6.0
 var _twitch_t := 2.0
 var _twitch := 0.0
@@ -398,14 +407,54 @@ func begin_gutted(pl: Node) -> void:
 	var to_p: Vector3 = pl.global_position - global_position
 	yaw = atan2(-to_p.x, -to_p.z)
 	rotation.y = yaw
+	_open_wound()
+	_set_wound(0.0, 0.0, 0.0)
+
+
+## Build the cut on the belly (scaled to nothing until _set_wound opens it).
+func _open_wound() -> void:
 	var a: Array = Creatures.gut_anchor(model)
 	var pivot: Node3D = a[0]
 	_gut_base = Vector3(a[2], a[2] * 0.5, 0.06)
 	_gut_wound = Models.pivot(a[1], Vector3(rad_to_deg(a[3]), 0, 0))
 	pivot.add_child(_gut_wound)
-	var m := Mat.make("gore_wound", {"origin": true, "shade": 0.3, "gloss": 1.0, "fullbright": 0.2})
-	_gut_wound.add_child(Models.mi(Creatures.face_mesh(), m))
-	_gut_wound.scale = Vector3(0.001, 0.001, 0.001)
+	# the cut: a wet rim round a dark hole, a lump of gut pushing out of it,
+	# and two flaps of skin (raw on the inside) that peel back when it's ripped
+	_gut_hole = Models.mi(Creatures.face_mesh(), Mat.make("white", {"origin": true, "tint": Color(0.12, 0.0, 0.02), "shade": 0.3, "gloss": 0.8}))
+	_gut_wound.add_child(_gut_hole)
+	_gut_rim = Models.mi(Creatures.face_mesh(), Mat.make("gore_wound", {"origin": true, "shade": 0.3, "gloss": 1.0, "fullbright": 0.2}))
+	_gut_wound.add_child(_gut_rim)
+	_gut_bulge = Models.mi(Creatures.blob_mesh(0.5, Vector3(1.4, 0.8, 0.7), 8101, 0.15, 8, 10), Mat.make("gore_guts", {"origin": true, "shade": 0.7, "gloss": 1.0}))
+	_gut_wound.add_child(_gut_bulge)
+	var skin_col: Color = def.get("color", Color(0.0, 0.5, 0.78)) if def["model"] != "snotling" else Color(0.85, 0.45, 0.55)
+	var skin_m := Mat.make("white", {"origin": true, "tint": skin_col, "shade": 0.8, "gloss": 0.8})
+	var raw_m := Mat.make("gore_organ", {"origin": true, "shade": 0.6, "gloss": 1.0})
+	_gut_flaps.clear()
+	for sy in [1.0, -1.0]:
+		var hinge := Models.pivot()
+		_gut_wound.add_child(hinge)
+		hinge.add_child(Models.mi(Creatures.blob_mesh(0.5, Vector3(1.0, 0.18, 0.12), 8111, 0.1, 6, 10), skin_m, Vector3(0, -sy * 0.09, -0.02)))
+		hinge.add_child(Models.mi(Creatures.blob_mesh(0.5, Vector3(0.95, 0.15, 0.08), 8112, 0.1, 6, 10), raw_m, Vector3(0, -sy * 0.09, 0.0)))
+		hinge.set_meta("side", sy)
+		_gut_flaps.append(hinge)
+
+
+## Shape the cut: w width and h height as fractions of its full size,
+## peel how far the flaps have been pulled back.
+func _set_wound(w: float, h: float, peel: float) -> void:
+	var W := _gut_base.x
+	var bw := maxf(W * w, 0.001)
+	var bh := maxf(W * 0.5 * h, 0.001)
+	_gut_rim.scale = Vector3(bw, bh, 0.06 * (0.4 + h))
+	_gut_hole.scale = Vector3(bw * 0.92, bh * 0.85, 0.02 + 0.06 * h)
+	_gut_hole.position = Vector3(0, 0, 0.01)
+	_gut_bulge.scale = Vector3(bw * 0.7, bh * 0.75, 0.04 + 0.16 * peel) * (0.5 + 0.5 * peel)
+	_gut_bulge.position = Vector3(0, -bh * 0.1, -0.02 - 0.05 * peel)
+	for f in _gut_flaps:
+		var sy: float = f.get_meta("side")
+		f.position = Vector3(0, sy * bh * 0.5, -0.01)
+		f.scale = Vector3(bw, 1.0, 1.0) * Vector3(1.0, 0.4 + 0.6 * h, 1.0)
+		f.rotation = Vector3(-sy * peel * 1.25, 0, 0)
 
 
 ## World position of the cut (where the knife goes).
@@ -424,32 +473,40 @@ func _gut_animate(delta: float) -> void:
 	var k := gut_k
 	var w := 0.0
 	var h := 0.0
+	var peel := 0.0
 	var shake := 0.0
+	var jolt := 0.0
 	match gut_phase:
 		"stab":
 			w = 0.18 * k
 			h = 0.12 * k
-			shake = 0.05
+			shake = 0.06
+			jolt = 1.0 - k
 		"slice":
 			w = 0.18 + 0.82 * k
-			h = 0.12 + 0.1 * k
-			shake = 0.03
+			h = 0.12 + 0.12 * k
+			peel = 0.1 * k
+			shake = 0.035 + 0.02 * absf(sin(anim_t * 40.0))
 		"rip":
 			w = 1.0 + 0.15 * k
-			h = 0.22 + 0.78 * k
-			shake = 0.045
+			h = 0.24 + 0.76 * k
+			peel = 0.1 + 0.9 * k
+			shake = 0.05
 		_:
 			w = 1.15
 			h = 1.0
+			peel = 1.0
 			shake = 0.02
 	if _gut_wound:
-		_gut_wound.scale = Vector3(_gut_base.x * w, _gut_base.y * h, _gut_base.z * (0.5 + h))
+		_set_wound(w, h, peel)
 	var sc := float(def.get("scale", 1.0))
-	model.position = Vector3(randf_range(-1, 1), randf_range(-0.3, 0.5), randf_range(-1, 1)) * shake * sc
+	model.position = (Vector3(randf_range(-1, 1), randf_range(-0.3, 0.5), randf_range(-1, 1)) * shake + Vector3(0, 0.02, 0.09) * jolt) * sc
 	Creatures.animate(model, anim_t * 2.5, delta, {"pain": gut_phase != "stab" or k > 0.5, "windup": gut_phase == "stab" or gut_phase == "rip", "move": 0.0})
+	var body: Node3D = parts["body"]
 	if gut_phase == "rip":
-		var body: Node3D = parts["body"]
 		body.rotation.x = lerpf(0.0, 0.35, k)
+	elif gut_phase in ["yank", "return"]:
+		body.rotation.x = 0.35
 	# a Snirby throws its beak up and screams
 	if parts.has("beak"):
 		parts["beak"].rotation.x = 1.15 + sin(anim_t * 31.0) * 0.06
@@ -608,6 +665,8 @@ func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") ->
 	Fx.blood(level, center_point() - dir * 0.2, bc, clampi(int(amount / 6.0), 2, 10))
 	if not alerted:
 		alert()
+	if source != null and level.player != null and source == level.player and level.world:
+		level.world.hud.hit_marker(hp <= 0.0)
 	if hp <= 0.0:
 		_die(amount, kind, dir)
 		return
@@ -621,14 +680,39 @@ func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") ->
 func _die(amount: float, kind: String, dir: Vector3) -> void:
 	dead = true
 	state = "dead"
+	death_kind = kind
 	col_shape.disabled = true
-	var bc := Color(0.15, 0.3, 0.05) if def["model"] == "gorbino" else Color(0.7, 0.04, 0.1)
+	var bc := blood_color()
+	var flat := Vector3(dir.x, 0, dir.z)
+	if flat.length() < 0.01:
+		flat = global_transform.basis.z
+	flat = flat.normalized()
+	# fall away from the shot: which side of the body was pushed
+	var local := global_transform.basis.inverse() * flat
+	# shot from the side it topples sideways, from the front it goes over backwards
+	death_side = signf(local.x) if absf(local.x) > 0.45 else 0.0
+	if kind == "gut":
+		death_side = 0.0
+	if kind == "gut":
+		# shoved off the knife, so the body lands a little way from your feet
+		_death_slide = flat * 3.2
+	elif not def.get("boss", false) and not flying:
+		_death_slide = flat * clampf(amount * 0.035, 1.0, 6.0)
 	if not def.get("boss", false) and (hp < -max_hp * 0.6 or (kind == "explosion" and hp < -15.0) or amount >= max_hp * 1.4):
 		gibbed = true
 		model.visible = false
 		var skin: Color = def.get("color", Color(0.2, 0.45, 0.85))
-		Fx.gibs(level, center_point(), skin, bc, 9 if def["model"] == "gorbino" else 7)
+		var sc := float(def.get("scale", 1.0))
+		Fx.gibs(level, center_point(), skin, bc, (9 if def["model"] == "gorbino" else 7) + int(sc * 2.0))
+		_fling_parts(flat, bc)
+		Fx.splatter_walls(level, center_point(), flat, bc, 6)
+		Fx.blood(level, center_point(), bc, 24, 0.07, Vector3.UP, 90.0, Vector2(3.0, 7.0))
+		Fx.pool(level, Vector3(global_position.x, level.floor_at(global_position), global_position.z), bc, 1.8 * sc)
 		Audio.play_at("hit_flesh", center_point(), 4.0, 0.6)
+		Audio.play_at("gut_spill", center_point(), 0.0, randf_range(1.1, 1.3))
+	elif kind != "gut":
+		Fx.splatter_walls(level, center_point(), flat, bc, 2)
+		Fx.blood(level, center_point() + flat * 0.2, bc, 14, 0.07, (flat + Vector3.UP * 0.6).normalized(), 35.0, Vector2(3.0, 6.0))
 	Audio.play_at(def["death"], center_point(), 2.0 if def.get("boss", false) else 0.0, float(def.get("pitch", 1.0)) * randf_range(0.95, 1.05))
 	var drop: String = def.get("drop", "")
 	if drop != "":
@@ -645,16 +729,78 @@ func _die(amount: float, kind: String, dir: Vector3) -> void:
 			Fx.explosion(level, global_position + off, k == 0)
 
 
+## Blown apart: its own feet, beak, gun and launcher go flying too, with a
+## string of gut.
+func _fling_parts(dir: Vector3, bc: Color) -> void:
+	var nodes: Array = []
+	for f in parts.get("feet", []):
+		nodes.append(f)
+	for key in ["beak", "arm", "launcher"]:
+		if parts.has(key):
+			nodes.append(parts[key])
+	for n in nodes:
+		var g := Gib.new()
+		level.fx_root().add_child(g)
+		g.global_transform = n.global_transform
+		for c in n.get_children():
+			if c is MeshInstance3D:
+				g.add_child(c.duplicate())
+		g.vel = dir * randf_range(2.0, 5.0) + Vector3(randf_range(-3, 3), randf_range(3.5, 7.5), randf_range(-3, 3))
+		g.spin = Vector3(randf_range(-9, 9), randf_range(-9, 9), randf_range(-9, 9))
+		g.level = level
+		g.splat = bc
+		g.add_to_group("gibs")
+	var anchor := Marker3D.new()
+	level.fx_root().add_child(anchor)
+	anchor.global_position = center_point()
+	var rope := GutRope.new()
+	level.fx_root().add_child(rope)
+	rope.setup(level, anchor, 9, dir + Vector3.UP * 0.8, Color(0.75, 0.95, 0.55) if def["model"] == "gorbino" else Color(1, 1, 1))
+	rope.release()
+
+
+const THROE := 0.22
+
+
 func _animate_death(delta: float) -> void:
 	death_t += delta
 	if gibbed:
 		set_physics_process(false)
 		return
-	var k := clampf(death_t / 0.45, 0.0, 1.0)
-	if flying and global_position.y > level.floor_at(global_position) + 0.05:
-		yv -= 20.0 * delta
-		global_position.y = maxf(level.floor_at(global_position), global_position.y + yv * delta)
-	Creatures.death_pose(model, k)
+	var sc := float(def.get("scale", 1.0))
+	# slide back from the hit
+	if _death_slide.length() > 0.05:
+		var np := global_position + _death_slide * delta
+		if not level.circle_blocked(Vector3(np.x, global_position.y, np.z), radius * 0.6, global_position.y, false, height * 0.5):
+			np.y = maxf(level.floor_at(np), global_position.y - 0.5)
+			global_position = np
+		else:
+			_death_slide = Vector3.ZERO
+		_death_slide = _death_slide.move_toward(Vector3.ZERO, delta * 10.0)
+	# fliers drop out of the air and land with a splat
+	var fl := level.floor_at(global_position)
+	if global_position.y > fl + 0.05:
+		yv -= 22.0 * delta
+		global_position.y = maxf(fl, global_position.y + yv * delta)
+		if global_position.y <= fl + 0.001 and not _crashed:
+			_crashed = true
+			Fx.blood(level, center_point(), blood_color(), 18, 0.07, Vector3.UP, 80.0, Vector2(2.0, 5.0))
+			Fx.pool(level, Vector3(global_position.x, fl, global_position.z), blood_color(), 1.5 * sc)
+			_pooled = true
+			Audio.play_at("hit_flesh", center_point(), 2.0, 0.55)
+	var k := 0.0
+	if death_kind != "gut" and death_t < THROE:
+		# the death throe: a hard shudder, mouth wide, before it goes down
+		var j := 1.0 - death_t / THROE
+		model.position = Vector3(randf_range(-1, 1), randf_range(0.0, 1.0), randf_range(-1, 1)) * 0.05 * j * sc
+		Creatures.animate(model, anim_t + death_t * 8.0, delta, {"pain": true, "windup": true})
+	else:
+		model.position = model.position.lerp(Vector3.ZERO, clampf(delta * 12.0, 0.0, 1.0))
+		k = clampf((death_t - (0.0 if death_kind == "gut" else THROE)) / 0.55, 0.0, 1.0)
+		Creatures.death_pose(model, k, death_side, death_kind == "gut")
+	if k >= 1.0 and not _pooled:
+		_pooled = true
+		Fx.pool(level, Vector3(global_position.x, fl, global_position.z), blood_color(), (1.7 if gutted else 1.2) * sc)
 	if def.get("boss", false) and death_t < 2.5 and fmod(death_t, 0.35) < delta:
 		Fx.explosion(level, global_position + Vector3(randf_range(-3, 3), randf_range(1, 6), randf_range(-3, 3)), false)
 	# the dead don't lie still: now and then a corpse jerks
@@ -690,7 +836,8 @@ func _animate(delta: float, ppos: Vector3) -> void:
 # ------------------------------------------------------------------ save
 func serialize() -> Dictionary:
 	return {"id": spawn_id, "t": etype, "x": global_position.x, "y": global_position.y, "z": global_position.z,
-		"hp": hp, "dead": dead, "alerted": alerted, "yaw": yaw, "gib": gibbed, "summoned": summoned}
+		"hp": hp, "dead": dead, "alerted": alerted, "yaw": yaw, "gib": gibbed, "summoned": summoned,
+		"side": death_side, "dk": death_kind}
 
 
 func restore(d: Dictionary) -> void:
@@ -705,8 +852,14 @@ func restore(d: Dictionary) -> void:
 		gibbed = d.get("gib", false)
 		model.visible = not gibbed
 		death_t = 10.0
+		death_side = float(d.get("side", 1.0))
+		death_kind = String(d.get("dk", ""))
 		if not gibbed:
-			Creatures.death_pose(model, 1.0)
+			# lie the way it fell; a gutted one keeps its open belly
+			if death_kind == "gut" and _gut_wound == null:
+				_open_wound()
+				_set_wound(1.15, 1.0, 1.0)
+			Creatures.death_pose(model, 1.0, death_side, death_kind == "gut")
 		set_physics_process(false)
 	elif d.get("alerted", false):
 		alerted = true

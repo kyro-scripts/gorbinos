@@ -22,6 +22,8 @@ var _blood_t := 0.0
 var _rope: GutRope
 var _slash_cd := 0.0
 var _slash_hit := false
+var _spurt_t := 0.0
+var _slowmo_token := 0
 
 
 func active() -> bool:
@@ -137,6 +139,8 @@ func _enter(p: String) -> void:
 			Audio.play("knife_stab", 2.0, randf_range(0.9, 1.05))
 			Fx.blood(lvl, cut, bc, 16, 0.035)
 			player.shake(0.3)
+			player.fov_punch = -10.0
+			_slowmo(0.3, 0.13)
 			offhand.blood = 0.6
 			Audio.play_at(target.def["pain_snd"], target.center_point(), 3.0, pitch * 1.45)
 		"slice":
@@ -145,7 +149,10 @@ func _enter(p: String) -> void:
 			Audio.play("gut_spill", 2.0, randf_range(0.9, 1.05))
 			Audio.play_at(target.def["death"], target.center_point(), 2.0, pitch * 0.8)
 			Fx.blood(lvl, cut, bc, 22, 0.04)
+			Fx.blood(lvl, cut, bc, 18, 0.035, (_cut_normal() + Vector3.UP * 0.5).normalized(), 25.0, Vector2(3.0, 6.5))
 			player.shake(0.25)
+			player.fov_punch = -7.0
+			_slowmo(0.45, 0.3)
 			offhand.blood = 1.0
 			_spill(cut, bc)
 		"yank":
@@ -154,6 +161,7 @@ func _enter(p: String) -> void:
 			if _rope and is_instance_valid(_rope):
 				_rope.anchor = offhand.tip_marker
 			Fx.blood(lvl, cut + (player.eye_point() - cut).normalized() * 0.15, bc, 12, 0.035)
+			player.fov_punch = 4.0
 		"return":
 			var dir: Vector3 = (target.global_position - player.global_position).normalized()
 			target.gut_finish(dir)
@@ -185,6 +193,12 @@ func _update(k: float, delta: float) -> void:
 		player.yaw = lerp_angle(player.yaw, want_yaw, clampf(delta * rate, 0.0, 1.0))
 		player.pitch = lerpf(player.pitch, want_pitch, clampf(delta * rate, 0.0, 1.0))
 	offhand.gut_aim = player.camera.to_local(cut)
+	# the cut spurts in pulses, like a heartbeat, while the knife works
+	_spurt_t -= delta
+	if phase in ["slice", "rip", "yank"] and _spurt_t <= 0.0:
+		_spurt_t = randf_range(0.18, 0.28)
+		var n := _cut_normal()
+		Fx.blood(player.level, cut + n * 0.04, target.blood_color(), 8, 0.03, (n + Vector3.UP * 0.7).normalized(), 18.0, Vector2(2.5, 5.0))
 	# blood keeps coming while the knife works
 	_blood_t -= delta
 	if phase in ["slice", "rip"] and _blood_t <= 0.0:
@@ -193,6 +207,23 @@ func _update(k: float, delta: float) -> void:
 		Fx.blood(player.level, tip.lerp(cut, 0.5), target.blood_color(), 4, 0.03)
 		if randf() < 0.3:
 			player.shake(0.06)
+
+
+## Which way the cut faces, out of the body.
+func _cut_normal() -> Vector3:
+	if target and is_instance_valid(target) and target._gut_wound:
+		return -target._gut_wound.global_transform.basis.z.normalized()
+	return Vector3.UP
+
+
+## Slow everything down for a beat (real seconds), then snap back.
+func _slowmo(scale: float, real_dur: float) -> void:
+	_slowmo_token += 1
+	var tok := _slowmo_token
+	Engine.time_scale = scale
+	get_tree().create_timer(real_dur, true, false, true).timeout.connect(func():
+		if tok == _slowmo_token:
+			Engine.time_scale = 1.0)
 
 
 ## Guts out: a rope of intestine pinned in the wound, and loose organs.
@@ -205,16 +236,25 @@ func _spill(cut: Vector3, bc: Color) -> void:
 	_rope = GutRope.new()
 	lvl.fx_root().add_child(_rope)
 	_rope.setup(lvl, target._gut_wound, 22 if float(target.def.get("scale", 1.0)) > 1.0 else 16, toward, gore_tint)
+	# a second, shorter loop that slops straight out onto the floor
+	var anchor := Marker3D.new()
+	lvl.fx_root().add_child(anchor)
+	anchor.global_position = cut
+	var rope2 := GutRope.new()
+	lvl.fx_root().add_child(rope2)
+	rope2.setup(lvl, anchor, 7, toward + Vector3(randf_range(-0.6, 0.6), 0.2, 0), gore_tint)
+	rope2.release()
 	var omat := Mat.make("gore_organ", {"tint": gore_tint, "shade": 0.8, "gloss": 1.0, "origin": true})
-	for k in 3:
+	for k in 4:
 		var g := Gib.new()
-		var sz := randf_range(0.08, 0.15)
-		g.add_child(Models.mi(Models.sphere(sz, 7, 5), omat, Vector3.ZERO, Vector3.ZERO, Vector3(1.0, randf_range(0.6, 0.9), randf_range(1.0, 1.5))))
+		var sz := randf_range(0.07, 0.14)
+		g.add_child(Models.mi(Creatures.blob_mesh(sz, Vector3(1.0, randf_range(0.6, 0.9), randf_range(1.0, 1.5)), 8200 + k, 0.12, 7, 9), omat))
 		lvl.fx_root().add_child(g)
 		g.global_position = cut + toward * 0.1
 		g.vel = toward * randf_range(1.0, 2.5) + Vector3(randf_range(-1, 1), randf_range(0.5, 2.0), randf_range(-1, 1))
 		g.spin = Vector3(randf_range(-6, 6), randf_range(-6, 6), randf_range(-6, 6))
 		g.level = lvl
+		g.splat = bc
 		g.add_to_group("gibs")
 
 
@@ -236,6 +276,8 @@ func _slash_damage() -> void:
 
 
 func _end() -> void:
+	_slowmo_token += 1
+	Engine.time_scale = 1.0
 	phase = ""
 	target = null
 	player.gutting = false

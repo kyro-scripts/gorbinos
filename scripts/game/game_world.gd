@@ -108,8 +108,8 @@ func _ready() -> void:
 			_debug_shots("arm", [0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0, 6.6, 7.2, 7.8, 8.4], true)
 		elif a.begins_with("--gallery="):
 			_debug_gallery(a.substr(10))
-		elif a == "--gibtest":
-			_debug_gibtest()
+		elif a == "--gibtest" or a == "--deathtest":
+			_debug_gibtest(a == "--deathtest")
 		elif a == "--vmshots":
 			_debug_viewmodels()
 		elif a == "--ammolineup":
@@ -153,10 +153,14 @@ func _debug_guttest(etype: String) -> void:
 		var before: int = player.health
 		player.finisher.start(en)
 		var t := 0.0
+		var after: int = player.health
 		while player.finisher.active() or player.gut_grace > 0.0:
+			# health as of the last frame that was still protected (a shot can
+			# land in the same frame the grace runs out, and that one counts)
+			after = player.health
 			await get_tree().process_frame
 			t += get_process_delta_time()
-		print("GUTFIRE health before=%d after=%d (%.1fs)" % [before, player.health, t])
+		print("GUTFIRE health before=%d after=%d (%.1fs)" % [before, after, t])
 		await get_tree().create_timer(2.0).timeout
 		print("GUTFIRE health 2s after the gut=%d (should drop: shooters are real)" % player.health)
 		get_tree().quit()
@@ -210,27 +214,35 @@ func _debug_gallery(group: String) -> void:
 	_debug_shots("gallery_" + group, [3.0, 3.6], true)
 
 
-## Debug: blow a few creatures apart in front of the player.
-func _debug_gibtest() -> void:
+## Debug: kill a row of creatures in front of the player, half of them
+## shot from the side (normal deaths), half blown apart.
+func _debug_gibtest(normal_only := false) -> void:
 	player.offhand.visible = false
 	var yaw := level.start_yaw
 	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
 	var right := Vector3(cos(yaw), 0, -sin(yaw))
 	var ens := []
-	for k in 3:
-		var p: Vector3 = level.player_start + fwd * 4.0 + right * (k - 1) * 1.6
+	var kinds := ["green", "snirby", "snotling", "green", "snirby", "snotling"]
+	for k in kinds.size():
+		var p: Vector3 = level.player_start + fwd * (4.0 if k < 3 else 6.5) + right * ((k % 3) - 1) * 1.8
 		p.y = level.floor_at(p)
 		var en := Enemy.new()
 		level.entity_root().add_child(en)
-		en.setup(["green", "snirby", "snotling"][k], level, p, yaw + PI)
+		en.setup(kinds[k], level, p, yaw + PI)
 		level.enemies.append(en)
 		ens.append(en)
+		en.process_mode = Node.PROCESS_MODE_DISABLED
 	Game.cheats["god"] = true
-	player.pitch = deg_to_rad(-25.0)
+	player.pitch = deg_to_rad(-16.0)
 	await get_tree().create_timer(1.0).timeout
-	for en in ens:
-		en.take_damage(400.0, player, fwd, "explosion")
-	_debug_shots("gib", [0.12, 0.45, 1.6], true)
+	for k in ens.size():
+		var en: Enemy = ens[k]
+		en.process_mode = Node.PROCESS_MODE_INHERIT
+		if k < 3 or normal_only:
+			en.take_damage(en.hp + 5.0, player, right * (1.0 if k % 2 == 0 else -1.0), "bullet")
+		else:
+			en.take_damage(400.0, player, fwd, "explosion")
+	_debug_shots("gib", [0.1, 0.3, 0.6, 1.2, 3.5], true)
 
 
 ## Debug: screenshot the view model of every weapon.
@@ -264,6 +276,7 @@ func _debug_trick(trick: String) -> void:
 
 func _debug_shots(tag: String, times: Array, quit_after: bool) -> void:
 	DirAccess.make_dir_recursive_absolute("user://shots")
+	hud.center("", 0.0)  # the level title would sit over the subject
 	var t0 := 0.0
 	for i in times.size():
 		await get_tree().create_timer(float(times[i]) - t0).timeout
