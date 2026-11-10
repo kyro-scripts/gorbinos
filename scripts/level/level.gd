@@ -53,6 +53,7 @@ var flow_target := -1
 var flow_timer := 0.0
 var has_fliers := false
 var enemies: Array = []
+var civilians: Array = []
 var pickups: Array = []
 var fog_params := Vector4.ZERO      # as sent to the shaders (Dread dims the light boost)
 var barrels: Array = []
@@ -69,6 +70,8 @@ var triggers_fired := {}
 var exit_cells := {}
 var seen := PackedByteArray()
 var boss: Node = null
+var target: Node = null              # this level's contract target
+var contract := {}
 var finished := false
 var dyn_lights: Array = []
 var _player_cell := -1
@@ -211,6 +214,13 @@ func build() -> void:
 	_build_secrets()
 	_build_environment()
 	_spawn_entities()
+	Dressing.dress(self)
+	Contracts.place(self)
+	Civilian.populate(self)
+	if not contract.is_empty():
+		stats["contract"] = contract["name"]
+		stats["target_down"] = false
+		stats["target_gutted"] = false
 
 
 func fx_root() -> Node3D:
@@ -795,9 +805,12 @@ func has_los(a: Vector3, b: Vector3) -> bool:
 	return hit.is_empty()
 
 
-func ray(a: Vector3, b: Vector3, mask: int, exclude: Array = []) -> Dictionary:
+## from_inside: a ray that starts inside a shape hits it (point-blank shots
+## into something pressed right up against you).
+func ray(a: Vector3, b: Vector3, mask: int, exclude: Array = [], from_inside := false) -> Dictionary:
 	var space := get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(a, b, mask, exclude)
+	q.hit_from_inside = from_inside
 	return space.intersect_ray(q)
 
 
@@ -848,11 +861,34 @@ func _on_player_enter_cell(i: int) -> void:
 		triggers_fired[i] = true
 		fire_tag(trig)
 	if exit_cells.has(i) and not finished:
-		if boss != null and is_instance_valid(boss) and not boss.dead:
-			if world:
-				world.message("THE EXIT IS SEALED", true)
+		if exit_sealed():
+			_sealed_msg()
 		else:
 			complete()
+
+
+## The exit won't open while the boss or the contract target is alive.
+func exit_sealed() -> bool:
+	for n in [boss, target]:
+		if n != null and is_instance_valid(n) and not n.dead:
+			return true
+	return false
+
+
+func _sealed_msg() -> void:
+	if world == null:
+		return
+	if target != null and is_instance_valid(target) and not target.dead and target != boss:
+		world.message("CONTRACT OPEN: " + String(contract.get("name", "")) + " STILL BREATHES", true)
+	else:
+		world.message("THE EXIT IS SEALED", true)
+
+
+func target_down(en: Node) -> void:
+	stats["target_down"] = true
+	stats["target_gutted"] = en.death_kind == "gut"
+	if world:
+		world.target_down(en)
 
 
 func fire_tag(tag: int) -> void:
@@ -933,10 +969,9 @@ func use_at(hit: Dictionary, user: Node) -> bool:
 			"exit":
 				u["used"] = true
 				Audio.play_at("switch", p)
-				if boss != null and is_instance_valid(boss) and not boss.dead:
+				if exit_sealed():
 					u["used"] = false
-					if world:
-						world.message("THE EXIT IS SEALED", true)
+					_sealed_msg()
 					return true
 				complete()
 			"switch":
@@ -972,6 +1007,9 @@ func on_enemy_killed(en: Node) -> void:
 
 ## Alert enemies that can "hear" a noise made at position p.
 func noise_at(p: Vector3, radius_cells := 18) -> void:
+	for c in civilians:
+		if is_instance_valid(c) and not c.dead and c.global_position.distance_to(p) < 16.0:
+			c.panic(p)
 	for en in enemies:
 		if not is_instance_valid(en) or en.dead or en.alerted:
 			continue
@@ -988,6 +1026,9 @@ func radius_damage(center: Vector3, radius: float, max_damage: float, source: No
 	for b in barrels:
 		if is_instance_valid(b) and not b.exploded:
 			targets.append(b)
+	for c in civilians:
+		if is_instance_valid(c) and not c.dead:
+			targets.append(c)
 	if player and is_instance_valid(player):
 		targets.append(player)
 	for t in targets:
@@ -1030,10 +1071,18 @@ func serialize() -> Dictionary:
 			cks.append(c["id"])
 	return {"enemies": en, "pickups_left": pk, "movers": mv, "barrels_gone": bl, "uses": used,
 		"secrets": secrets_found.keys(), "triggers": triggers_fired.keys(), "stats": stats.duplicate(),
-		"checkpoints": cks, "seen": Marshalls.raw_to_base64(seen)}
+		"checkpoints": cks, "seen": Marshalls.raw_to_base64(seen),
+		"civilians": civilians.filter(func(c): return is_instance_valid(c)).map(func(c): return c.serialize())}
 
 
 func restore(st: Dictionary) -> void:
+	var civ_by_id := {}
+	for c in civilians:
+		civ_by_id[c.spawn_id] = c
+	for d in st.get("civilians", []):
+		var cid := int(d.get("id", -1))
+		if civ_by_id.has(cid):
+			civ_by_id[cid].restore(d)
 	var by_id := {}
 	for e in enemies:
 		by_id[e.spawn_id] = e

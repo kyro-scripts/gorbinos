@@ -43,6 +43,10 @@ var pending_restore = null       # level state to restore after the level is bui
 var level_override = null        # test harness: level data used instead of LEVELS
 var autoplay := false            # test harness: bot plays the game
 var cheats := {"god": false}
+var single_contract := false     # replaying one contract from the contracts menu
+# kept across runs: money earned and the best result on every contract
+const PROFILE_PATH := "user://profile.json"
+var profile := {"bank": 0, "best": {}, "unlocked": 1}
 
 
 func _ready() -> void:
@@ -50,6 +54,44 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
 	var args := OS.get_cmdline_user_args()
 	autoplay = args.has("--autoplay")
+	_load_profile()
+
+
+func _load_profile() -> void:
+	if not FileAccess.file_exists(PROFILE_PATH):
+		return
+	var f := FileAccess.open(PROFILE_PATH, FileAccess.READ)
+	var d = JSON.parse_string(f.get_as_text())
+	if d is Dictionary:
+		for k in d.keys():
+			profile[k] = d[k]
+
+
+func save_profile() -> void:
+	var args := OS.get_cmdline_user_args()
+	if autoplay or args.has("--uitest") or args.has("--test"):
+		return
+	var f := FileAccess.open(PROFILE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify(profile))
+
+
+const RANK_ORDER := "DCBAS"
+
+
+## A contract was paid out: bank it, keep the best rank and time, unlock the next.
+func record_contract(i: int, rank: String, time: float, paid: int) -> void:
+	profile["bank"] = int(profile.get("bank", 0)) + paid
+	var key := str(i)
+	var best: Dictionary = profile["best"].get(key, {})
+	if best.is_empty() or RANK_ORDER.find(rank) > RANK_ORDER.find(String(best.get("rank", "D"))):
+		best["rank"] = rank
+	if not best.has("time") or time < float(best["time"]):
+		best["time"] = time
+	best["paid"] = int(best.get("paid", 0)) + paid
+	profile["best"][key] = best
+	profile["unlocked"] = maxi(int(profile.get("unlocked", 1)), mini(i + 2, LEVELS.size()))
+	save_profile()
 
 
 func diff() -> Dictionary:
@@ -78,7 +120,35 @@ func new_inventory() -> Dictionary:
 
 
 # ------------------------------------------------------------------ flow
+## Weapons and ammo you'd have found by the start of each level, for replaying
+## a single contract.
+func loadout(i: int) -> Dictionary:
+	var inv := new_inventory()
+	var plan := [[], ["shotgun"], ["shotgun", "mg"], ["shotgun", "mg", "ssg", "rocket"],
+		["shotgun", "mg", "ssg", "rocket"], ["shotgun", "mg", "ssg", "rocket", "plasma"]]
+	for w in plan[clampi(i, 0, plan.size() - 1)]:
+		inv["weapons"].append(w)
+	var mag_of := {"shotgun": 6, "ssg": 2, "mg": 60, "rocket": 4}
+	for w in inv["weapons"]:
+		if mag_of.has(w):
+			inv["mags"][w] = mag_of[w]
+	inv["ammo"] = {"bullets": 80 + i * 20, "shells": 12 + i * 6 if i >= 1 else 0, "rockets": 6 if i >= 3 else 0, "cells": 120 if i >= 5 else 0}
+	inv["armor"] = 25 * mini(i, 2)
+	inv["armor_type"] = 1 if i > 0 else 0
+	return inv
+
+
+func play_contract(i: int, diff_index: int) -> void:
+	difficulty = diff_index
+	single_contract = true
+	inventory = loadout(i)
+	total_stats = {"kills": 0, "kills_total": 0, "items": 0, "items_total": 0, "secrets": 0, "secrets_total": 0, "time": 0.0}
+	level_index = i
+	show_story(i)
+
+
 func new_game(diff_index: int) -> void:
+	single_contract = false
 	difficulty = diff_index
 	inventory = new_inventory()
 	total_stats = {"kills": 0, "kills_total": 0, "items": 0, "items_total": 0, "secrets": 0, "secrets_total": 0, "time": 0.0}
@@ -120,6 +190,10 @@ func level_finished(stats: Dictionary, inv: Dictionary) -> void:
 
 
 func after_intermission() -> void:
+	if single_contract:
+		single_contract = false
+		main.show_menu()
+		return
 	var nxt := level_index + 1
 	if nxt >= LEVELS.size():
 		main.show_ending()

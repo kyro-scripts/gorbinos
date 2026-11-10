@@ -25,6 +25,12 @@ var _face_t := 0.0                # subliminal face flash
 var _hm_t := 0.0                  # hit marker
 var _hm_kill := false
 var _face_kind := 0
+var _say_who := ""                # subtitles
+var _say_text := ""
+var _say_t := 0.0
+var _say_lines := PackedStringArray()
+var _term_t := -1.0               # TERMINATED stamp
+var _term_name := ""
 
 const BORDER_COLS := [Color(1, 0.2, 0.3), Color(0.25, 1, 0.3), Color(0.3, 0.4, 1), Color(1, 0.9, 0.2), Color(0.05, 0.05, 0.05)]
 
@@ -48,6 +54,19 @@ func hit_marker(kill: bool) -> void:
 func flash_face(dur := 0.07) -> void:
 	_face_t = dur
 	_face_kind = randi() % 2
+
+
+func say(who: String, text: String) -> void:
+	_say_who = who
+	_say_text = text
+	_say_t = 2.5 + text.length() * 0.05
+	_say_lines = PackedStringArray()
+
+
+## The contract target just died: slam a stamp across the screen.
+func terminated(who: String) -> void:
+	_term_t = 0.0
+	_term_name = who
 
 
 func message(t: String) -> void:
@@ -83,6 +102,11 @@ func _process(delta: float) -> void:
 	_hit_t -= delta
 	_face_t -= delta
 	_hm_t -= delta
+	_say_t -= delta
+	if _term_t >= 0.0:
+		_term_t += delta
+		if _term_t > 3.0:
+			_term_t = -1.0
 	_dead_t = _dead_t + delta if player and player.dead else 0.0
 	_noise_t -= delta
 	if _noise_t <= 0.0:
@@ -122,8 +146,10 @@ func _draw() -> void:
 		draw_rect(r.grow(2), Color(0, 0, 0, 0.85))
 		draw_rect(Rect2(r.position, Vector2(bw * clampf(boss.hp / boss.max_hp, 0, 1), 8)), Color(0.85, 0.25, 0.35))
 		UI.text_centered(self, "term", W * 0.5, 4, String(boss.def["name"]), UI.BONE, 16)
+	_draw_contract(W, H)
+	_draw_subtitle(W, H)
 	if Settings.get_v("show_fps"):
-		UI.text(self, "term", Vector2(W - 70, 8), "FPS %d" % Engine.get_frames_per_second(), UI.ACID, 16)
+		UI.text(self, "term", Vector2(W - 70, H - 80), "FPS %d" % Engine.get_frames_per_second(), UI.ACID, 16)
 	if _face_t > 0.0:
 		_draw_face(W, H)
 	if player.dead and _dead_t > 0.3:
@@ -131,6 +157,57 @@ func _draw() -> void:
 		var s := _death_tex.get_size() * 0.62 * lerpf(2.2, 1.0, k * k)
 		var c := Vector2(W * 0.5, 92) + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * (1.0 - k) * 6.0
 		draw_texture_rect(_death_tex, Rect2(c - s * 0.5, s), false, Color(1, 1, 1, k))
+
+
+func _draw_subtitle(W: float, H: float) -> void:
+	if _say_t <= 0.0 or _say_text == "":
+		return
+	if _say_lines.is_empty():
+		_say_lines = UI.wrap("term", _say_who + ": " + _say_text, minf(W * 0.6, 380.0), 16)
+	var a := clampf(_say_t * 3.0, 0.0, 1.0)
+	var h := _say_lines.size() * 15.0 + 6.0
+	var y := H - 92.0 - h
+	var w := 0.0
+	for ln in _say_lines:
+		w = maxf(w, UI.text_width("term", ln, 16))
+	draw_rect(Rect2(W * 0.5 - w * 0.5 - 6, y, w + 12, h), Color(0, 0, 0, 0.6 * a))
+	for k in _say_lines.size():
+		var ln: String = _say_lines[k]
+		var x0 := W * 0.5 - w * 0.5
+		if k == 0 and ln.begins_with(_say_who):
+			UI.text(self, "term", Vector2(x0, y + 2), _say_who + ":", Color(UI.ACID, a), 16)
+			UI.text(self, "term", Vector2(x0 + UI.text_width("term", _say_who + ": ", 16), y + 2), ln.substr(_say_who.length() + 2), Color(UI.BONE, a), 16)
+		else:
+			UI.text(self, "term", Vector2(x0, y + 2 + k * 15), ln, Color(UI.BONE, a), 16)
+
+
+## Top right: who you're here for. After the kill: get out.
+func _draw_contract(W: float, H: float) -> void:
+	if level == null or level.contract.is_empty() or player.dead:
+		return
+	var who := String(level.contract["name"])
+	var alive: bool = level.target != null and is_instance_valid(level.target) and not level.target.dead
+	var line1 := "CONTRACT #" + String(level.contract.get("id", "0000"))
+	var line2 := ("TARGET: " + who) if alive else "TARGET DOWN. EXTRACT."
+	var c2 := Color(1.0, 0.25, 0.3) if alive else UI.ACID
+	if not alive and fmod(Time.get_ticks_msec() / 1000.0, 1.0) > 0.75:
+		c2 = Color(c2, 0.35)
+	var w := maxf(UI.text_width("term", line1, 16), UI.text_width("term", line2, 16)) + 12
+	draw_rect(Rect2(W - w - 8, 8, w, 34), Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(W - w - 8, 8, 2, 34), c2)
+	UI.text(self, "term", Vector2(W - w - 1, 7), line1, UI.DIM, 16)
+	UI.text(self, "term", Vector2(W - w - 1, 23), line2, c2, 16)
+	if _term_t >= 0.0:
+		var k := clampf(_term_t * 6.0, 0.0, 1.0)
+		var a := clampf((3.0 - _term_t) * 2.0, 0.0, 1.0)
+		var sc := lerpf(2.6, 1.0, k * k)
+		var c := Vector2(W * 0.5, H * 0.36)
+		draw_set_transform(c, -0.12, Vector2(sc, sc))
+		var tw := UI.text_width("anton", "TERMINATED", 40)
+		draw_rect(Rect2(-tw * 0.5 - 10, -26, tw + 20, 52), Color(0.85, 0.05, 0.1, 0.25 * a), false, 3.0)
+		UI.text_centered(self, "anton", 0, -26, "TERMINATED", Color(0.95, 0.1, 0.15, a), 40)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		UI.text_centered(self, "term", c.x, c.y + 32, _term_name, Color(UI.BONE, a), 18)
 
 
 func _draw_border(W: float, H: float) -> void:

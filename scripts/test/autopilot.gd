@@ -20,6 +20,7 @@ var target_enemy: Node = null
 var scan_t := 0.0
 var failed_goals := {}
 var log_t := 0.0
+var _tap := false
 var strafe_t := 0.0
 var strafe := 0.0
 
@@ -56,6 +57,13 @@ func _physics_process(delta: float) -> void:
 		log_t = 10.0
 		print("[bot] t=%.0f pos=%s cell=%s goal=%s(%s) kills=%d/%d keys=%s" % [level_time, player.global_position.snapped(Vector3.ONE * 0.1),
 			level.cell_of(player.global_position), goal_kind, goal, level.stats["kills"], level.stats["kills_total"], player.keys.keys()])
+		if goal_kind == "target" and level.target and is_instance_valid(level.target):
+			var tg: Node = level.target
+			print("[bot]   target at %s y=%.2f state=%s hp=%d los=%s vis=%s" % [tg.global_position.snapped(Vector3.ONE * 0.1), tg.global_position.y, tg.state, int(tg.hp),
+				str(level.has_los(player.eye_point(), tg.center_point())), str(tg.visible)])
+			print("[bot]   weapon %s fire=%s te=%s (%s) d=%.2f in_list=%s gutting=%s eye=%s c=%s pitch=%.2f" % [player.weapons.current, str(want_fire), str(target_enemy == tg),
+				str(target_enemy.etype) if target_enemy else "none", tg.global_position.distance_to(player.global_position), str(level.enemies.has(tg)), str(player.gutting),
+				player.eye_point().snapped(Vector3.ONE * 0.1), tg.center_point().snapped(Vector3.ONE * 0.1), player.pitch])
 	if level_time > 900.0:
 		print("[bot] TIMEOUT on level ", level.data.get("name"))
 		get_tree().quit(2)
@@ -101,7 +109,8 @@ func _plan() -> void:
 	var switch_face := -1
 	var exit_goal := -1
 	var exit_face := -1
-	var boss_alive: bool = level.boss != null and is_instance_valid(level.boss) and not level.boss.dead
+	var boss_alive: bool = level.exit_sealed()
+	var hunt: Node = level.target if level.target != null and is_instance_valid(level.target) and not level.target.dead else level.boss
 	var key_cells := {}
 	for pk in level.pickups:
 		if is_instance_valid(pk) and pk.ptype.begins_with("key_"):
@@ -137,7 +146,15 @@ func _plan() -> void:
 				prev[n] = c
 				q.append(n)
 	var g := -1
-	if exit_goal >= 0:
+	# go for the contract target as soon as it can be reached
+	var tgt_cell := -1
+	if hunt != null and hunt != level.boss and boss_alive:
+		tgt_cell = level.idx_of(level.cell_of(hunt.global_position))
+	if tgt_cell >= 0 and prev.has(tgt_cell):
+		g = tgt_cell
+		goal_kind = "target"
+		goal = g
+	elif exit_goal >= 0:
 		g = exit_goal
 		goal_kind = "exit"
 		goal = exit_face if exit_face >= 0 else exit_goal
@@ -150,11 +167,19 @@ func _plan() -> void:
 		goal_kind = "switch"
 		goal = switch_face
 	elif boss_alive:
-		g = level.idx_of(level.cell_of(level.boss.global_position))
-		goal_kind = "boss"
-		goal = g
+		g = level.idx_of(level.cell_of(hunt.global_position))
+		goal_kind = "target" if hunt != level.boss else "boss"
 		if not prev.has(g):
-			g = -1
+			# it's over something we can't stand on: get next to it instead
+			var hc := level.cell_of(hunt.global_position)
+			var best_n := -1
+			for dz in range(-2, 3):
+				for dx in range(-2, 3):
+					var n := level._idx(hc.x + dx, hc.y + dz)
+					if n >= 0 and prev.has(n):
+						best_n = n
+			g = best_n
+		goal = g
 	if g < 0:
 		goal_kind = "explore"
 		path = []
@@ -266,7 +291,9 @@ func _combat(delta: float) -> void:
 		player.yaw = lerp_angle(player.yaw, wy, clampf(delta * 12.0, 0.0, 1.0))
 		player.pitch = lerpf(player.pitch, wp, clampf(delta * 12.0, 0.0, 1.0))
 		var err := absf(angle_difference(player.yaw, wy)) + absf(player.pitch - wp)
-		want_fire = err < 0.12
+		# tap the trigger: semi-automatic guns need it released between shots
+		_tap = not _tap
+		want_fire = err < 0.12 and (_tap or Weapons.DATA[player.weapons.current]["auto"])
 	else:
 		target_enemy = null
 

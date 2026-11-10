@@ -65,8 +65,8 @@ func _physics_process(delta: float) -> void:
 		vel = vel.lerp(want, clampf(homing * delta * 0.5, 0.0, 1.0))
 	var from := global_position
 	var to := from + vel * delta
-	var mask := (1 | 4 | 8) if from_player else (1 | 2 | 8)
-	var hit := level.ray(from, to, mask, _exclude)
+	var mask := (1 | 4 | 8 | 32) if from_player else (1 | 2 | 8 | 32)
+	var hit := level.ray(from, to, mask, _exclude, from_player)
 	if not hit.is_empty():
 		_impact(hit)
 		return

@@ -126,6 +126,15 @@ func _ready() -> void:
 				pk.setup(Pickup.AMMO[i], Vector3(pp.x, level.floor_at(pp), pp.z))
 		elif a.begins_with("--armshots="):
 			_debug_trick(a.substr(11))
+		elif a == "--dresstour":
+			_debug_dresstour()
+		elif a == "--targetshot":
+			_debug_targetshot()
+		elif a == "--civshot":
+			_debug_civshot()
+		elif a.begins_with("--peek="):
+			var xz := a.substr(7).split(",")
+			_debug_peek(Vector3(float(xz[0]), 0, float(xz[1])))
 
 
 ## Debug: put a creature in reach, gut it, and screenshot every phase.
@@ -169,6 +178,134 @@ func _debug_guttest(etype: String) -> void:
 	await get_tree().create_timer(1.0).timeout
 	player.finisher.start(en)
 	_debug_shots("gut", [0.05, 0.3, 0.42, 0.65, 0.95, 1.25, 1.5, 1.8, 2.05, 2.3, 2.6, 3.2, 4.5], true)
+
+
+## Debug: stand in front of the contract target, screenshot it, kill it and
+## screenshot the stamp.
+func _debug_targetshot() -> void:
+	Game.cheats["god"] = true
+	var tg: Node = level.target
+	if tg == null:
+		print("TARGET none")
+		get_tree().quit()
+		return
+	tg.set_physics_process(false)
+	for e in level.enemies:
+		if e != tg:
+			e.set_physics_process(false)
+	hud.center("", 0.0)
+	var fwd: Vector3 = -tg.global_transform.basis.z
+	var p: Vector3 = tg.global_position + fwd * 3.2
+	p.y = level.floor_at(p)
+	player.teleport_to(p)
+	var to: Vector3 = tg.global_position - p
+	player.yaw = atan2(-to.x, -to.z)
+	player.pitch = -0.08
+	print("TARGET %s at %s hp %d" % [tg.contract_name, level.cell_of(tg.global_position), int(tg.hp)])
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	await get_tree().create_timer(0.6).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("user://shots/target_0.png")
+	tg.take_damage(tg.hp + 1.0, player, -fwd, "bullet")
+	await get_tree().create_timer(0.35).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("user://shots/target_1.png")
+	print("TARGET down=%s sealed=%s" % [str(level.stats.get("target_down")), str(level.exit_sealed())])
+	get_tree().quit()
+
+
+## Debug: stand at a spot and look all round it.
+func _debug_peek(p: Vector3) -> void:
+	Game.cheats["god"] = true
+	for e in level.enemies:
+		e.set_physics_process(false)
+	hud.center("", 0.0)
+	p.y = level.floor_at(p)
+	player.teleport_to(p)
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	for k in 4:
+		player.yaw = k * PI * 0.5
+		player.pitch = -0.35
+		await get_tree().create_timer(0.4).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("user://shots/peek_%d.png" % k)
+	get_tree().quit()
+
+
+## Debug: go and listen to a few of the locals.
+func _debug_civshot() -> void:
+	Game.cheats["god"] = true
+	for e in level.enemies:
+		e.set_physics_process(false)
+		e.visible = false
+	hud.center("", 0.0)
+	print("CIV count %d" % level.civilians.size())
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	for k in mini(3, level.civilians.size()):
+		var c: Node = level.civilians[k]
+		var fwd: Vector3 = -c.global_transform.basis.z
+		var p: Vector3 = c.global_position + fwd * 2.4
+		if level.solid[level.idx_of(level.cell_of(p))] == 1:
+			p = c.global_position - fwd * 2.4
+		p.y = level.floor_at(p)
+		player.teleport_to(p)
+		var to: Vector3 = c.global_position - p
+		player.yaw = atan2(-to.x, -to.z)
+		player.pitch = -0.2
+		c.talk_cd = 0.0
+		await get_tree().create_timer(1.2).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("user://shots/civ_%d.png" % k)
+	# then start shooting: they should scatter
+	level.noise_at(player.global_position, 22)
+	await get_tree().create_timer(0.8).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("user://shots/civ_3.png")
+	get_tree().quit()
+
+
+## Debug: walk the camera past a spread of set-dressing props and
+## screenshot each (art review). Enemies are frozen out of the way.
+func _debug_dresstour() -> void:
+	Game.cheats["god"] = true
+	for e in level.enemies:
+		e.set_physics_process(false)
+		e.visible = false
+	var spots: Array = level.get_meta("dress_spots", [])
+	print("DRESS props: %d placed, %d spots" % [int(level.get_meta("dress_count", 0)), spots.size()])
+	hud.center("", 0.0)
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	var n := mini(12, spots.size())
+	for k in n:
+		var sp: Array = spots[int(float(k) / n * spots.size())]
+		var target: Vector3 = sp[0]
+		# stand a few metres off, on open floor, looking at it
+		var best := Vector3.INF
+		for a in 16:
+			var dir := Vector3(cos(a * TAU / 16.0), 0, sin(a * TAU / 16.0))
+			for dist in [3.6, 3.0, 2.4]:
+				var p: Vector3 = target + dir * dist
+				var c := level.cell_of(p)
+				var i := level.idx_of(c)
+				if i < 0 or level.solid[i] == 1:
+					continue
+				if level.has_los(p + Vector3(0, 1.5, 0), target + Vector3(0, 0.8, 0) + dir * 1.0):
+					best = p
+					break
+			if best != Vector3.INF:
+				break
+		if best == Vector3.INF:
+			continue
+		best.y = level.floor_at(best)
+		player.teleport_to(best)
+		var to: Vector3 = target - best
+		player.yaw = atan2(-to.x, -to.z)
+		player.pitch = -0.25
+		await get_tree().create_timer(0.4).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("user://shots/dress_%02d.png" % k)
+		print("  spot %d: %s" % [k, sp[1]])
+	get_tree().quit()
 
 
 ## Debug: line up every model of a group in front of the player and
@@ -486,6 +623,35 @@ func _show_death_menu() -> void:
 func on_player_died() -> void:
 	dead_t = 0.0
 	hud.center("", 0.0)
+
+
+var _hitstop_token := 0
+
+
+## Freeze the world for a moment (real seconds). Skipped while gutting,
+## which runs its own slow motion.
+func hitstop(real_dur: float) -> void:
+	if player.gutting or Engine.time_scale < 0.99 or Game.autoplay:
+		return
+	_hitstop_token += 1
+	var tok := _hitstop_token
+	Engine.time_scale = 0.08
+	get_tree().create_timer(real_dur, true, false, true).timeout.connect(func():
+		if tok == _hitstop_token and Engine.time_scale < 0.99:
+			Engine.time_scale = 1.0)
+
+
+## Someone says something: a subtitle at the bottom of the screen.
+func say(who: String, text: String) -> void:
+	hud.say(who, text)
+
+
+## The contract target died.
+func target_down(en: Node) -> void:
+	hud.terminated(String(en.contract_name))
+	hud.message("TARGET TERMINATED. EXTRACT.")
+	Audio.play("contract_done", 0.0)
+	player.shake(0.2)
 
 
 func level_complete() -> void:

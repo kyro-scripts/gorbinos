@@ -215,7 +215,60 @@ def dread():
     save("creep_scrape", reverb(x * np.sin(np.pi * tt / d), 2.0, 0.55, 2200), 0.55)
 
 
+# ------------------------------------------------------------------ contracts
+def contract():
+    # target terminated: a cash register ka-ching over a filthy low stab
+    clunk = lp(noise(0.05), 2500) * env(int(SR * 0.05), 0.0005, 0.015, 5)
+    tt = t_(0.9)
+    bell = (np.sin(2 * np.pi * 2350 * tt) + 0.6 * np.sin(2 * np.pi * 3520 * tt) + 0.3 * np.sin(2 * np.pi * 5870 * tt)) * np.exp(-tt * 6)
+    d = 1.4
+    tt = t_(d)
+    chord = np.zeros(len(tt))
+    for f in (55.0, 65.4, 82.4, 110.0):
+        ph = 2 * np.pi * f * tt
+        chord += (ph / np.pi % 2 - 1)                      # saw
+    chord = lp(np.tanh(chord * 1.4), 1800) * np.clip(tt / 0.01, 0, 1) * np.exp(-tt * 2.2)
+    x = mix(clunk * 0.8, at(bell * 0.55, 0.03), at(chord * 0.7, 0.08))
+    save("contract_done", x, 0.9)
+    # the briefing: a fax machine handshake
+    d = 1.1
+    tt = t_(d)
+    f = np.where(tt < 0.35, 1100, np.where(tt < 0.7, 2100, 1650)) + 40 * np.sin(2 * np.pi * 9 * tt)
+    x = np.sign(np.sin(2 * np.pi * np.cumsum(f) / SR)) * 0.4 + bp(noise(d), 800, 3000) * 0.25
+    save("contract_fax", lp(x, 3500) * np.clip(tt / 0.02, 0, 1) * np.clip((d - tt) / 0.05, 0, 1), 0.45)
+
+
+# ------------------------------------------------------------------ bystanders
+def bystanders():
+    # mumbles: gibberish syllables, a buzzy glottal source through two vowel formants
+    vowels = [(730, 1090), (270, 2290), (300, 870), (530, 1840), (640, 1190), (390, 1990)]
+    for i, (pitch, n_syl) in enumerate([(150, 7), (210, 6), (120, 8)]):
+        r = np.random.default_rng(900 + i)
+        out = []
+        for k in range(n_syl):
+            d = r.uniform(0.07, 0.15)
+            tt = t_(d)
+            f0 = pitch * (1 + 0.25 * np.sin(np.pi * tt / d)) * r.uniform(0.85, 1.25)
+            src = (np.cumsum(f0) / SR % 1.0) * 2 - 1
+            f1, f2 = vowels[r.integers(0, len(vowels))]
+            v = bp(src, f1 * 0.8, f1 * 1.25) + 0.6 * bp(src, f2 * 0.85, f2 * 1.15)
+            v *= np.sin(np.pi * tt / d) ** 0.7
+            out.append(v)
+            out.append(np.zeros(int(SR * r.uniform(0.01, 0.06))))
+        save("civ_mumble_" + "abc"[i], np.tanh(np.concatenate(out) * 2.0), 0.6)
+    # screams: a strained glide up, wobbling, with breath
+    for i, (f_lo, f_hi, d) in enumerate([(500, 900, 0.9), (380, 760, 1.1)]):
+        tt = t_(d)
+        f = f_lo + (f_hi - f_lo) * np.clip(tt / 0.25, 0, 1) + 25 * np.sin(2 * np.pi * 7 * tt) + R.normal(0, 6, len(tt)).cumsum() * 0.01
+        src = (np.cumsum(f) / SR % 1.0) * 2 - 1
+        v = bp(src, 700, 1300) + 0.7 * bp(src, 2200, 3200) + bp(noise(d), 1500, 4000) * 0.3
+        v *= np.clip(tt / 0.03, 0, 1) * np.exp(-np.maximum(tt - d * 0.6, 0) * 6)
+        save("civ_scream_" + "ab"[i], np.tanh(v * 2.5), 0.7)
+
+
 if __name__ == "__main__":
     knife()
     gore()
     dread()
+    contract()
+    bystanders()

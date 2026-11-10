@@ -79,6 +79,9 @@ var idle_snd_t := 5.0
 var death_t := 0.0
 var gibbed := false
 var death_kind := ""
+var contract_name := ""       # set on the level's contract target
+var leash := 0.0              # > 0: never wander further than this from home
+var home := Vector3.ZERO
 var death_side := 1.0         # which way the body falls (away from the killing shot)
 var _death_slide := Vector3.ZERO
 var _pooled := false
@@ -277,6 +280,14 @@ func _physics_process(delta: float) -> void:
 
 func _chase_dir(pl: Node, to_p: Vector3, dist: float, has_los: bool, delta: float) -> Vector3:
 	var flat := Vector3(to_p.x, 0, to_p.z)
+	# a leashed enemy (the contract target) holds its ground: it turns and
+	# fights from its post, and walks back if it has been pushed off it
+	if leash > 0.0:
+		var off := Vector3(home.x - global_position.x, 0, home.z - global_position.z)
+		if off.length() > leash:
+			return off.normalized()
+		if not has_los or dist > 9.0:
+			return Vector3.ZERO
 	var atk: String = def["attack"]
 	strafe_t -= delta
 	if strafe_t <= 0.0:
@@ -553,7 +564,7 @@ func _do_attack(pl: Node, dist: float) -> void:
 			for k in int(def["count"]):
 				var dir := (target - mp).normalized()
 				dir = (dir + Vector3(randf_range(-1, 1), randf_range(-0.5, 0.5), randf_range(-1, 1)) * float(def["spread"])).normalized()
-				var hit := level.ray(mp, mp + dir * 80.0, 1 | 2 | 8, [get_rid()])
+				var hit := level.ray(mp, mp + dir * 80.0, 1 | 2 | 8 | 32, [get_rid()])
 				if hit.is_empty():
 					continue
 				if hit["collider"] == pl:
@@ -667,6 +678,9 @@ func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") ->
 		alert()
 	if source != null and level.player != null and source == level.player and level.world:
 		level.world.hud.hit_marker(hp <= 0.0)
+		if hp <= 0.0:
+			# a beat of hit-stop on the kill (longer for the contract target)
+			level.world.hitstop(0.12 if contract_name != "" else 0.04)
 	if hp <= 0.0:
 		_die(amount, kind, dir)
 		return
@@ -681,6 +695,10 @@ func _die(amount: float, kind: String, dir: Vector3) -> void:
 	dead = true
 	state = "dead"
 	death_kind = kind
+	if has_node("TargetTag"):
+		get_node("TargetTag").queue_free()
+	if contract_name != "" and level != null:
+		level.target_down(self)
 	col_shape.disabled = true
 	var bc := blood_color()
 	var flat := Vector3(dir.x, 0, dir.z)

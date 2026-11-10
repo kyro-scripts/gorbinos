@@ -401,7 +401,7 @@ func _fire(d: Dictionary) -> void:
 		var muzzle: Marker3D = vm_parts["muzzle"]
 		# spawn from camera, offset toward the gun so it looks right but aims true
 		var start := origin + fwd * 0.4 + basis.x * 0.08 - basis.y * 0.06
-		var aim_hit := player.level.ray(origin, origin + fwd * 200.0, 1 | 4 | 8, [player.get_rid()])
+		var aim_hit := player.level.ray(origin, origin + fwd * 200.0, 1 | 4 | 8 | 32, [player.get_rid()])
 		var aim_pt: Vector3 = aim_hit["position"] if not aim_hit.is_empty() else origin + fwd * 200.0
 		var dir := (aim_pt - start).normalized()
 		if (aim_pt - origin).length() < 1.2:
@@ -425,7 +425,7 @@ func _fire(d: Dictionary) -> void:
 		if pellets > 1:
 			r = Vector2(randfn(0.0, 0.5), randfn(0.0, 0.5)).limit_length(1.0)
 		var dir := (fwd + basis.x * r.x * spread + basis.y * r.y * spread_v).normalized()
-		var hit := player.level.ray(origin, origin + dir * 250.0, 1 | 4 | 8, [player.get_rid()])
+		var hit := player.level.ray(origin, origin + dir * 250.0, 1 | 4 | 8 | 32, [player.get_rid()], true)
 		if hit.is_empty():
 			continue
 		var col = hit["collider"]
@@ -440,7 +440,7 @@ func _fire(d: Dictionary) -> void:
 		var e = hits[key]
 		if is_instance_valid(e[0]):
 			e[0].take_damage(e[1], player, e[2], "bullet")
-			if e[0] is Enemy:
+			if e[0] is Enemy or e[0] is Civilian:
 				Audio.play_at("hit_flesh", e[0].center_point(), -4.0, randf_range(0.9, 1.2))
 	if current in ["shotgun", "ssg", "pistol", "mg"]:
 		_eject_casing()

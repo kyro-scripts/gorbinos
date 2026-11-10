@@ -10,9 +10,13 @@ var targets := [0.0, 0.0, 0.0, 0.0]
 var par := 120.0
 var rank := "C"
 var rank_tex: Texture2D
+var stamp_tex: Texture2D
 var bg: Texture2D
 var _tick := 0.0
 var _rank_t := -1.0
+var pay_lines := []           # [label, amount]
+var pay_total := 0
+var _pay_t := -1.0
 
 
 func setup(i: int, s: Dictionary) -> void:
@@ -46,7 +50,31 @@ func _ready() -> void:
 	else:
 		rank = "D"
 	rank_tex = load("res://assets/ui/rank_%s.png" % rank)
+	stamp_tex = load("res://assets/ui/stamp_cleared.png")
 	Audio.play_music("intermission")
+	_payout()
+
+
+## The money: the contract fee, double for a gutted target, a tip for
+## beating par, docked for every bystander you killed.
+func _payout() -> void:
+	var c := Contracts.for_level(Game.level_data(level_index))
+	if c.is_empty():
+		return
+	var base := int(c.get("pay", 0)) if stats.get("target_down", true) else 0
+	pay_lines.append(["CONTRACT: " + String(c["name"]), base])
+	if stats.get("target_gutted", false):
+		pay_lines.append(["GUTTED", base])
+	if float(stats.get("time", 0.0)) <= par:
+		pay_lines.append(["UNDER PAR", int(base * 0.1)])
+	var civ := int(stats.get("civilians", 0))
+	if civ > 0:
+		pay_lines.append(["COLLATERAL x%d" % civ, -250 * civ])
+	pay_total = 0
+	for p in pay_lines:
+		pay_total += int(p[1])
+	pay_total = maxi(pay_total, 0)
+	Game.record_contract(level_index, rank, float(stats.get("time", 0.0)), pay_total)
 
 
 var _auto_done := false
@@ -74,6 +102,11 @@ func _process(delta: float) -> void:
 				Audio.play("stamp", 0.0)
 	if _rank_t >= 0.0:
 		_rank_t += delta
+		if _rank_t > 0.6 and _pay_t < 0.0 and not pay_lines.is_empty():
+			_pay_t = 0.0
+			Audio.play("contract_done", -6.0)
+	if _pay_t >= 0.0:
+		_pay_t += delta
 	queue_redraw()
 
 
@@ -99,9 +132,8 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.4))
 	var cx := size.x * 0.5
 	UI.text_centered(self, "big", cx, 14, Game.level_name(level_index), Color.WHITE)
-	var st_tex: Texture2D = load("res://assets/ui/stamp_cleared.png")
-	var ss := st_tex.get_size() * 0.6
-	draw_texture_rect(st_tex, Rect2(Vector2(cx - ss.x * 0.5, 62), ss), false)
+	var ss := stamp_tex.get_size() * 0.6
+	draw_texture_rect(stamp_tex, Rect2(Vector2(cx - ss.x * 0.5, 62), ss), false, Color(1, 1, 1, 1))
 	var labels := ["KILLS", "ITEMS", "SECRETS", "TIME"]
 	var y := 118.0
 	for k in 4:
@@ -123,5 +155,30 @@ func _draw() -> void:
 		var c := Vector2(cx + 170, 150)
 		draw_texture_rect(rank_tex, Rect2(c - s * 0.5, s), false, Color(1, 1, 1, k))
 		UI.text_centered(self, "term", c.x, 208, "RANK", UI.ACID, 16)
+	if _pay_t >= 0.0:
+		var py := 240.0
+		for k in pay_lines.size():
+			if _pay_t < k * 0.18:
+				break
+			var amt := int(pay_lines[k][1])
+			var col := UI.BLOOD if amt < 0 else (UI.ACID if k > 0 else UI.BONE)
+			UI.text(self, "term", Vector2(cx - 200, py), String(pay_lines[k][0]), col, 16)
+			var sign := "-" if amt < 0 else ("+" if k > 0 else "")
+			UI.text(self, "term", Vector2(cx + 30, py), sign + "$" + _money(absi(amt)), col, 16)
+			py += 15
+		if _pay_t > pay_lines.size() * 0.18:
+			draw_rect(Rect2(cx - 200, py + 2, 330, 1), UI.BONE)
+			UI.text(self, "term", Vector2(cx - 200, py + 4), "PAID", UI.BONE, 16)
+			UI.text(self, "menu", Vector2(cx + 30, py), "$" + _money(pay_total), UI.ACID)
+			UI.text(self, "term", Vector2(cx + 130, py + 4), "BANK $" + _money(int(Game.profile.get("bank", 0))), UI.DIM, 16)
 	if phase >= 4 and fmod(t, 1.0) < 0.7:
-		UI.text_centered(self, "term", cx, size.y - 34, "PRESS ANY KEY", UI.BONE, 18)
+		UI.text_centered(self, "term", cx, size.y - 20, "PRESS ANY KEY", UI.BONE, 18)
+
+
+static func _money(v: int) -> String:
+	var s := str(absi(v))
+	var out := ""
+	while s.length() > 3:
+		out = "," + s.substr(s.length() - 3) + out
+		s = s.substr(0, s.length() - 3)
+	return ("-" if v < 0 else "") + s + out
