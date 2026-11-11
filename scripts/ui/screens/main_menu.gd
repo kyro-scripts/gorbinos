@@ -1,10 +1,11 @@
 extends Control
-## Title screen: printed paper with trout drifting past, the name in big
-## bold type, the options on torn paper strips, and a turntable
+## Title screen: murky deep water, the name made of trout skin, the options
+## on torn paper strips, and a turntable
 ## with a Gorbino, a Snirby and a snotling.
 
 var backdrop: MenuBackdrop
 var title: Control
+var title_tex: Texture2D
 var menu: MenuView
 var t := 0.0
 var vp: SubViewport
@@ -20,9 +21,11 @@ func _ready() -> void:
 	backdrop = MenuBackdrop.new()
 	add_child(backdrop)
 	_build_stage()
+	title_tex = load("res://assets/ui/title_fish.png")
 	title = Control.new()
 	title.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	add_child(title)
 	title.draw.connect(_draw_title)
 	menu = MenuView.new()
@@ -123,11 +126,12 @@ func _process(delta: float) -> void:
 	title.queue_redraw()
 
 
-## The name; it shrinks away up the corner once you're in a sub-page.
+## The name, made of trout skin; it shrinks away up the corner once you're
+## in a sub-page.
 func _draw_title() -> void:
 	var root := menu.stack.size() <= 1
-	var k := 1.0 if root else 0.6
-	var y := 8.0 + sin(t * 1.3) * 1.5
-	MenuView.heading(title, 34.0, y, "GORBINO'S", int(round(48 * k)), true)
-	MenuView.heading(title, 34.0, y + 50.0 * k, "QUEST", int(round(56 * k)), true)
+	var w := 290.0 if root else 150.0
+	var sz := Vector2(w, w * title_tex.get_height() / title_tex.get_width())
+	var p := Vector2(26.0, 10.0 + sin(t * 1.3) * 1.5)
+	title.draw_texture_rect(title_tex, Rect2(p, sz), false)
 	UI.text(title, "term", Vector2(8, size.y - 20), "V1.9.6", Color(0.75, 0.65, 0.7), 16)

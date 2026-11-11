@@ -1,8 +1,8 @@
 class_name MenuView
 extends Control
 ## Stacked menu: every option is a torn strip of paper with the words on
-## it, the chosen one lit up and pulled out, with a photo-real trout
-## nibbling at it. Sliders / toggles / choices / key binding rows.
+## it, the chosen one lit up and pulled out. Sliders / toggles / choices /
+## key binding rows.
 
 signal emptied
 
@@ -18,8 +18,6 @@ var show_title := true
 var center_offset := 0.0
 var left_x := -1.0              # >= 0: strips line up on the left at this x, not centred
 var _rows: Array = []            # [rect, item_index]
-var _fx: Control                 # the trout, drawn smooth on top
-var _fish: Texture2D
 var _sel_rect := Rect2()
 var _sel_t := 0.0
 var _flash := ""
@@ -31,13 +29,6 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
-	_fish = load("res://assets/sprites/hr_fish.png")
-	_fx = Control.new()
-	_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_fx.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	add_child(_fx)
-	_fx.draw.connect(_draw_fish)
 
 
 func page() -> Dictionary:
@@ -120,7 +111,6 @@ func _process(delta: float) -> void:
 	if _flash_t > 0.0:
 		_flash_t -= delta
 	queue_redraw()
-	_fx.queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
@@ -317,7 +307,7 @@ func _draw() -> void:
 		cx = left_x + row_w * 0.5
 	var y := top_y
 	if show_title and p.has("title") and String(p["title"]) != "":
-		heading(self, cx, y - 58, String(p["title"]), 34)
+		heading(self, cx, y - 52, String(p["title"]), 28)
 	_draw_list(p, cx, y, row_w, big)
 	if p.has("footer"):
 		# a strip of masking tape along the bottom
@@ -331,14 +321,14 @@ func _draw() -> void:
 		UI.text_centered(self, "term", cx, size.y - 44, "PRESS A KEY OR MOUSE BUTTON. ESC TO CANCEL.", UI.ACID, 16)
 
 
-## A heading in plain bold type: cream, with the pink plate printed a little
-## off and a dark shadow under it.
+## A page heading: chunky rounded type, pale with a dark shadow.
 static func heading(ci: CanvasItem, cx: float, y: float, s: String, sz: int, left := false) -> void:
-	var w := UI.text_width("anton", s, sz)
+	var f := UI.font("bungee")
+	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
 	var x := cx if left else cx - w * 0.5
-	UI.text(ci, "anton", Vector2(x + 4, y + 4), s, Color(0.05, 0.0, 0.06, 0.8), sz)
-	UI.text(ci, "anton", Vector2(x + 2, y + 1), s, Color(0.98, 0.12, 0.5), sz)
-	UI.text(ci, "anton", Vector2(x, y), s, PAPER, sz)
+	var base := y + f.get_ascent(sz)
+	ci.draw_string(f, Vector2(x + 3, base + 4), s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(0.0, 0.03, 0.04, 0.85))
+	ci.draw_string(f, Vector2(x, base), s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(0.86, 0.92, 0.86))
 
 
 ## A torn strip of paper: straight along the top and bottom, ragged at the
@@ -424,20 +414,6 @@ func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> 
 		var dw := UI.text_width("term", desc, 16)
 		draw_rect(Rect2(cx - dw * 0.5 - 6, y + 3, dw + 12, 18), Color(0, 0, 0, 0.6))
 		UI.text_centered(self, "term", cx, y + 4, desc, UI.BONE, 16)
-
-
-## The cursor: a trout nosing at the end of the chosen strip.
-func _draw_fish() -> void:
-	if _sel_rect.size.x <= 0.0 or _fish == null or waiting_bind != "":
-		return
-	var h := clampf(_sel_rect.size.y * 1.15, 22.0, 40.0)
-	var w := h * _fish.get_width() / _fish.get_height()
-	var nib := sin(_sel_t * 9.0) * 2.5
-	var c := Vector2(_sel_rect.end.x + w * 0.5 - 4.0 + nib, _sel_rect.get_center().y + sin(_sel_t * 2.3) * 1.5)
-	# the photo's fish faces left, toward the strip
-	_fx.draw_set_transform(c, sin(_sel_t * 4.0) * 0.05, Vector2.ONE)
-	_fx.draw_texture_rect(_fish, Rect2(-w * 0.5, -h * 0.5, w, h), false)
-	_fx.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 # ------------------------------------------------------------------ shared pages

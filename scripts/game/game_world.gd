@@ -67,7 +67,6 @@ func _ready() -> void:
 	add_child(hud)
 	var mb := MenuBackdrop.new()
 	mb.opaque = false
-	mb.fish_count = 2
 	menu_bg = mb
 	menu_bg.visible = false
 	add_child(menu_bg)
