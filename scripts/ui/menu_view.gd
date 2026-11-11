@@ -1,11 +1,8 @@
 class_name MenuView
 extends Control
-## Stacked menu, built from the game's own pieces: every option is a
-## chunky block of the meat texture the levels are made of, bevelled like
-## level geometry, labelled in the HUD's type. The chosen one lights up,
-## slides out and gets the jittering noise frame the game screen has (and,
-## in the pause and death menus, a trout nibbling at it). Sliders /
-## toggles / choices / key binding rows.
+## Old-school stacked menu: big bitmap font items, a blinking Gorbino head
+## as the cursor, sliders / toggles / choices / key binding rows. In the
+## game's pause and death menus, a photo-real trout nibbles at the choice.
 
 signal emptied
 
@@ -19,18 +16,14 @@ var top_y := 70.0
 var allow_empty_back := true
 var show_title := true
 var center_offset := 0.0
-var left_x := -1.0              # >= 0: strips line up on the left at this x, not centred
 var _rows: Array = []            # [rect, item_index]
-var trout := false               # a trout cursor nibbling at the chosen strip
-var _fx: Control
-var _fish: Texture2D
-var _block: Texture2D
-var _noise_seed := 0
-var _noise_t := 0.0
-var _sel_rect := Rect2()
-var _sel_t := 0.0
 var _flash := ""
 var _flash_t := 0.0
+var trout := false               # a trout cursor nibbling at the chosen item
+var _fx: Control
+var _fish: Texture2D
+var _sel_rect := Rect2()
+var _sel_t := 0.0
 
 
 func _ready() -> void:
@@ -38,8 +31,6 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
-	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	_block = Mat.tex("d_meat")
 	_fish = load("res://assets/sprites/hr_fish.png")
 	_fx = Control.new()
 	_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -56,7 +47,6 @@ func page() -> Dictionary:
 func push(p: Dictionary) -> void:
 	stack.append(p)
 	sel = 0
-	_sel_t = 0.0
 	scroll = 0
 	_skip_disabled(1)
 	queue_redraw()
@@ -118,7 +108,6 @@ func _move(dir: int) -> void:
 		sel = (sel + dir + items.size()) % items.size()
 		if _selectable(items[sel]):
 			break
-	_sel_t = 0.0
 	Audio.play("menu_move", -6.0)
 	queue_redraw()
 
@@ -126,10 +115,6 @@ func _move(dir: int) -> void:
 func _process(delta: float) -> void:
 	anim_t += delta
 	_sel_t += delta
-	_noise_t -= delta
-	if _noise_t <= 0.0:
-		_noise_t = 0.07
-		_noise_seed += 1
 	if _flash_t > 0.0:
 		_flash_t -= delta
 	queue_redraw()
@@ -159,13 +144,19 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_UP, KEY_W:
-				_move(-1)
+				_move(-_tile_cols() if _is_tiles() else -1)
 			KEY_DOWN, KEY_S:
-				_move(1)
+				_move(_tile_cols() if _is_tiles() else 1)
 			KEY_LEFT, KEY_A:
-				_adjust(-1)
+				if _is_tiles():
+					_move(-1)
+				else:
+					_adjust(-1)
 			KEY_RIGHT, KEY_D:
-				_adjust(1)
+				if _is_tiles():
+					_move(1)
+				else:
+					_adjust(1)
 			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
 				if not event.echo:
 					_activate()
@@ -183,7 +174,6 @@ func _input(event: InputEvent) -> void:
 		var idx := _row_at(event.position)
 		if idx >= 0 and idx != sel and _selectable(_items()[idx]):
 			sel = idx
-			_sel_t = 0.0
 			Audio.play("menu_move", -10.0)
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -311,6 +301,24 @@ func _value_text(it: Dictionary) -> String:
 	return ""
 
 
+const TILE := 92.0
+const TILE_GAP := 12.0
+var _tex_cache := {}
+
+
+func _tex(n: String) -> Texture2D:
+	if not _tex_cache.has(n):
+		var p := "res://assets/ui/%s.png" % n
+		_tex_cache[n] = load(p) if ResourceLoader.exists(p) else null
+	return _tex_cache[n]
+
+
+func _is_tiles() -> bool:
+	return page().get("tiles", false)
+
+
+func _tile_cols() -> int:
+	return int(page().get("cols", 4))
 
 
 func _draw() -> void:
@@ -319,16 +327,14 @@ func _draw() -> void:
 	if stack.is_empty():
 		return
 	var p := page()
-	var big: bool = p.get("tiles", false)
-	var wide: bool = p.get("wide", false)
-	var row_w := 520.0 if wide else (250.0 if big else 300.0)
-	var cx := size.x * 0.5 + (0.0 if wide else center_offset)
-	if left_x >= 0.0 and not wide:
-		cx = left_x + row_w * 0.5
+	var cx := size.x * 0.5 + (0.0 if p.get("wide", false) else center_offset)
 	var y := top_y
 	if show_title and p.has("title") and String(p["title"]) != "":
-		heading(self, cx, y - 50, String(p["title"]), 32)
-	_draw_list(p, cx, y, row_w, big)
+		UI.text_centered(self, "big", cx, y - 56, String(p["title"]), Color.WHITE)
+	if _is_tiles():
+		_draw_tiles(cx, y)
+	else:
+		_draw_list(p, cx, y)
 	if p.has("footer"):
 		var fw := UI.text_width("term", String(p["footer"]), 16)
 		draw_rect(Rect2(cx - fw * 0.5 - 6, size.y - 26, fw + 12, 18), Color(0, 0, 0, 0.75))
@@ -339,61 +345,62 @@ func _draw() -> void:
 		UI.text_centered(self, "term", cx, size.y - 44, "PRESS A KEY OR MOUSE BUTTON. ESC TO CANCEL.", UI.ACID, 16)
 
 
-## A page heading in the HUD's type: bone, with a hard shadow.
-static func heading(ci: CanvasItem, cx: float, y: float, s: String, sz: int, left := false) -> void:
-	var w := UI.text_width("anton", s, sz)
-	var x := cx if left else cx - w * 0.5
-	UI.text(ci, "anton", Vector2(x + 2, y + 2), s, Color(0, 0, 0, 0.8), sz)
-	UI.text(ci, "anton", Vector2(x, y), s, UI.BONE, sz)
+func _draw_tiles(cx: float, y: float) -> void:
+	var items := _items()
+	var cols := mini(_tile_cols(), items.size())
+	var rows := int(ceil(float(items.size()) / cols))
+	var total_w := cols * TILE + (cols - 1) * TILE_GAP
+	for k in items.size():
+		var it: Dictionary = items[k]
+		var r := k / cols
+		var c := k % cols
+		var in_row := mini(cols, items.size() - r * cols)
+		var row_w := in_row * TILE + (in_row - 1) * TILE_GAP
+		var x0 := cx - row_w * 0.5 + c * (TILE + TILE_GAP)
+		var y0 := y + r * (TILE + TILE_GAP)
+		var rect := Rect2(x0, y0, TILE, TILE)
+		_rows.append([rect, k])
+		var en := _selectable(it)
+		var is_sel := k == sel and en
+		var drawn := rect
+		if is_sel:
+			drawn = rect.grow(4.0 + sin(anim_t * 9.0) * 1.5)
+			drawn.position += Vector2(randf_range(-0.6, 0.6), randf_range(-0.6, 0.6))
+		draw_rect(Rect2(drawn.position + Vector2(5, 5), drawn.size), Color(0, 0, 0, 0.6))
+		var t := _tex(String(it.get("icon", "")))
+		var mod := Color(1, 1, 1) if en else Color(0.35, 0.3, 0.35)
+		if t:
+			draw_texture_rect(t, drawn, false, mod)
+		else:
+			draw_rect(drawn, Color(0.2, 0.1, 0.15))
+			UI.text_centered(self, "menu", drawn.get_center().x, drawn.get_center().y - 12, String(it.get("label", "")))
+		if is_sel:
+			draw_rect(drawn, UI.ACID, false, 3.0)
+			_sel_rect = drawn
+	# the selected tile's name under the grid
+	if sel < items.size() and _selectable(items[sel]):
+		var lab := String(items[sel].get("label", ""))
+		var ly := y + rows * (TILE + TILE_GAP) + 2
+		UI.text_centered(self, "menu_hi", cx, ly, lab, Color.WHITE, 24)
+		var desc := String(items[sel].get("desc", ""))
+		if desc != "":
+			UI.text_centered(self, "term", cx, ly + 30, desc, UI.BONE, 16)
 
 
-const NOISE_COLS := [Color(1, 0.2, 0.3), Color(0.25, 1, 0.3), Color(0.3, 0.4, 1), Color(1, 0.9, 0.2), Color(0.05, 0.05, 0.05)]
-
-
-## One button: a block of the levels' meat texture with a chunky bevel. The
-## chosen one is lit and wears the game screen's jittering noise frame.
-func _draw_button(r: Rect2, is_sel: bool, en: bool) -> void:
-	draw_rect(Rect2(r.position + Vector2(3, 3), r.size), Color(0, 0, 0, 0.55))
-	draw_rect(r.grow(2.0), Color(0.02, 0.0, 0.03))
-	var mod := Color(1, 1, 1)
-	if not is_sel:
-		mod = Color(0.5, 0.4, 0.46) if en else Color(0.25, 0.2, 0.25)
-	draw_texture_rect(_block, r, true, mod)
-	draw_rect(Rect2(r.position, Vector2(r.size.x, 2)), Color(1, 1, 1, 0.25))
-	draw_rect(Rect2(r.position, Vector2(2, r.size.y)), Color(1, 1, 1, 0.12))
-	draw_rect(Rect2(r.position.x, r.end.y - 2, r.size.x, 2), Color(0, 0, 0, 0.5))
-	draw_rect(Rect2(r.end.x - 2, r.position.y, 2, r.size.y), Color(0, 0, 0, 0.4))
-	if is_sel:
-		var rnd := RandomNumberGenerator.new()
-		rnd.seed = _noise_seed
-		var o := r.grow(3.0)
-		var x := o.position.x
-		while x < o.end.x:
-			draw_rect(Rect2(x, o.position.y, 4, rnd.randi_range(2, 3)), NOISE_COLS[rnd.randi() % NOISE_COLS.size()])
-			draw_rect(Rect2(x, o.end.y - 3, 4, rnd.randi_range(2, 3)), NOISE_COLS[rnd.randi() % NOISE_COLS.size()])
-			x += 4.0
-		var y := o.position.y
-		while y < o.end.y:
-			draw_rect(Rect2(o.position.x, y, rnd.randi_range(2, 3), 4), NOISE_COLS[rnd.randi() % NOISE_COLS.size()])
-			draw_rect(Rect2(o.end.x - 3, y, rnd.randi_range(2, 3), 4), NOISE_COLS[rnd.randi() % NOISE_COLS.size()])
-			y += 4.0
-
-
-func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> void:
+func _draw_list(p: Dictionary, cx: float, y: float) -> void:
 	var items := _items()
 	var wide: bool = p.get("wide", false)
-	var small: bool = p.get("small", false)
-	var fsz := 24 if big else (15 if small else 19)
-	var rh := 33.0 if big else (23.0 if small else 30.0)
+	var fsz := 22 if not p.get("small", false) else 18
+	var rh := row_h + 2.0 if not p.get("small", false) else 21.0
 	var visible_rows := int((size.y - y - 34) / rh)
 	if sel < scroll:
 		scroll = sel
 	if sel >= scroll + visible_rows:
 		scroll = sel - visible_rows + 1
 	scroll = clampi(scroll, 0, maxi(0, items.size() - visible_rows))
+	var row_w := 520.0 if wide else 300.0
 	if scroll > 0:
 		UI.text_centered(self, "term", cx, y - 18, "- MORE -", UI.DIM, 16)
-	var f := UI.font("anton")
 	for k in range(scroll, mini(items.size(), scroll + visible_rows)):
 		var it: Dictionary = items[k]
 		var en := _selectable(it)
@@ -406,46 +413,44 @@ func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> 
 				y += 16
 			y += 4
 			continue
-		var r := Rect2(cx - row_w * 0.5, y, row_w, rh - 6)
+		var r := Rect2(cx - row_w * 0.5, y - 1, row_w, rh - 3)
 		_rows.append([r, k])
-		# the chosen one slides out
-		var b := r
 		if is_sel:
-			b.position.x += 10.0 * minf(_sel_t * 8.0, 1.0)
-			_sel_rect = b
-		_draw_button(b, is_sel, en)
-		var tc := UI.ACID if is_sel else (UI.BONE if en else Color(0.5, 0.45, 0.5))
+			_sel_rect = r
+		# hard blocks: dark strip, inverted lime when selected
+		draw_rect(Rect2(r.position + Vector2(4, 4), r.size), Color(0, 0, 0, 0.5))
+		draw_rect(r, UI.ACID if is_sel else Color(0.07, 0.03, 0.06, 0.85))
+		if not is_sel:
+			draw_rect(Rect2(r.position, Vector2(4, r.size.y)), Color(0.9, 0.3, 0.45) if en else Color(0.3, 0.25, 0.3))
+		var tc := Color(0.04, 0.02, 0.03) if is_sel else (UI.BONE if en else Color(0.45, 0.4, 0.45))
+		var f := UI.font("anton")
 		var asc := f.get_ascent(fsz)
-		var ty := b.position.y + (b.size.y - f.get_height(fsz)) * 0.5 + asc + 1.0
-		var x0 := b.position.x + 14.0
-		var vt := _value_text(it)
-		var shadow := Color(0, 0, 0, 0.85)
-		draw_string(f, Vector2(x0 + 2, ty + 2), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, shadow)
-		draw_string(f, Vector2(x0, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, tc)
-		if vt != "":
-			if wide:
-				draw_string(f, Vector2(b.position.x + row_w * 0.55, ty), vt, HORIZONTAL_ALIGNMENT_LEFT, row_w * 0.43, fsz, tc)
-			else:
-				draw_string(f, Vector2(x0, ty), vt, HORIZONTAL_ALIGNMENT_RIGHT, b.size.x - 28.0, fsz, tc)
+		var ty := y + (rh - 3 - f.get_height(fsz)) * 0.5 - 1 + asc
+		if wide:
+			draw_string(f, Vector2(r.position.x + 12, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, tc)
+			var vt := _value_text(it)
+			if vt != "":
+				draw_string(f, Vector2(r.position.x + row_w * 0.55, ty), vt, HORIZONTAL_ALIGNMENT_LEFT, row_w * 0.43, fsz, tc)
+		else:
+			var vt2 := _value_text(it)
+			var full := label if vt2 == "" else "%s   %s" % [label, vt2]
+			draw_string(f, Vector2(r.position.x, ty), full, HORIZONTAL_ALIGNMENT_CENTER, row_w, fsz, tc)
 		y += rh
 	if items.size() > scroll + visible_rows:
 		UI.text_centered(self, "term", cx, y, "- MORE -", UI.DIM, 16)
 	elif sel < items.size() and String(items[sel].get("desc", "")) != "":
-		var desc := String(items[sel]["desc"])
-		var dw := UI.text_width("term", desc, 16)
-		draw_rect(Rect2(cx - dw * 0.5 - 6, y + 3, dw + 12, 18), Color(0, 0, 0, 0.75))
-		UI.text_centered(self, "term", cx, y + 4, desc, UI.BONE, 16)
+		UI.text_centered(self, "term", cx, y + 4, String(items[sel]["desc"]), UI.BONE, 16)
 
 
-## The trout cursor: nosing at the end of the chosen button.
+## The trout cursor: nosing at the right-hand edge of the choice.
 func _draw_fish() -> void:
 	if not trout or _sel_rect.size.x <= 0.0 or _fish == null or waiting_bind != "":
 		return
-	var h := clampf(_sel_rect.size.y * 1.15, 22.0, 40.0)
+	var h := clampf(_sel_rect.size.y * 0.3, 16.0, 26.0) if _is_tiles() else clampf(_sel_rect.size.y * 1.1, 18.0, 30.0)
 	var w := h * _fish.get_width() / _fish.get_height()
-	var nib := sin(_sel_t * 9.0) * 2.5
-	var c := Vector2(_sel_rect.end.x + w * 0.5 - 4.0 + nib, _sel_rect.get_center().y + sin(_sel_t * 2.3) * 1.5)
-	# the photo's fish faces left, toward the strip
+	var nib := sin(_sel_t * 9.0) * 2.0
+	var c := Vector2(_sel_rect.end.x + w * 0.5 - 6.0 + nib, _sel_rect.get_center().y + sin(_sel_t * 2.3) * 1.5)
+	# the photo's fish faces left, toward the choice
 	_fx.draw_set_transform(c, sin(_sel_t * 4.0) * 0.05, Vector2.ONE)
 	_fx.draw_texture_rect(_fish, Rect2(-w * 0.5, -h * 0.5, w, h), false)
 	_fx.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

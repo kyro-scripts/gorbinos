@@ -10,8 +10,7 @@ var level: Level
 var player: Player
 var hud: HUD
 var menu: MenuView
-var menu_bg: Control
-var menu_layer: PixelLayer
+var menu_bg: ColorRect
 var paused := false
 var dead_t := -1.0
 var death_menu_shown := false
@@ -66,19 +65,18 @@ func _ready() -> void:
 	hud.level = level
 	hud.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(hud)
-	menu_layer = PixelLayer.new()
-	menu_layer.process_mode = Node.PROCESS_MODE_ALWAYS
-	menu_layer.visible = false
-	add_child(menu_layer)
-	menu_bg = MenuBackdrop.new()
+	menu_bg = ColorRect.new()
+	menu_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	menu_bg.color = Color(0.02, 0.0, 0.03, 0.78)
 	menu_bg.visible = false
-	menu_layer.add(menu_bg)
+	menu_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(menu_bg)
 	menu = MenuView.new()
 	menu.visible = false
 	menu.allow_empty_back = true
 	menu.trout = true
 	menu.emptied.connect(_resume)
-	menu_layer.add(menu)
+	add_child(menu)
 	_death_stamp = load("res://assets/ui/death.png")
 	var dr := Dread.new()
 	dr.world = self
@@ -292,8 +290,8 @@ func _debug_peek(p: Vector3) -> void:
 	get_tree().quit()
 
 
-## Debug: drive the pause menu with real key and mouse events, through the
-## menus' own little viewport, and check it does what it should.
+## Debug: drive the pause menu with real key and mouse events and check it
+## does what it should.
 func _debug_pausetest() -> void:
 	await get_tree().create_timer(1.0).timeout
 	var ok := true
@@ -309,8 +307,8 @@ func _debug_pausetest() -> void:
 	open_pause()
 	for f in 3:
 		await get_tree().process_frame
-	await key.call(KEY_DOWN)
-	print("[pausetest] down -> sel %d (want 1)" % menu.sel)
+	await key.call(KEY_RIGHT)
+	print("[pausetest] right -> sel %d (want 1)" % menu.sel)
 	ok = ok and menu.sel == 1
 	await key.call(KEY_ENTER)
 	print("[pausetest] enter -> page %s (want SAVE)" % String(menu.page().get("title", "")))
@@ -318,10 +316,10 @@ func _debug_pausetest() -> void:
 	await key.call(KEY_ESCAPE)
 	print("[pausetest] esc -> page %s, paused %s (want PAUSED, true)" % [String(menu.page().get("title", "")), paused])
 	ok = ok and paused and String(menu.page().get("title", "")) == "PAUSED"
-	# hover the mouse over the fourth button
+	# hover the mouse over the fourth tile
 	var r: Rect2 = menu._rows[3][0]
 	var mm := InputEventMouseMotion.new()
-	mm.position = get_tree().root.get_final_transform() * (menu_layer.get_global_transform() * r.get_center())
+	mm.position = get_tree().root.get_final_transform() * (menu.get_global_transform() * r.get_center())
 	mm.global_position = mm.position
 	Input.parse_input_event(mm)
 	for f in 3:
@@ -704,7 +702,6 @@ func open_pause() -> void:
 	menu.stack.clear()
 	menu.visible = true
 	menu_bg.visible = true
-	menu_layer.visible = true
 	menu.push(_pause_page())
 	Audio.play("menu_select", -6.0)
 
@@ -733,7 +730,6 @@ func _unpause() -> void:
 	get_tree().paused = false
 	menu.visible = false
 	menu_bg.visible = false
-	menu_layer.visible = false
 	menu.stack.clear()
 
 
@@ -747,7 +743,6 @@ func _show_death_menu() -> void:
 	_capture(false)
 	menu.stack.clear()
 	menu.visible = true
-	menu_layer.visible = true
 	menu.allow_empty_back = false
 	var latest = Game.latest_save()
 	menu.top_y = 180.0
