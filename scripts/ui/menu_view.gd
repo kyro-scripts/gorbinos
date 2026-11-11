@@ -1,8 +1,9 @@
 class_name MenuView
 extends Control
-## Stacked menu: every option is a torn strip of paper with the words on
-## it, the chosen one lit up and pulled out. Sliders / toggles / choices /
-## key binding rows.
+## Stacked menu: every option is a puffy, glossy slab of fish skin, dark
+## until it's chosen, when it lights up into bright shimmering trout skin
+## and slides out (in the game's pause and death menus a photo-real trout
+## nibbles at it). Sliders / toggles / choices / key binding rows.
 
 signal emptied
 
@@ -18,6 +19,10 @@ var show_title := true
 var center_offset := 0.0
 var left_x := -1.0              # >= 0: strips line up on the left at this x, not centred
 var _rows: Array = []            # [rect, item_index]
+var trout := false               # a trout cursor nibbling at the chosen strip
+var _fx: Control
+var _fish: Texture2D
+var _skin: Texture2D
 var _sel_rect := Rect2()
 var _sel_t := 0.0
 var _flash := ""
@@ -29,6 +34,15 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	_skin = load("res://assets/ui/fish_tile.png")
+	_fish = load("res://assets/sprites/hr_fish.png")
+	_fx = Control.new()
+	_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	add_child(_fx)
+	_fx.draw.connect(_draw_fish)
 
 
 func page() -> Dictionary:
@@ -111,6 +125,7 @@ func _process(delta: float) -> void:
 	if _flash_t > 0.0:
 		_flash_t -= delta
 	queue_redraw()
+	_fx.queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
@@ -331,25 +346,45 @@ static func heading(ci: CanvasItem, cx: float, y: float, s: String, sz: int, lef
 	ci.draw_string(f, Vector2(x, base), s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(0.86, 0.92, 0.86))
 
 
-## A torn strip of paper: straight along the top and bottom, ragged at the
-## ends where it was ripped off the roll.
-func _strip_points(r: Rect2, k: int) -> PackedVector2Array:
-	var h := hash(k * 7919 + 101)
-	var pts := PackedVector2Array([r.position, Vector2(r.end.x, r.position.y)])
-	for i in range(1, 4):
-		pts.append(Vector2(r.end.x + float((h >> (i * 3)) % 5) - 2.0, r.position.y + r.size.y * i / 4.0))
-	pts.append(r.end)
-	pts.append(Vector2(r.position.x, r.end.y))
-	for i in range(3, 0, -1):
-		pts.append(Vector2(r.position.x + float((h >> (i * 3 + 11)) % 5) - 2.0, r.position.y + r.size.y * i / 4.0))
+## A rounded rectangle as a polygon.
+func _rounded(r: Rect2, rad: float) -> PackedVector2Array:
+	rad = minf(rad, minf(r.size.x, r.size.y) * 0.5)
+	var pts := PackedVector2Array()
+	var cs := [Vector2(r.end.x - rad, r.position.y + rad), Vector2(r.end.x - rad, r.end.y - rad),
+		Vector2(r.position.x + rad, r.end.y - rad), Vector2(r.position.x + rad, r.position.y + rad)]
+	for q in 4:
+		for i in 5:
+			var a := (-PI * 0.5) + (q + i / 4.0) * PI * 0.5
+			pts.append(cs[q] + Vector2(cos(a), sin(a)) * rad)
 	return pts
+
+
+## One button: a dark rim, a soft shadow, a slab of fish skin and a wet
+## shine along its top.
+func _draw_button(r: Rect2, is_sel: bool, en: bool) -> void:
+	var rad := minf(10.0, r.size.y * 0.42)
+	draw_colored_polygon(_rounded(Rect2(r.position + Vector2(3, 4), r.size), rad), Color(0, 0, 0, 0.5))
+	draw_colored_polygon(_rounded(r.grow(2.0), rad + 2.0), Color(0.03, 0.01, 0.05))
+	var pts := _rounded(r, rad)
+	var uvs := PackedVector2Array()
+	var drift := Vector2(_sel_t * 6.0, _sel_t * 2.0) if is_sel else Vector2.ZERO
+	for p in pts:
+		uvs.append((p + drift) / 128.0)
+	var mod := Color(0.36, 0.27, 0.42)
+	if is_sel:
+		mod = Color.from_hsv(fmod(anim_t * 0.25, 1.0), 0.18, 1.12)
+	elif not en:
+		mod = Color(0.22, 0.18, 0.25, 0.7)
+	draw_colored_polygon(pts, mod, uvs, _skin)
+	var gloss := Rect2(r.position + Vector2(rad * 0.6, 2.0), Vector2(r.size.x - rad * 1.2, r.size.y * 0.38))
+	draw_colored_polygon(_rounded(gloss, rad * 0.7), Color(1, 1, 1, 0.2 if is_sel else 0.1))
 
 
 func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> void:
 	var items := _items()
 	var wide: bool = p.get("wide", false)
 	var small: bool = p.get("small", false)
-	var fsz := 26 if big else (16 if small else 20)
+	var fsz := 21 if big else (13 if small else 16)
 	var rh := 36.0 if big else (23.0 if small else 30.0)
 	var visible_rows := int((size.y - y - 34) / rh)
 	if sel < scroll:
@@ -359,7 +394,7 @@ func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> 
 	scroll = clampi(scroll, 0, maxi(0, items.size() - visible_rows))
 	if scroll > 0:
 		UI.text_centered(self, "term", cx, y - 18, "- MORE -", UI.DIM, 16)
-	var f := UI.font("anton")
+	var f := UI.font("bungee")
 	for k in range(scroll, mini(items.size(), scroll + visible_rows)):
 		var it: Dictionary = items[k]
 		var en := _selectable(it)
@@ -372,40 +407,27 @@ func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> 
 				y += 16
 			y += 4
 			continue
-		var r := Rect2(cx - row_w * 0.5, y, row_w, rh - 5)
+		var r := Rect2(cx - row_w * 0.5, y, row_w, rh - 6)
 		_rows.append([r, k])
-		# each strip sits a little crooked; the chosen one straightens and slides out
-		var hk := hash(k * 31 + 7)
-		var rot := (float(hk % 100) / 100.0 - 0.5) * (0.018 if small or wide else 0.045)
-		var slide := 0.0
+		# the chosen one slides out
+		var b := r
 		if is_sel:
-			rot = sin(_sel_t * 3.0) * 0.012
-			slide = 12.0 * minf(_sel_t * 8.0, 1.0)
-			_sel_rect = Rect2(r.position + Vector2(slide, 0), r.size)
-		var c := r.get_center() + Vector2(slide, 0)
-		var local := Rect2(-r.size * 0.5, r.size)
-		var pts := _strip_points(local, k)
-		draw_set_transform(c + Vector2(3, 4), rot, Vector2.ONE)
-		draw_colored_polygon(pts, SHADOW)
-		draw_set_transform(c, rot, Vector2.ONE)
-		var col := PAPER
-		if is_sel:
-			col = UI.ACID
-		elif not en:
-			col = Color(PAPER, 0.35)
-		draw_colored_polygon(pts, col)
-		var tc := INK if en else Color(0.25, 0.2, 0.25)
+			b.position.x += 10.0 * minf(_sel_t * 8.0, 1.0)
+			_sel_rect = b
+		_draw_button(b, is_sel, en)
+		var tc := INK if is_sel else (PAPER if en else Color(0.5, 0.45, 0.5))
 		var asc := f.get_ascent(fsz)
-		var ty := local.position.y + (local.size.y - f.get_height(fsz)) * 0.5 + asc
-		var x0 := local.position.x + 12.0
+		var ty := b.position.y + (b.size.y - f.get_height(fsz)) * 0.5 + asc + 1.0
+		var x0 := b.position.x + 14.0
 		var vt := _value_text(it)
+		var shadow := Color(0, 0, 0, 0.0 if is_sel else 0.7)
+		draw_string(f, Vector2(x0 + 1, ty + 1), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, shadow)
 		draw_string(f, Vector2(x0, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, tc)
 		if vt != "":
 			if wide:
-				draw_string(f, Vector2(local.position.x + row_w * 0.55, ty), vt, HORIZONTAL_ALIGNMENT_LEFT, row_w * 0.43, fsz, tc)
+				draw_string(f, Vector2(b.position.x + row_w * 0.55, ty), vt, HORIZONTAL_ALIGNMENT_LEFT, row_w * 0.43, fsz, tc)
 			else:
-				draw_string(f, Vector2(x0, ty), vt, HORIZONTAL_ALIGNMENT_RIGHT, local.size.x - 24.0, fsz, tc)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				draw_string(f, Vector2(x0, ty), vt, HORIZONTAL_ALIGNMENT_RIGHT, b.size.x - 28.0, fsz, tc)
 		y += rh
 	if items.size() > scroll + visible_rows:
 		UI.text_centered(self, "term", cx, y, "- MORE -", UI.DIM, 16)
@@ -414,6 +436,20 @@ func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> 
 		var dw := UI.text_width("term", desc, 16)
 		draw_rect(Rect2(cx - dw * 0.5 - 6, y + 3, dw + 12, 18), Color(0, 0, 0, 0.6))
 		UI.text_centered(self, "term", cx, y + 4, desc, UI.BONE, 16)
+
+
+## The trout cursor: nosing at the end of the chosen button.
+func _draw_fish() -> void:
+	if not trout or _sel_rect.size.x <= 0.0 or _fish == null or waiting_bind != "":
+		return
+	var h := clampf(_sel_rect.size.y * 1.15, 22.0, 40.0)
+	var w := h * _fish.get_width() / _fish.get_height()
+	var nib := sin(_sel_t * 9.0) * 2.5
+	var c := Vector2(_sel_rect.end.x + w * 0.5 - 4.0 + nib, _sel_rect.get_center().y + sin(_sel_t * 2.3) * 1.5)
+	# the photo's fish faces left, toward the strip
+	_fx.draw_set_transform(c, sin(_sel_t * 4.0) * 0.05, Vector2.ONE)
+	_fx.draw_texture_rect(_fish, Rect2(-w * 0.5, -h * 0.5, w, h), false)
+	_fx.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 # ------------------------------------------------------------------ shared pages

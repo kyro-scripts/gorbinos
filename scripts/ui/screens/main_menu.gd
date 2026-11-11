@@ -1,9 +1,14 @@
 extends Control
-## Title screen: murky deep water, the name made of trout skin, the options
-## on torn paper strips, and a turntable
-## with a Gorbino, a Snirby and a snotling.
+## Title screen: a tile in the style of THE GORB PIT (purple flesh, lime
+## streaks, staring eyes) scrolling behind everything, the name made of
+## trout skin, fish-skin buttons, and a turntable with a Gorbino, a Snirby
+## and a snotling.
 
-var backdrop: MenuBackdrop
+const BG_SCALE := 2.0            # screen units per texel of the background tile
+const BG_SPEED := Vector2(14.0, 9.0)
+
+var bg: Texture2D
+var bg_layer: Control
 var title: Control
 var title_tex: Texture2D
 var menu: MenuView
@@ -18,8 +23,14 @@ var preview: TextureRect
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	backdrop = MenuBackdrop.new()
-	add_child(backdrop)
+	bg = load("res://assets/ui/menu_pit.png")
+	bg_layer = Control.new()
+	bg_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg_layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	bg_layer.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(bg_layer)
+	bg_layer.draw.connect(_draw_bg)
 	_build_stage()
 	title_tex = load("res://assets/ui/title_fish.png")
 	title = Control.new()
@@ -123,7 +134,23 @@ func _process(delta: float) -> void:
 	var side := minf(size.y * 0.7, size.x * 0.42)
 	preview.position = Vector2(size.x - side - 6, size.y - side - 10)
 	preview.size = Vector2(side, side)
+	bg_layer.queue_redraw()
 	title.queue_redraw()
+
+
+## The Gorb Pit tile, scrolling down and to the right, darkened toward the
+## left where the buttons are so they stay easy to read.
+func _draw_bg() -> void:
+	var off := Vector2(fmod(t * BG_SPEED.x, bg.get_width() * BG_SCALE), fmod(t * BG_SPEED.y, bg.get_height() * BG_SCALE))
+	bg_layer.draw_texture_rect_region(bg, Rect2(Vector2.ZERO, size), Rect2(-off / BG_SCALE, size / BG_SCALE))
+	var w := size.x
+	var h := size.y
+	var dark := Color(0.02, 0.0, 0.04, 0.55)
+	var clear := Color(0.02, 0.0, 0.04, 0.12)
+	bg_layer.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(w, 0), Vector2(w, h), Vector2(0, h)]),
+		PackedColorArray([dark, clear, clear, dark]))
+	for k in 6:
+		bg_layer.draw_rect(Rect2(Vector2.ZERO, size).grow(-k * 12), Color(0, 0, 0, 0.12 * (6 - k) / 6.0), false, 12.0)
 
 
 ## The name, made of trout skin; it shrinks away up the corner once you're

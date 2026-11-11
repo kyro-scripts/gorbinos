@@ -65,14 +65,13 @@ func _ready() -> void:
 	hud.level = level
 	hud.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(hud)
-	var mb := MenuBackdrop.new()
-	mb.opaque = false
-	menu_bg = mb
+	menu_bg = MenuBackdrop.new()
 	menu_bg.visible = false
 	add_child(menu_bg)
 	menu = MenuView.new()
 	menu.visible = false
 	menu.allow_empty_back = true
+	menu.trout = true
 	menu.emptied.connect(_resume)
 	add_child(menu)
 	_death_stamp = load("res://assets/ui/death.png")
