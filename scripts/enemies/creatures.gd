@@ -232,7 +232,9 @@ static func snirby_beak_mesh(length := 1.05, radius := 0.2, flat := 0.85, segs :
 		var a0 := float(j) / segs * TAU
 		var a1 := float(j + 1) / segs * TAU
 		var tri := [[a0, 0.0], [a1, 0.0], [(a0 + a1) * 0.5, 1.0]]
-		for k in [0, 2, 1]:
+		# wound so the outside faces out: the paper border (drawn from the
+		# back faces of a fattened copy) then sits round the beak, not on it
+		for k in [0, 1, 2]:
 			var a: float = tri[k][0]
 			var t: float = tri[k][1]
 			var ring := Vector3(cos(a) * radius, sin(a) * radius * flat, 0.0)

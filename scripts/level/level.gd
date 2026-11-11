@@ -58,6 +58,7 @@ var pickups: Array = []
 var fog_params := Vector4.ZERO      # as sent to the shaders (Dread dims the light boost)
 var barrels: Array = []
 var props: Array = []
+var hyper_walls: Node3D = null
 var checkpoints: Array = []
 var teleports := {}                   # cell index -> destination Vector3 + yaw
 var tele_dst := {}
@@ -611,6 +612,7 @@ func _spawn_entities() -> void:
 		if tele_dst.has(key):
 			teleports[i] = tele_dst[key]
 	_spawn_extras()
+	hyper_walls = Hyper.paste_walls(self)
 
 
 ## Things added after the maps were drawn, without touching the maps: the

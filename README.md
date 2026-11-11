@@ -19,6 +19,7 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 | ![Locals](docs/screenshots/locals.png) | ![Collage look](docs/screenshots/collage.png) |
 | ![Tentacle whip](docs/screenshots/whip.png) | ![Flamethrower](docs/screenshots/flamethrower.png) |
 | ![Frenzy](docs/screenshots/frenzy.png) | ![Endless](docs/screenshots/endless.png) |
+| ![Hyperreal](docs/screenshots/hyperreal.png) | ![Health card](docs/screenshots/health_card.png) |
 
 ## Playing it
 
@@ -50,11 +51,13 @@ Doors also open when you walk into them, except locked doors (find the keycard) 
 
 ### The look
 
-Gorbino's Quest is drawn like something cut out of a cheap magazine and pasted together, in the spirit of FISH and Cruelty Squad. The picture comes out like bad print: the colour plates don't quite line up and twitch a few times a second, the shadows are halftone dots, the highlights go to cream paper, ink lines run where colours break, and the colours are pushed hard. Creatures, pickups, your gun and your knife arm are snipped out with white paper borders that boil slightly, so things pop off the background. Kills slap a ransom-note sticker over the action (SPLORT!, GORB!, BLAMMO, BYE BYE...), explosions get cut-out bursts, and the big words on screen are ransom-note letters cut from a dozen magazines. All of it can be switched off with **COLLAGE FX** in OPTIONS > VIDEO.
+Gorbino's Quest is drawn like something cut out of a cheap magazine and pasted together, in the spirit of FISH and Cruelty Squad. The picture comes out like bad print: the colour plates don't quite line up and twitch a few times a second, the shadows are halftone dots, the highlights go to cream paper, ink lines run where colours break, and the colours are pushed hard. Creatures, pickups, your gun and your knife arm are snipped out with white paper borders that boil slightly, so things pop off the background. Kills slap a ransom-note sticker over the action (SPLORT!, GORB!, BLAMMO, BYE BYE...), explosions get cut-out bursts, and the big words on screen are ransom-note letters cut from a dozen magazines.
+
+And some things are **hyperreal**: photo-real bits snipped out and pasted onto the cartoon world. Now and then a Gorbino, Snirby or snotling (and plenty of the locals) turns up wearing human eyes, lips or a nose. The eyes follow you and blink, go wide when they're hurt and roll back when they die; the lips grin, scream when they attack and flap when a local talks. A few walls in every level have a giant eye that watches you go by, a mouth that opens as you come near, or a fish. Gibs include real teeth and eyeballs, and some kill stickers are a photo of a steak, a tooth or a screaming mouth. All of it can be switched off with **COLLAGE FX** in OPTIONS > VIDEO.
 
 ### Frenzy and the slide
 
-Kills fill a frenzy meter under the jar; kills in quick succession fill it faster. When it's full you go into a **FRENZY** for eight seconds: the colours cycle and strobe, the plates fly apart, the music speeds up, you move faster and every gun fires faster, and a gurgling announcer shouts things like MEAT PARADE! and BLORPOCALYPSE!. Kills during a frenzy keep it going.
+Kills fill a frenzy meter under the health card; kills in quick succession fill it faster. When it's full you go into a **FRENZY** for eight seconds: the colours cycle and strobe, the plates fly apart, the music speeds up, you move faster and every gun fires faster, and a gurgling announcer shouts things like MEAT PARADE! and BLORPOCALYPSE!. Kills during a frenzy keep it going.
 
 Press **C** while running to slide: you drop low and shoot along the floor, steering a little, and anything you slide into gets kicked off its feet. Jump out of a slide to keep the speed.
 
@@ -73,7 +76,7 @@ Press **C** while running to slide: you drop low and shoot along the floor, stee
 
 Each level has its own palette, architecture, music track and ambience, plus 3 secrets, keycards, monster-closet ambushes and checkpoints. The music changes genre from level to level: a music-box waltz in the village, industrial techno in the complex, a dark drone in the mines, bossa nova at headquarters, acid techno in the facility, jungle in the Snirby Dimension, and metal for the boss.
 
-Your health is the specimen jar in the top-left corner. The fluid drains and turns from green to amber to red as you take damage.
+Your health is the card taped to the top-left corner: a photo of your eye, your HP in cut-out letters, and a strip of raw meat that tears shorter as you take damage. The eye flinches and looks toward whatever just hit you, blinks, glances about, goes bloodshot and puffy as you weaken, can barely stay open and weeps blood when you're nearly dead, and rolls back when you die. Armor is a strip of fish skin on a scrap of paper underneath.
 
 Ammo pickups are proper objects: trays of brass cartridges, olive ammo cans with a belt hanging off, red shotgun shells on brass heads, finned rockets on a crate, batteries with a glowing band. The HUD shows the ammo of the weapon you're holding.
 
@@ -147,7 +150,8 @@ scripts/
                  and animation), models.gd (weapons/pickups), projectile.gd,
                  civilian.gd (the locals and what they say)
   fx/collage.gd  the cut-out look: paper borders, stickers; tentacle.gd (the whip),
-                 flame_bit.gd (the flamethrower's fire)
+                 flame_bit.gd (the flamethrower's fire); hyper.gd and hyper_face.gd
+                 (the hyperreal eyes, lips and noses, wall pastes, photo gibs)
   fx/            explosions, blood, gibs, decals, dynamic lights, pickups, barrels, props,
                  gut_rope.gd (spilling intestines)
   game/          game_world.gd (the running level, HUD, pause), dread.gd (the creepy stuff),
@@ -157,7 +161,8 @@ scripts/
   test/          headless test runner + autopilot bot
   tools/         import_gorbino.gd: splits the supplied Gorbino model into body + feet
 shaders/         world (sector light + fog + dynamic lights), post (print/collage look,
-                 frenzy, dither), outline (paper cut-out borders), sky
+                 frenzy, dither), outline (paper cut-out borders), hyperreal (lit photo
+                 cut-outs), sky
 tools/           asset generators (textures, sprites, fonts, SFX, music) + level kit
 ```
 
@@ -175,10 +180,11 @@ python3 tools/gen_music.py      # 10 music tracks (needs ffmpeg with libvorbis);
 python3 tools/gen_creatures.py  # Snotling skin, eyes and mouths; the Gorbino's attack maw
 python3 tools/import_user_models.py  # supplied Gorbino texture -> 6 colour variants, Snirby face
 godot --headless --path . -s scripts/tools/import_gorbino.gd  # supplied Gorbino mesh -> body + feet
-python3 tools/gen_clay.py       # "pre-rendered clay" UI: health jar, DEATH, menu tiles, logo, cursor, icon
+python3 tools/gen_clay.py       # "pre-rendered clay" UI: DEATH, menu tiles, logo, cursor, icon
 python3 tools/import_user_audio.py  # weapon sounds, voice lines, enemy shot (idk.wav) from tools/user_audio/
 python3 tools/gen_gore.py       # wound, guts and butterfly-knife textures
 python3 tools/gen_collage.py    # ransom-note stickers and cut-out bursts
+python3 tools/gen_hyperreal.py  # photo-real eyes, lips, nose, eyeball, tooth, fish, steak; the HUD's meat and fish-skin strips
 python3 tools/gen_audio_extra.py  # knife, gore, heartbeat and dread sounds
 python3 tools/levels/level1_village.py   # ...and so on for each level
 ```
@@ -202,6 +208,9 @@ godot --path . -- --level=4 --civshot                       # go and listen to t
 godot --path . -- --level=1 --whiptest=green                # whip a creature in and gut it
 godot --path . -- --level=1 --flametest                     # set three Gorbinos on fire
 godot --path . -- --level=1 --frenzy                        # start in a frenzy
+godot --path . -- --level=1 --lineup --hyperall --lineup-near=0.5   # every creature in a photo face
+godot --path . -- --level=1 --hyperwalls                    # visit each photo pasted on the walls
+godot --path . -- --level=2 --hp=22 --armor=60              # start hurt (see the health card suffer)
 godot --path . -- --endless                                 # straight into ENDLESS
 godot --headless --fixed-fps 120 --path . -- --autoplay --endless   # the bot plays ENDLESS
 ```

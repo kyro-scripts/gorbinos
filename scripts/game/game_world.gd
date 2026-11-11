@@ -146,6 +146,13 @@ func _ready() -> void:
 			_debug_flametest()
 		elif a.begins_with("--whiptest"):
 			_debug_whiptest(a.substr(11) if a.length() > 11 else "green")
+		elif a.begins_with("--hp="):
+			player.health = int(a.substr(5))
+		elif a.begins_with("--armor="):
+			player.armor = int(a.substr(8))
+			player.armor_type = 1
+		elif a == "--hyperwalls":
+			_debug_hyperwalls()
 		elif a.begins_with("--peek="):
 			var xz := a.substr(7).split(",")
 			_debug_peek(Vector3(float(xz[0]), 0, float(xz[1])))
@@ -273,6 +280,31 @@ func _debug_peek(p: Vector3) -> void:
 		await get_tree().create_timer(0.4).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("user://shots/peek_%d.png" % k)
+	get_tree().quit()
+
+
+## Debug: walk up to each photo pasted on the walls and screenshot it.
+func _debug_hyperwalls() -> void:
+	Game.cheats["god"] = true
+	for e in level.enemies:
+		e.set_physics_process(false)
+		e.visible = false
+	hud.center("", 0.0)
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	var k := 0
+	for c in level.hyper_walls.get_children():
+		var q: Node3D = c.get_child(0) if c is HyperFace else c
+		var n: Vector3 = q.global_basis.z.normalized()
+		var p: Vector3 = q.global_position + Vector3(n.x, 0, n.z).normalized() * 3.2
+		p.y = level.floor_at(p)
+		player.teleport_to(p)
+		player.yaw = atan2(n.x, n.z)
+		player.pitch = 0.05
+		print("[hyperwalls] ", k, " ", q.global_position)
+		await get_tree().create_timer(0.5).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("user://shots/hwall_%d.png" % k)
+		k += 1
 	get_tree().quit()
 
 
@@ -443,10 +475,13 @@ func _debug_lineup() -> void:
 	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
 	var right := Vector3(cos(yaw), 0, -sin(yaw))
 	var turn := 0.0
+	var near := 1.0
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--lineup-turn="):
 			turn = float(a.substr(14))
-	var rows := [[4.6, 1.5, ["snotling", "green", "snirby", "yellow", "red"]], [8.0, 2.4, ["blue", "skysnirby", "black", "purple"]]]
+		if a.begins_with("--lineup-near="):
+			near = float(a.substr(14))
+	var rows := [[4.6 * near, 1.5, ["snotling", "green", "snirby", "yellow", "red"]], [8.0, 2.4, ["blue", "skysnirby", "black", "purple"]]]
 	for row in rows:
 		var names: Array = row[2]
 		for i in names.size():
@@ -486,6 +521,13 @@ func _apply_settings() -> void:
 		for e in level.enemies:
 			if is_instance_valid(e) and e.model:
 				Collage.outline(e.model)
+			if is_instance_valid(e) and e.hyper_face:
+				e.hyper_face.visible = Collage.enabled()
+		for c in level.civilians:
+			if is_instance_valid(c) and c.hyper_face:
+				c.hyper_face.visible = Collage.enabled()
+		if level.hyper_walls:
+			level.hyper_walls.visible = Collage.enabled()
 		for p in level.pickups:
 			if is_instance_valid(p) and p.model:
 				Collage.outline(p.model)
