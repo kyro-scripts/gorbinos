@@ -1,7 +1,9 @@
 class_name MenuView
 extends Control
-## Old-school stacked menu: big bitmap font items, a blinking Gorbino head
-## as the cursor, sliders / toggles / choices / key binding rows.
+## Stacked menu, cut and pasted: every option is a torn strip of paper with
+## the words on it, the chosen one lit up and pulled out, with a photo-real
+## trout nibbling at it. Title in ransom-note letters. Sliders / toggles /
+## choices / key binding rows.
 
 signal emptied
 
@@ -15,7 +17,12 @@ var top_y := 70.0
 var allow_empty_back := true
 var show_title := true
 var center_offset := 0.0
+var left_x := -1.0              # >= 0: strips line up on the left at this x, not centred
 var _rows: Array = []            # [rect, item_index]
+var _fx: Control                 # the trout, drawn smooth on top
+var _fish: Texture2D
+var _sel_rect := Rect2()
+var _sel_t := 0.0
 var _flash := ""
 var _flash_t := 0.0
 
@@ -25,6 +32,13 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
+	_fish = load("res://assets/sprites/hr_fish.png")
+	_fx = Control.new()
+	_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fx.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	add_child(_fx)
+	_fx.draw.connect(_draw_fish)
 
 
 func page() -> Dictionary:
@@ -34,6 +48,7 @@ func page() -> Dictionary:
 func push(p: Dictionary) -> void:
 	stack.append(p)
 	sel = 0
+	_sel_t = 0.0
 	scroll = 0
 	_skip_disabled(1)
 	queue_redraw()
@@ -95,15 +110,18 @@ func _move(dir: int) -> void:
 		sel = (sel + dir + items.size()) % items.size()
 		if _selectable(items[sel]):
 			break
+	_sel_t = 0.0
 	Audio.play("menu_move", -6.0)
 	queue_redraw()
 
 
 func _process(delta: float) -> void:
 	anim_t += delta
+	_sel_t += delta
 	if _flash_t > 0.0:
 		_flash_t -= delta
 	queue_redraw()
+	_fx.queue_redraw()
 
 
 func _input(event: InputEvent) -> void:
@@ -129,19 +147,13 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_UP, KEY_W:
-				_move(-_tile_cols() if _is_tiles() else -1)
+				_move(-1)
 			KEY_DOWN, KEY_S:
-				_move(_tile_cols() if _is_tiles() else 1)
+				_move(1)
 			KEY_LEFT, KEY_A:
-				if _is_tiles():
-					_move(-1)
-				else:
-					_adjust(-1)
+				_adjust(-1)
 			KEY_RIGHT, KEY_D:
-				if _is_tiles():
-					_move(1)
-				else:
-					_adjust(1)
+				_adjust(1)
 			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
 				if not event.echo:
 					_activate()
@@ -159,6 +171,7 @@ func _input(event: InputEvent) -> void:
 		var idx := _row_at(event.position)
 		if idx >= 0 and idx != sel and _selectable(_items()[idx]):
 			sel = idx
+			_sel_t = 0.0
 			Audio.play("menu_move", -10.0)
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -286,104 +299,72 @@ func _value_text(it: Dictionary) -> String:
 	return ""
 
 
-const TILE := 92.0
-const TILE_GAP := 12.0
-var _tex_cache := {}
-
-
-func _tex(n: String) -> Texture2D:
-	if not _tex_cache.has(n):
-		var p := "res://assets/ui/%s.png" % n
-		_tex_cache[n] = load(p) if ResourceLoader.exists(p) else null
-	return _tex_cache[n]
-
-
-func _is_tiles() -> bool:
-	return page().get("tiles", false)
-
-
-func _tile_cols() -> int:
-	return int(page().get("cols", 4))
+const PAPER := Color(0.96, 0.94, 0.86)
+const INK := Color(0.08, 0.03, 0.08)
+const SHADOW := Color(0.08, 0.0, 0.1, 0.6)
 
 
 func _draw() -> void:
 	_rows.clear()
+	_sel_rect = Rect2()
 	if stack.is_empty():
 		return
 	var p := page()
-	var cx := size.x * 0.5 + (0.0 if p.get("wide", false) else center_offset)
+	var big: bool = p.get("tiles", false)
+	var wide: bool = p.get("wide", false)
+	var row_w := 520.0 if wide else (250.0 if big else 300.0)
+	var cx := size.x * 0.5 + (0.0 if wide else center_offset)
+	if left_x >= 0.0 and not wide:
+		cx = left_x + row_w * 0.5
 	var y := top_y
 	if show_title and p.has("title") and String(p["title"]) != "":
-		UI.text_centered(self, "big", cx, y - 56, String(p["title"]), Color.WHITE)
-	if _is_tiles():
-		_draw_tiles(cx, y)
-	else:
-		_draw_list(p, cx, y)
+		var title := String(p["title"])
+		if Collage.enabled():
+			UI.ransom(self, cx, y - 56, title, 30.0)
+		else:
+			UI.text_centered(self, "big", cx, y - 56, title, Color.WHITE)
+	_draw_list(p, cx, y, row_w, big)
 	if p.has("footer"):
+		# a strip of masking tape along the bottom
 		var fw := UI.text_width("term", String(p["footer"]), 16)
-		draw_rect(Rect2(cx - fw * 0.5 - 6, size.y - 26, fw + 12, 18), Color(0, 0, 0, 0.75))
-		UI.text_centered(self, "term", cx, size.y - 26, String(p["footer"]), UI.BONE, 16)
+		var fr := Rect2(cx - fw * 0.5 - 10, size.y - 27, fw + 20, 19)
+		draw_rect(fr, Color(0.93, 0.88, 0.66, 0.92))
+		UI.text_centered(self, "term", cx, size.y - 27, String(p["footer"]), INK, 16)
 	if _flash_t > 0.0:
 		UI.text_centered(self, "menu_hi", cx, size.y - 56, _flash, Color(UI.ACID, clampf(_flash_t, 0, 1)))
 	if waiting_bind != "":
 		UI.text_centered(self, "term", cx, size.y - 44, "PRESS A KEY OR MOUSE BUTTON. ESC TO CANCEL.", UI.ACID, 16)
 
 
-func _draw_tiles(cx: float, y: float) -> void:
-	var items := _items()
-	var cols := mini(_tile_cols(), items.size())
-	var rows := int(ceil(float(items.size()) / cols))
-	var total_w := cols * TILE + (cols - 1) * TILE_GAP
-	for k in items.size():
-		var it: Dictionary = items[k]
-		var r := k / cols
-		var c := k % cols
-		var in_row := mini(cols, items.size() - r * cols)
-		var row_w := in_row * TILE + (in_row - 1) * TILE_GAP
-		var x0 := cx - row_w * 0.5 + c * (TILE + TILE_GAP)
-		var y0 := y + r * (TILE + TILE_GAP)
-		var rect := Rect2(x0, y0, TILE, TILE)
-		_rows.append([rect, k])
-		var en := _selectable(it)
-		var is_sel := k == sel and en
-		var drawn := rect
-		if is_sel:
-			drawn = rect.grow(4.0 + sin(anim_t * 9.0) * 1.5)
-			drawn.position += Vector2(randf_range(-0.6, 0.6), randf_range(-0.6, 0.6))
-		draw_rect(Rect2(drawn.position + Vector2(5, 5), drawn.size), Color(0, 0, 0, 0.6))
-		var t := _tex(String(it.get("icon", "")))
-		var mod := Color(1, 1, 1) if en else Color(0.35, 0.3, 0.35)
-		if t:
-			draw_texture_rect(t, drawn, false, mod)
-		else:
-			draw_rect(drawn, Color(0.2, 0.1, 0.15))
-			UI.text_centered(self, "menu", drawn.get_center().x, drawn.get_center().y - 12, String(it.get("label", "")))
-		if is_sel:
-			draw_rect(drawn, UI.ACID, false, 3.0)
-	# the selected tile's name under the grid
-	if sel < items.size() and _selectable(items[sel]):
-		var lab := String(items[sel].get("label", ""))
-		var ly := y + rows * (TILE + TILE_GAP) + 2
-		UI.text_centered(self, "menu_hi", cx, ly, lab, Color.WHITE, 24)
-		var desc := String(items[sel].get("desc", ""))
-		if desc != "":
-			UI.text_centered(self, "term", cx, ly + 30, desc, UI.BONE, 16)
+## A torn strip of paper: straight along the top and bottom, ragged at the
+## ends where it was ripped off the roll.
+func _strip_points(r: Rect2, k: int) -> PackedVector2Array:
+	var h := hash(k * 7919 + 101)
+	var pts := PackedVector2Array([r.position, Vector2(r.end.x, r.position.y)])
+	for i in range(1, 4):
+		pts.append(Vector2(r.end.x + float((h >> (i * 3)) % 5) - 2.0, r.position.y + r.size.y * i / 4.0))
+	pts.append(r.end)
+	pts.append(Vector2(r.position.x, r.end.y))
+	for i in range(3, 0, -1):
+		pts.append(Vector2(r.position.x + float((h >> (i * 3 + 11)) % 5) - 2.0, r.position.y + r.size.y * i / 4.0))
+	return pts
 
 
-func _draw_list(p: Dictionary, cx: float, y: float) -> void:
+func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> void:
 	var items := _items()
 	var wide: bool = p.get("wide", false)
-	var fsz := 22 if not p.get("small", false) else 18
-	var rh := row_h + 2.0 if not p.get("small", false) else 21.0
+	var small: bool = p.get("small", false)
+	var fsz := 26 if big else (16 if small else 20)
+	var rh := 36.0 if big else (23.0 if small else 30.0)
 	var visible_rows := int((size.y - y - 34) / rh)
 	if sel < scroll:
 		scroll = sel
 	if sel >= scroll + visible_rows:
 		scroll = sel - visible_rows + 1
 	scroll = clampi(scroll, 0, maxi(0, items.size() - visible_rows))
-	var row_w := 520.0 if wide else 300.0
 	if scroll > 0:
 		UI.text_centered(self, "term", cx, y - 18, "- MORE -", UI.DIM, 16)
+	var f := UI.font("anton")
 	for k in range(scroll, mini(items.size(), scroll + visible_rows)):
 		var it: Dictionary = items[k]
 		var en := _selectable(it)
@@ -396,31 +377,62 @@ func _draw_list(p: Dictionary, cx: float, y: float) -> void:
 				y += 16
 			y += 4
 			continue
-		var r := Rect2(cx - row_w * 0.5, y - 1, row_w, rh - 3)
+		var r := Rect2(cx - row_w * 0.5, y, row_w, rh - 5)
 		_rows.append([r, k])
-		# hard blocks: dark strip, inverted lime when selected
-		draw_rect(Rect2(r.position + Vector2(4, 4), r.size), Color(0, 0, 0, 0.5))
-		draw_rect(r, UI.ACID if is_sel else Color(0.07, 0.03, 0.06, 0.85))
-		if not is_sel:
-			draw_rect(Rect2(r.position, Vector2(4, r.size.y)), Color(0.9, 0.3, 0.45) if en else Color(0.3, 0.25, 0.3))
-		var tc := Color(0.04, 0.02, 0.03) if is_sel else (UI.BONE if en else Color(0.45, 0.4, 0.45))
-		var f := UI.font("anton")
+		# each strip sits a little crooked; the chosen one straightens and slides out
+		var hk := hash(k * 31 + 7)
+		var rot := (float(hk % 100) / 100.0 - 0.5) * (0.018 if small or wide else 0.045)
+		var slide := 0.0
+		if is_sel:
+			rot = sin(_sel_t * 3.0) * 0.012
+			slide = 12.0 * minf(_sel_t * 8.0, 1.0)
+			_sel_rect = Rect2(r.position + Vector2(slide, 0), r.size)
+		var c := r.get_center() + Vector2(slide, 0)
+		var local := Rect2(-r.size * 0.5, r.size)
+		var pts := _strip_points(local, k)
+		draw_set_transform(c + Vector2(3, 4), rot, Vector2.ONE)
+		draw_colored_polygon(pts, SHADOW)
+		draw_set_transform(c, rot, Vector2.ONE)
+		var col := PAPER
+		if is_sel:
+			col = UI.ACID
+		elif not en:
+			col = Color(PAPER, 0.35)
+		draw_colored_polygon(pts, col)
+		var tc := INK if en else Color(0.25, 0.2, 0.25)
 		var asc := f.get_ascent(fsz)
-		var ty := y + (rh - 3 - f.get_height(fsz)) * 0.5 - 1 + asc
-		if wide:
-			draw_string(f, Vector2(r.position.x + 12, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, tc)
-			var vt := _value_text(it)
-			if vt != "":
-				draw_string(f, Vector2(r.position.x + row_w * 0.55, ty), vt, HORIZONTAL_ALIGNMENT_LEFT, row_w * 0.43, fsz, tc)
-		else:
-			var vt2 := _value_text(it)
-			var full := label if vt2 == "" else "%s   %s" % [label, vt2]
-			draw_string(f, Vector2(r.position.x, ty), full, HORIZONTAL_ALIGNMENT_CENTER, row_w, fsz, tc)
+		var ty := local.position.y + (local.size.y - f.get_height(fsz)) * 0.5 + asc
+		var x0 := local.position.x + 12.0
+		var vt := _value_text(it)
+		draw_string(f, Vector2(x0, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, tc)
+		if vt != "":
+			if wide:
+				draw_string(f, Vector2(local.position.x + row_w * 0.55, ty), vt, HORIZONTAL_ALIGNMENT_LEFT, row_w * 0.43, fsz, tc)
+			else:
+				draw_string(f, Vector2(x0, ty), vt, HORIZONTAL_ALIGNMENT_RIGHT, local.size.x - 24.0, fsz, tc)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		y += rh
 	if items.size() > scroll + visible_rows:
 		UI.text_centered(self, "term", cx, y, "- MORE -", UI.DIM, 16)
 	elif sel < items.size() and String(items[sel].get("desc", "")) != "":
-		UI.text_centered(self, "term", cx, y + 4, String(items[sel]["desc"]), UI.BONE, 16)
+		var desc := String(items[sel]["desc"])
+		var dw := UI.text_width("term", desc, 16)
+		draw_rect(Rect2(cx - dw * 0.5 - 6, y + 3, dw + 12, 18), Color(0, 0, 0, 0.6))
+		UI.text_centered(self, "term", cx, y + 4, desc, UI.BONE, 16)
+
+
+## The cursor: a trout nosing at the end of the chosen strip.
+func _draw_fish() -> void:
+	if _sel_rect.size.x <= 0.0 or _fish == null or waiting_bind != "":
+		return
+	var h := clampf(_sel_rect.size.y * 1.15, 22.0, 40.0)
+	var w := h * _fish.get_width() / _fish.get_height()
+	var nib := sin(_sel_t * 9.0) * 2.5
+	var c := Vector2(_sel_rect.end.x + w * 0.5 - 4.0 + nib, _sel_rect.get_center().y + sin(_sel_t * 2.3) * 1.5)
+	# the photo's fish faces left, toward the strip
+	_fx.draw_set_transform(c, sin(_sel_t * 4.0) * 0.05, Vector2.ONE)
+	_fx.draw_texture_rect(_fish, Rect2(-w * 0.5, -h * 0.5, w, h), false)
+	_fx.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 # ------------------------------------------------------------------ shared pages

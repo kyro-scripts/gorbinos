@@ -10,7 +10,7 @@ var level: Level
 var player: Player
 var hud: HUD
 var menu: MenuView
-var menu_bg: ColorRect
+var menu_bg: Control
 var paused := false
 var dead_t := -1.0
 var death_menu_shown := false
@@ -65,11 +65,11 @@ func _ready() -> void:
 	hud.level = level
 	hud.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(hud)
-	menu_bg = ColorRect.new()
-	menu_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	menu_bg.color = Color(0.02, 0.0, 0.03, 0.78)
+	var mb := MenuBackdrop.new()
+	mb.opaque = false
+	mb.fish_count = 2
+	menu_bg = mb
 	menu_bg.visible = false
-	menu_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(menu_bg)
 	menu = MenuView.new()
 	menu.visible = false
@@ -151,6 +151,10 @@ func _ready() -> void:
 		elif a.begins_with("--armor="):
 			player.armor = int(a.substr(8))
 			player.armor_type = 1
+		elif a == "--die":
+			get_tree().create_timer(1.0).timeout.connect(func(): player.take_damage(999.0, null, Vector3.ZERO))
+		elif a == "--pauseshot":
+			_debug_pauseshot()
 		elif a == "--fishtour":
 			_debug_fishtour()
 		elif a.begins_with("--peek="):
@@ -280,6 +284,21 @@ func _debug_peek(p: Vector3) -> void:
 		await get_tree().create_timer(0.4).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("user://shots/peek_%d.png" % k)
+	get_tree().quit()
+
+
+## Debug: screenshot the pause menu (and its options page).
+func _debug_pauseshot() -> void:
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	await get_tree().create_timer(1.5).timeout
+	open_pause()
+	for k in 2:
+		for f in 40:
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("user://shots/pause_%d.png" % k)
+		if k == 0:
+			menu.push(MenuView.options_page(menu, _apply_settings))
 	get_tree().quit()
 
 

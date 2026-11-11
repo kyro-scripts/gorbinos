@@ -1,9 +1,10 @@
 extends Control
-## Title screen: organic backdrop, clay logo, image tiles, and a turntable
-## with a Gorbino and a Snirby.
+## Title screen: printed paper with trout drifting past, the name in
+## ransom-note letters, the options on torn paper strips, and a turntable
+## with a Gorbino, a Snirby and a snotling.
 
-var bg: Texture2D
-var logo: Texture2D
+var backdrop: MenuBackdrop
+var title: Control
 var menu: MenuView
 var t := 0.0
 var vp: SubViewport
@@ -16,15 +17,19 @@ var preview: TextureRect
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	bg = load("res://assets/ui/menu_bg.png")
-	logo = load("res://assets/ui/logo.png")
+	backdrop = MenuBackdrop.new()
+	add_child(backdrop)
 	_build_stage()
+	title = Control.new()
+	title.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(title)
+	title.draw.connect(_draw_title)
 	menu = MenuView.new()
 	menu.top_y = 150.0
 	menu.show_title = true
 	menu.allow_empty_back = false
-	menu.center_offset = -120.0
+	menu.left_x = 34.0
 	add_child(menu)
 	menu.push(_root_page())
 	Audio.play_music("menu")
@@ -109,24 +114,23 @@ func _process(delta: float) -> void:
 	Creatures.animate(gorb, t, delta, {"move": 0.25, "blink": fmod(t, 3.1) < 0.12, "windup": fmod(t, 6.0) > 5.2, "look": Vector3(1.5, 1.2, -4.0)})
 	Creatures.animate(snirb, t + 1.3, delta, {"move": 0.0, "windup": fmod(t + 2.0, 5.0) > 4.4})
 	Creatures.animate(snot, t + 0.6, delta, {"move": 0.0, "blink": fmod(t + 1.0, 4.3) < 0.12})
-	var tiles: bool = menu.page().get("tiles", false)
-	menu.top_y = 112.0 if tiles else 150.0
-	menu.center_offset = -120.0 if tiles else -100.0
+	var root := menu.stack.size() <= 1
+	menu.top_y = 128.0 if root else 150.0
 	preview.visible = not menu.page().get("wide", false)
-	var side := minf(size.y * 0.66, size.x * 0.4)
-	preview.position = Vector2(size.x - side - 10, size.y - side - 14)
+	var side := minf(size.y * 0.7, size.x * 0.42)
+	preview.position = Vector2(size.x - side - 6, size.y - side - 10)
 	preview.size = Vector2(side, side)
-	queue_redraw()
+	title.queue_redraw()
 
 
-func _draw() -> void:
-	var off := Vector2(t * 6.0, t * 3.0)
-	draw_texture_rect_region(bg, Rect2(Vector2.ZERO, size), Rect2(off, size / 1.5), Color(1, 1, 1))
-	# vignette
-	for k in 6:
-		var a := 0.12 * (6 - k) / 6.0
-		draw_rect(Rect2(Vector2.ZERO, size).grow(-k * 14), Color(0, 0, 0, a), false, 14.0)
-	var ls := logo.get_size() * 0.42
-	var lp := Vector2(18, 8 + sin(t * 1.3) * 2.0)
-	draw_texture_rect(logo, Rect2(lp.round(), ls.round()), false)
-	UI.text(self, "term", Vector2(8, size.y - 20), "V1.9.6", Color(0.7, 0.65, 0.6), 16)
+## The name, in letters cut out of a dozen magazines; it shrinks away up
+## the corner once you're in a sub-page.
+func _draw_title() -> void:
+	var root := menu.stack.size() <= 1
+	var k := 1.0 if root else 0.62
+	var x := 34.0 + 124.0 * k
+	var y := 14.0 + sin(t * 1.3) * 2.0
+	title.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	UI.ransom(title, x, y, "GORBINO'S", 40.0 * k)
+	UI.ransom(title, x + 18.0 * k, y + 52.0 * k, "QUEST", 46.0 * k)
+	UI.text(title, "term", Vector2(8, size.y - 20), "V1.9.6", Color(0.75, 0.65, 0.7), 16)
