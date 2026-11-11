@@ -1,9 +1,11 @@
 class_name MenuView
 extends Control
-## Stacked menu: every option is a puffy, glossy slab of fish skin, dark
-## until it's chosen, when it lights up into bright shimmering trout skin
-## and slides out (in the game's pause and death menus a photo-real trout
-## nibbles at it). Sliders / toggles / choices / key binding rows.
+## Stacked menu, built from the game's own pieces: every option is a
+## chunky block of the meat texture the levels are made of, bevelled like
+## level geometry, labelled in the HUD's type. The chosen one lights up,
+## slides out and gets the jittering noise frame the game screen has (and,
+## in the pause and death menus, a trout nibbling at it). Sliders /
+## toggles / choices / key binding rows.
 
 signal emptied
 
@@ -22,7 +24,9 @@ var _rows: Array = []            # [rect, item_index]
 var trout := false               # a trout cursor nibbling at the chosen strip
 var _fx: Control
 var _fish: Texture2D
-var _skin: Texture2D
+var _block: Texture2D
+var _noise_seed := 0
+var _noise_t := 0.0
 var _sel_rect := Rect2()
 var _sel_t := 0.0
 var _flash := ""
@@ -35,7 +39,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	_skin = load("res://assets/ui/fish_tile.png")
+	_block = Mat.tex("d_meat")
 	_fish = load("res://assets/sprites/hr_fish.png")
 	_fx = Control.new()
 	_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -122,6 +126,10 @@ func _move(dir: int) -> void:
 func _process(delta: float) -> void:
 	anim_t += delta
 	_sel_t += delta
+	_noise_t -= delta
+	if _noise_t <= 0.0:
+		_noise_t = 0.07
+		_noise_seed += 1
 	if _flash_t > 0.0:
 		_flash_t -= delta
 	queue_redraw()
@@ -303,9 +311,6 @@ func _value_text(it: Dictionary) -> String:
 	return ""
 
 
-const PAPER := Color(0.96, 0.94, 0.86)
-const INK := Color(0.08, 0.03, 0.08)
-const SHADOW := Color(0.08, 0.0, 0.1, 0.6)
 
 
 func _draw() -> void:
@@ -322,70 +327,64 @@ func _draw() -> void:
 		cx = left_x + row_w * 0.5
 	var y := top_y
 	if show_title and p.has("title") and String(p["title"]) != "":
-		heading(self, cx, y - 52, String(p["title"]), 28)
+		heading(self, cx, y - 50, String(p["title"]), 32)
 	_draw_list(p, cx, y, row_w, big)
 	if p.has("footer"):
-		# a strip of masking tape along the bottom
 		var fw := UI.text_width("term", String(p["footer"]), 16)
-		var fr := Rect2(cx - fw * 0.5 - 10, size.y - 27, fw + 20, 19)
-		draw_rect(fr, Color(0.93, 0.88, 0.66, 0.92))
-		UI.text_centered(self, "term", cx, size.y - 27, String(p["footer"]), INK, 16)
+		draw_rect(Rect2(cx - fw * 0.5 - 6, size.y - 26, fw + 12, 18), Color(0, 0, 0, 0.75))
+		UI.text_centered(self, "term", cx, size.y - 26, String(p["footer"]), UI.BONE, 16)
 	if _flash_t > 0.0:
 		UI.text_centered(self, "menu_hi", cx, size.y - 56, _flash, Color(UI.ACID, clampf(_flash_t, 0, 1)))
 	if waiting_bind != "":
 		UI.text_centered(self, "term", cx, size.y - 44, "PRESS A KEY OR MOUSE BUTTON. ESC TO CANCEL.", UI.ACID, 16)
 
 
-## A page heading: chunky rounded type, pale with a dark shadow.
+## A page heading in the HUD's type: bone, with a hard shadow.
 static func heading(ci: CanvasItem, cx: float, y: float, s: String, sz: int, left := false) -> void:
-	var f := UI.font("bungee")
-	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x
+	var w := UI.text_width("anton", s, sz)
 	var x := cx if left else cx - w * 0.5
-	var base := y + f.get_ascent(sz)
-	ci.draw_string(f, Vector2(x + 3, base + 4), s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(0.0, 0.03, 0.04, 0.85))
-	ci.draw_string(f, Vector2(x, base), s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, Color(0.86, 0.92, 0.86))
+	UI.text(ci, "anton", Vector2(x + 2, y + 2), s, Color(0, 0, 0, 0.8), sz)
+	UI.text(ci, "anton", Vector2(x, y), s, UI.BONE, sz)
 
 
-## A rounded rectangle as a polygon.
-func _rounded(r: Rect2, rad: float) -> PackedVector2Array:
-	rad = minf(rad, minf(r.size.x, r.size.y) * 0.5)
-	var pts := PackedVector2Array()
-	var cs := [Vector2(r.end.x - rad, r.position.y + rad), Vector2(r.end.x - rad, r.end.y - rad),
-		Vector2(r.position.x + rad, r.end.y - rad), Vector2(r.position.x + rad, r.position.y + rad)]
-	for q in 4:
-		for i in 5:
-			var a := (-PI * 0.5) + (q + i / 4.0) * PI * 0.5
-			pts.append(cs[q] + Vector2(cos(a), sin(a)) * rad)
-	return pts
+const NOISE_COLS := [Color(1, 0.2, 0.3), Color(0.25, 1, 0.3), Color(0.3, 0.4, 1), Color(1, 0.9, 0.2), Color(0.05, 0.05, 0.05)]
 
 
-## One button: a dark rim, a soft shadow, a slab of fish skin and a wet
-## shine along its top.
+## One button: a block of the levels' meat texture with a chunky bevel. The
+## chosen one is lit and wears the game screen's jittering noise frame.
 func _draw_button(r: Rect2, is_sel: bool, en: bool) -> void:
-	var rad := minf(10.0, r.size.y * 0.42)
-	draw_colored_polygon(_rounded(Rect2(r.position + Vector2(3, 4), r.size), rad), Color(0, 0, 0, 0.5))
-	draw_colored_polygon(_rounded(r.grow(2.0), rad + 2.0), Color(0.03, 0.01, 0.05))
-	var pts := _rounded(r, rad)
-	var uvs := PackedVector2Array()
-	var drift := Vector2(_sel_t * 6.0, _sel_t * 2.0) if is_sel else Vector2.ZERO
-	for p in pts:
-		uvs.append((p + drift) / 128.0)
-	var mod := Color(0.36, 0.27, 0.42)
+	draw_rect(Rect2(r.position + Vector2(3, 3), r.size), Color(0, 0, 0, 0.55))
+	draw_rect(r.grow(2.0), Color(0.02, 0.0, 0.03))
+	var mod := Color(1, 1, 1)
+	if not is_sel:
+		mod = Color(0.5, 0.4, 0.46) if en else Color(0.25, 0.2, 0.25)
+	draw_texture_rect(_block, r, true, mod)
+	draw_rect(Rect2(r.position, Vector2(r.size.x, 2)), Color(1, 1, 1, 0.25))
+	draw_rect(Rect2(r.position, Vector2(2, r.size.y)), Color(1, 1, 1, 0.12))
+	draw_rect(Rect2(r.position.x, r.end.y - 2, r.size.x, 2), Color(0, 0, 0, 0.5))
+	draw_rect(Rect2(r.end.x - 2, r.position.y, 2, r.size.y), Color(0, 0, 0, 0.4))
 	if is_sel:
-		mod = Color.from_hsv(fmod(anim_t * 0.25, 1.0), 0.18, 1.12)
-	elif not en:
-		mod = Color(0.22, 0.18, 0.25, 0.7)
-	draw_colored_polygon(pts, mod, uvs, _skin)
-	var gloss := Rect2(r.position + Vector2(rad * 0.6, 2.0), Vector2(r.size.x - rad * 1.2, r.size.y * 0.38))
-	draw_colored_polygon(_rounded(gloss, rad * 0.7), Color(1, 1, 1, 0.2 if is_sel else 0.1))
+		var rnd := RandomNumberGenerator.new()
+		rnd.seed = _noise_seed
+		var o := r.grow(3.0)
+		var x := o.position.x
+		while x < o.end.x:
+			draw_rect(Rect2(x, o.position.y, 4, rnd.randi_range(2, 3)), NOISE_COLS[rnd.randi() % NOISE_COLS.size()])
+			draw_rect(Rect2(x, o.end.y - 3, 4, rnd.randi_range(2, 3)), NOISE_COLS[rnd.randi() % NOISE_COLS.size()])
+			x += 4.0
+		var y := o.position.y
+		while y < o.end.y:
+			draw_rect(Rect2(o.position.x, y, rnd.randi_range(2, 3), 4), NOISE_COLS[rnd.randi() % NOISE_COLS.size()])
+			draw_rect(Rect2(o.end.x - 3, y, rnd.randi_range(2, 3), 4), NOISE_COLS[rnd.randi() % NOISE_COLS.size()])
+			y += 4.0
 
 
 func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> void:
 	var items := _items()
 	var wide: bool = p.get("wide", false)
 	var small: bool = p.get("small", false)
-	var fsz := 21 if big else (13 if small else 16)
-	var rh := 36.0 if big else (23.0 if small else 30.0)
+	var fsz := 24 if big else (15 if small else 19)
+	var rh := 33.0 if big else (23.0 if small else 30.0)
 	var visible_rows := int((size.y - y - 34) / rh)
 	if sel < scroll:
 		scroll = sel
@@ -394,7 +393,7 @@ func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> 
 	scroll = clampi(scroll, 0, maxi(0, items.size() - visible_rows))
 	if scroll > 0:
 		UI.text_centered(self, "term", cx, y - 18, "- MORE -", UI.DIM, 16)
-	var f := UI.font("bungee")
+	var f := UI.font("anton")
 	for k in range(scroll, mini(items.size(), scroll + visible_rows)):
 		var it: Dictionary = items[k]
 		var en := _selectable(it)
@@ -415,13 +414,13 @@ func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> 
 			b.position.x += 10.0 * minf(_sel_t * 8.0, 1.0)
 			_sel_rect = b
 		_draw_button(b, is_sel, en)
-		var tc := INK if is_sel else (PAPER if en else Color(0.5, 0.45, 0.5))
+		var tc := UI.ACID if is_sel else (UI.BONE if en else Color(0.5, 0.45, 0.5))
 		var asc := f.get_ascent(fsz)
 		var ty := b.position.y + (b.size.y - f.get_height(fsz)) * 0.5 + asc + 1.0
 		var x0 := b.position.x + 14.0
 		var vt := _value_text(it)
-		var shadow := Color(0, 0, 0, 0.0 if is_sel else 0.7)
-		draw_string(f, Vector2(x0 + 1, ty + 1), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, shadow)
+		var shadow := Color(0, 0, 0, 0.85)
+		draw_string(f, Vector2(x0 + 2, ty + 2), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, shadow)
 		draw_string(f, Vector2(x0, ty), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, tc)
 		if vt != "":
 			if wide:
@@ -434,7 +433,7 @@ func _draw_list(p: Dictionary, cx: float, y: float, row_w: float, big: bool) -> 
 	elif sel < items.size() and String(items[sel].get("desc", "")) != "":
 		var desc := String(items[sel]["desc"])
 		var dw := UI.text_width("term", desc, 16)
-		draw_rect(Rect2(cx - dw * 0.5 - 6, y + 3, dw + 12, 18), Color(0, 0, 0, 0.6))
+		draw_rect(Rect2(cx - dw * 0.5 - 6, y + 3, dw + 12, 18), Color(0, 0, 0, 0.75))
 		UI.text_centered(self, "term", cx, y + 4, desc, UI.BONE, 16)
 
 

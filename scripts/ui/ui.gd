@@ -19,8 +19,6 @@ static func font(fname: String) -> Font:
 	match fname:
 		"menu", "menu_hi", "menu_dim", "big", "hud", "anton":
 			f = load("res://assets/fonts/Anton-Regular.ttf")
-		"bungee":
-			f = load("res://assets/fonts/Bungee-Regular.ttf")
 		"small":
 			f = _pixel_ttf("res://assets/fonts/Silkscreen-Regular.ttf")
 		"small_bold":

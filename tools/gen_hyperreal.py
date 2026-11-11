@@ -607,14 +607,15 @@ def hud_strips(seed=71):
 
 # ------------------------------------------------------------------ title
 def title_fish(seed=81):
-    """GORBINO'S QUEST in chunky letters made of wet trout skin: puffy,
-    scaled, olive on top, a pink stripe, silver below, black spots."""
+    """GORBINO'S QUEST in the game's own type (Anton), the letters made of
+    wet trout skin: puffy, scaled, olive on top, a pink stripe, silver
+    below, black spots."""
     from PIL import ImageFont
-    font_path = os.path.join(ROOT, "assets", "fonts", "Bungee-Regular.ttf")
+    font_path = os.path.join(ROOT, "assets", "fonts", "Anton-Regular.ttf")
     W, H = 3000, 1300
     mask_img = Image.new("L", (W, H), 0)
     d = ImageDraw.Draw(mask_img)
-    lines = [("GORBINO'S", 330, 60, 40), ("QUEST", 450, 100, 400)]
+    lines = [("GORBINO'S", 400, 60, 0), ("QUEST", 470, 60, 470)]
     line_of = np.zeros((H, W), np.int32)
     bands = []
     for i, (txt, size, x, y) in enumerate(lines):
@@ -629,7 +630,7 @@ def title_fish(seed=81):
     inside = mask > 0.5
     # puffy: height rises from the edges of each letter
     dist = ndimage.distance_transform_edt(inside)
-    R = 34.0
+    R = 28.0
     k = np.clip(dist / R, 0, 1)
     hf = np.sqrt(1 - (1 - k) ** 2) * R * 0.75
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
