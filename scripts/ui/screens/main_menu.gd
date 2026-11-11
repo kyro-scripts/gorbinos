@@ -110,8 +110,10 @@ func _process(delta: float) -> void:
 	Creatures.animate(snirb, t + 1.3, delta, {"move": 0.0, "windup": fmod(t + 2.0, 5.0) > 4.4})
 	Creatures.animate(snot, t + 0.6, delta, {"move": 0.0, "blink": fmod(t + 1.0, 4.3) < 0.12})
 	var tiles: bool = menu.page().get("tiles", false)
-	menu.top_y = 112.0 if tiles else 150.0
-	menu.center_offset = -120.0 if tiles else -100.0
+	# the buttons line up under the logo
+	var logo_w := logo.get_size().x * 0.42
+	menu.top_y = 106.0 if tiles else 150.0
+	menu.center_offset = (18.0 + logo_w * 0.5 - size.x * 0.5) if tiles else -100.0
 	preview.visible = not menu.page().get("wide", false)
 	var side := minf(size.y * 0.66, size.x * 0.4)
 	preview.position = Vector2(size.x - side - 10, size.y - side - 14)

@@ -304,14 +304,14 @@ def tiles():
 # ------------------------------------------------------------------ menu buttons
 BUTTONS = [
     ("new", "NEW QUEST", "face", (255, 140, 40)),
-    ("continue", "CONTINUE", "arrow", (120, 255, 60)),
+    ("continue", "CONTINUE", "arrow", (255, 200, 60)),
     ("endless", "ENDLESS", "ring", (230, 80, 255)),
     ("options", "OPTIONS", "gear", (120, 180, 255)),
-    ("exit", "EXIT", "x", (130, 255, 60)),
+    ("exit", "EXIT", "x", (255, 80, 60)),
     ("resume", "RESUME", "arrow", (255, 120, 40)),
     ("save", "SAVE", "disk", (255, 220, 60)),
     ("load", "LOAD", "eye", (240, 230, 220)),
-    ("retry", "RESTART", "ring", (200, 120, 90)),
+    ("retry", "RESTART", "ring", (255, 150, 90)),
     ("quit", "QUIT", "x", (255, 60, 60)),
 ]
 
@@ -326,9 +326,10 @@ def _grow(a, r):
 
 
 def clay_button(name, label, kind, icon_col, seed, hot):
-    """A lumpy, glossy clay slab with the icon sculpted on the left and the
-    label in the logo's orange clay letters. hot: the chosen one, lit up
-    pink with a lime rim."""
+    """A lump of the title screen's own rippled green clay, raised out of
+    the backdrop, with the icon sculpted on the left and the label in the
+    logo's orange clay letters. Idle ones sit dark, like the backdrop;
+    hot (the chosen one) is lit up, with a lime rim."""
     W, H = 440, 104
     # the slab: a rounded bar whose edges have been squashed lumpy by hand
     m = Image.new("L", (W, H), 0)
@@ -336,16 +337,15 @@ def clay_button(name, label, kind, icon_col, seed, hot):
     mb = np.asarray(m.filter(ImageFilter.GaussianBlur(6))).astype(np.float32) / 255.0
     lump = value_noise(max(W, H), 10, seed, 3)[:H, :W] - 0.5
     slab = ((mb + lump * 0.45) > 0.5).astype(np.float32)
-    h = bevel(slab, 12) * 3
-    h *= 1 + (value_noise(max(W, H), 22, seed + 1, 3)[:H, :W] - 0.5) * 0.5
-    if hot:
-        stops = [(0, (130, 20, 60)), (0.5, (245, 80, 135)), (1, (255, 185, 205))]
-    else:
-        stops = [(0, (36, 6, 22)), (0.5, (105, 28, 58)), (1, (175, 80, 110))]
-    base = flesh_base(W, H, seed + 2, stops)
-    d1, _, _ = worley(max(W, H), 60, seed + 3)
-    base[(d1[:H, :W] < 2.0)] *= 0.62
-    body = shade_height(h, base, mask=slab, spec=0.9, shin=30)
+    # the same rippling worm pattern as the backdrop
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    n = value_noise(max(W, H), 6, 7600, 4)[:H, :W]
+    t = 0.5 + 0.5 * np.sin(n * 22 + xx * 0.05)
+    h = bevel(slab, 12) * 3 + (t ** 3) * 2.5 * slab
+    h *= 1 + (value_noise(max(W, H), 22, seed + 1, 3)[:H, :W] - 0.5) * 0.3
+    base = gradmap(t, [(0, (20, 40, 10)), (0.5, (110, 150, 30)), (1, (230, 240, 120))])
+    base = base * (0.95 if hot else 0.5)
+    body = shade_height(h, base, mask=slab, spec=0.7 if hot else 0.45, shin=26)
     out = np.zeros((H, W, 4), np.float32)
     # soft drop shadow, and the lime rim when it's chosen
     sh = np.roll(np.roll(slab, 6, 0), 5, 1)
