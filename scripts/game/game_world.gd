@@ -713,7 +713,7 @@ func open_pause() -> void:
 
 func _pause_page() -> Dictionary:
 	var st := level.stats
-	return {"title": "PAUSED", "tiles": true, "grid": true, "cols": 3, "top_y": 156.0, "items": [
+	return {"title": "PAUSED", "tiles": true, "grid": true, "cols": 3, "top_y": 150.0, "title_y": 22.0, "items": [
 		{"label": "RESUME", "icon": "tile_resume", "cb": func(): _resume()},
 		{"label": "SAVE", "icon": "tile_save", "cb": func(): menu.push(MenuView.save_page(menu, func(slot): save_to(slot)))},
 		{"label": "LOAD", "icon": "tile_load", "cb": func(): menu.push(MenuView.load_page(menu, func(d): _load(d)))},

@@ -327,7 +327,7 @@ func _draw() -> void:
 	var cx := size.x * 0.5 + (0.0 if p.get("wide", false) else center_offset)
 	var y := float(p.get("top_y", top_y))
 	if show_title and p.has("title") and String(p["title"]) != "":
-		UI.text_centered(self, "big", cx, y - 56, String(p["title"]), Color.WHITE)
+		UI.text_centered(self, "big", cx, float(p.get("title_y", y - 56)), String(p["title"]), Color.WHITE)
 	if _is_tiles():
 		_draw_tiles(cx, y)
 	else:
@@ -354,7 +354,7 @@ func _draw_tiles(cx: float, y: float) -> void:
 	var cols := _grid_cols()
 	var rows := int(ceil(float(items.size()) / cols))
 	var gap := 8.0 if cols == 1 else 12.0
-	var gap_x := 26.0
+	var gap_x := 46.0
 	var room := size.y - y - 40.0
 	var bh := clampf((room - gap * (rows - 1)) / rows, 26.0, 36.0 if cols == 1 else 34.0)
 	var aspect := 4.2
@@ -463,10 +463,13 @@ func _draw_fish() -> void:
 		return
 	var h := clampf(_sel_rect.size.y * 0.3, 16.0, 26.0) if _is_tiles() else clampf(_sel_rect.size.y * 1.1, 18.0, 30.0)
 	if _grid_cols() > 1:
-		h = 13.0
+		h = 15.0
 	var w := h * _fish.get_width() / _fish.get_height()
 	var nib := sin(_sel_t * 9.0) * 2.0
 	var c := Vector2(_sel_rect.end.x + w * 0.5 - 6.0 + nib, _sel_rect.get_center().y + sin(_sel_t * 2.3) * 1.5)
+	if _grid_cols() > 1:
+		# in the middle of the gap beside the button, nosing at it
+		c.x = _sel_rect.end.x + w * 0.5 + 4.0 + nib
 	# the photo's fish faces left, toward the choice
 	_fx.draw_set_transform(c, sin(_sel_t * 4.0) * 0.05, Vector2.ONE)
 	_fx.draw_texture_rect(_fish, Rect2(-w * 0.5, -h * 0.5, w, h), false)
