@@ -349,9 +349,10 @@ func _draw_tiles(cx: float, y: float) -> void:
 	var items := _items()
 	if items.is_empty():
 		return
-	var gap := 3.0
-	var room := size.y - y - 44.0
-	var bh := clampf(room / items.size() - gap, 30.0, 46.0)
+	# even spacing: buttons as big as the room allows, up to a comfortable size
+	var gap := 8.0
+	var room := size.y - y - 40.0
+	var bh := clampf((room - gap * (items.size() - 1)) / items.size(), 26.0, 36.0)
 	for k in items.size():
 		var it: Dictionary = items[k]
 		var key := String(it.get("icon", "")).replace("tile_", "btn_")
@@ -376,10 +377,12 @@ func _draw_tiles(cx: float, y: float) -> void:
 	if sel < items.size() and _selectable(items[sel]):
 		var desc := String(items[sel].get("desc", ""))
 		if desc != "":
-			var dy := y + items.size() * (bh + gap) + 4.0
-			var dw := UI.text_width("term", desc, 16)
-			draw_rect(Rect2(cx - dw * 0.5 - 6, dy - 1, dw + 12, 18), Color(0, 0, 0, 0.6))
-			UI.text_centered(self, "term", cx, dy, desc, UI.BONE, 16)
+			var dy := y + items.size() * (bh + gap) - gap + 6.0
+			for ln in UI.wrap("term", desc, 230.0, 16):
+				var dw := UI.text_width("term", ln, 16)
+				draw_rect(Rect2(cx - dw * 0.5 - 5, dy - 1, dw + 10, 17), Color(0, 0, 0, 0.6))
+				UI.text_centered(self, "term", cx, dy, ln, UI.BONE, 16)
+				dy += 16.0
 
 
 func _draw_list(p: Dictionary, cx: float, y: float) -> void:

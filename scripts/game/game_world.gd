@@ -702,6 +702,8 @@ func open_pause() -> void:
 	menu.stack.clear()
 	menu.visible = true
 	menu_bg.visible = true
+	# PAUSED and its six buttons, centred as one block above the stats line
+	menu.top_y = 80.0
 	menu.push(_pause_page())
 	Audio.play("menu_select", -6.0)
 

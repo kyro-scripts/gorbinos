@@ -110,14 +110,20 @@ func _process(delta: float) -> void:
 	Creatures.animate(snirb, t + 1.3, delta, {"move": 0.0, "windup": fmod(t + 2.0, 5.0) > 4.4})
 	Creatures.animate(snot, t + 0.6, delta, {"move": 0.0, "blink": fmod(t + 1.0, 4.3) < 0.12})
 	var tiles: bool = menu.page().get("tiles", false)
-	# the buttons line up under the logo
-	var logo_w := logo.get_size().x * 0.42
-	menu.top_y = 106.0 if tiles else 150.0
-	menu.center_offset = (18.0 + logo_w * 0.5 - size.x * 0.5) if tiles else -100.0
+	# the logo and the buttons share a column in the left quarter, the
+	# turntable sits in the right quarter
+	menu.top_y = 112.0 if tiles else 150.0
+	menu.center_offset = (_column_x() - size.x * 0.5) if tiles else -100.0
 	preview.visible = not menu.page().get("wide", false)
-	var side := minf(size.y * 0.66, size.x * 0.4)
-	preview.position = Vector2(size.x - side - 10, size.y - side - 14)
-	preview.size = Vector2(side, side)
+	if tiles:
+		var side := minf(size.y * 0.8, size.x * 0.45)
+		preview.position = Vector2(size.x * 0.75 - side * 0.5, (size.y - side) * 0.5 + 12.0)
+		preview.size = Vector2(side, side)
+	else:
+		# out of the way of the settings lists, down in the corner
+		var side := minf(size.y * 0.55, size.x * 0.33)
+		preview.position = Vector2(size.x - side - 6, size.y - side - 8)
+		preview.size = Vector2(side, side)
 	queue_redraw()
 
 
@@ -129,6 +135,11 @@ func _draw() -> void:
 		var a := 0.12 * (6 - k) / 6.0
 		draw_rect(Rect2(Vector2.ZERO, size).grow(-k * 14), Color(0, 0, 0, a), false, 14.0)
 	var ls := logo.get_size() * 0.42
-	var lp := Vector2(18, 8 + sin(t * 1.3) * 2.0)
+	var lp := Vector2(_column_x() - ls.x * 0.5, 10 + sin(t * 1.3) * 2.0)
 	draw_texture_rect(logo, Rect2(lp.round(), ls.round()), false)
-	UI.text(self, "term", Vector2(8, size.y - 20), "V1.9.6", Color(0.7, 0.65, 0.6), 16)
+	UI.text(self, "term", Vector2(size.x - UI.text_width("term", "V1.9.6", 16) - 8, 4), "V1.9.6", Color(0.7, 0.65, 0.6), 16)
+
+
+## Centre line of the logo-and-buttons column.
+func _column_x() -> float:
+	return maxf(150.0, size.x * 0.25)
