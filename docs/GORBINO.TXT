@@ -29,7 +29,7 @@
    * Nothing can hurt you while you are gutting something.
    * The crosshair flashes white on a hit and red on a kill.
    * The little pastel Gorbinos in smocks are locals. They don't fight.
-   * Kill fast to fill the FRENZY meter under the health card.
+   * Kill fast to fill the FRENZY meter (the fish skin under your health).
    * That eye in the top-left corner is yours. It looks toward whatever hit you.
    * ENDLESS on the title screen: waves in the Gorb Pit until you drop.
 

@@ -110,7 +110,6 @@ var _scan := 0.0
 var _death_t := -1.0
 var _death_side := 0.0
 var _skin_mat: Material
-var hyper_face: HyperFace = null
 var _flash := 0.0
 var _talk_t := 0.0                # mouth flapping while speaking
 
@@ -237,7 +236,6 @@ func setup(lv: Level, pos: Vector3, p_theme: String, rng: RandomNumberGenerator,
 	_skin_mat = parts.get("skin_mat")
 	_clothes(rng)
 	_hat(rng.randi_range(0, 5))
-	hyper_face = Hyper.decorate(self, model, rng.randi(), true)
 	height = Creatures.GORB_H * SCALE
 	var cs := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()

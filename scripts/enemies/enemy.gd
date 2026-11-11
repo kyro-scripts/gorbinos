@@ -107,7 +107,6 @@ var _whisper_t := 6.0
 var _twitch_t := 2.0
 var _twitch := 0.0
 var _skin_mat: ShaderMaterial
-var hyper_face: HyperFace = null
 var _fly_snd_t := 0.0
 
 
@@ -146,7 +145,6 @@ func setup(t: String, lvl: Level, pos: Vector3, p_yaw: float) -> void:
 	Collage.outline(model)
 	parts = model.get_meta("parts")
 	_skin_mat = parts.get("skin_mat")
-	hyper_face = Hyper.decorate(self, model, hash(String(lvl.data.get("name", "")) + str(Vector3i(pos * 4.0)) + t))
 	global_position = pos
 	if flying:
 		global_position.y = pos.y + float(def.get("hover", 1.5))
@@ -322,13 +320,9 @@ func _char_model() -> void:
 	if _char_mat == null:
 		_char_mat = Mat.make("black", {"origin": true, "tint": Color(0.2, 0.13, 0.1), "shade": 0.8, "gloss": 0.25})
 	_char_rec(model)
-	if hyper_face:
-		hyper_face.burn()
 
 
 func _char_rec(n: Node) -> void:
-	if n.has_meta("hyper"):
-		return
 	if n is MeshInstance3D:
 		(n as MeshInstance3D).material_override = _char_mat
 	for c in n.get_children():

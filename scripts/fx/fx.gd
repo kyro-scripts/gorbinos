@@ -129,10 +129,6 @@ static func gibs(level: Node, pos: Vector3, skin: Color, goo: Color, n: int) -> 
 		g.spin = Vector3(randf_range(-10, 10), randf_range(-10, 10), randf_range(-10, 10))
 		g.level = level
 		g.add_to_group("gibs")
-	# now and then a real tooth or eyeball among the cartoon meat
-	if Collage.enabled() and n >= 4:
-		for k in (1 if randf() < 0.7 else 2):
-			Hyper.gib(level, pos)
 	var all := level.get_tree().get_nodes_in_group("gibs")
 	if all.size() > MAX_GIBS:
 		for k in all.size() - MAX_GIBS:

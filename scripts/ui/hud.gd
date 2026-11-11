@@ -1,10 +1,10 @@
 class_name HUD
 extends Control
-## In-game overlay: the health card (top left: a photo of your eye that
-## flinches, blinks, looks toward whatever hurt you and goes bloodshot as you
-## weaken, a ransom-note number and a strip of raw meat that tears shorter),
-## ammo (bottom right), keys, crosshair, a jittering noise border, messages,
-## boss bar, automap.
+## In-game overlay: health (top left: a photo of your eye that flinches,
+## blinks, looks toward whatever hurt you and goes bloodshot as you weaken,
+## your HP, and a strip of raw meat that tears shorter; bone for armor and
+## fish skin for the frenzy meter underneath), ammo (bottom right),
+## keys, crosshair, a jittering noise border, messages, boss bar, automap.
 
 var player: Player
 var level: Level
@@ -13,9 +13,12 @@ var center_msg := ""
 var center_t := 0.0
 var boss: Node = null
 var show_map := false
-var _photo: Control              # photos (the eye, the meat, stickers), drawn smooth on top
+var _photo: Control              # the photo bits (eye, meat, bone, fish skin), drawn smooth on top
+var _eye_tex: Texture2D
+var _sore_tex: Texture2D
 var _meat: Texture2D
 var _scales: Texture2D
+var _bone: Texture2D
 var _eye_t := 0.0
 var _eye_blink := -1.0
 var _eye_blink_t := 3.0
@@ -48,8 +51,11 @@ const BORDER_COLS := [Color(1, 0.2, 0.3), Color(0.25, 1, 0.3), Color(0.3, 0.4, 1
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_eye_tex = load("res://assets/sprites/hr_eye.png")
+	_sore_tex = load("res://assets/sprites/hr_eye_sore.png")
 	_meat = load("res://assets/ui/hud_meat.png")
 	_scales = load("res://assets/ui/hud_scales.png")
+	_bone = load("res://assets/ui/hud_bone.png")
 	_death_tex = load("res://assets/ui/death.png")
 	_photo = Control.new()
 	_photo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -166,6 +172,7 @@ func _draw() -> void:
 		draw_rect(r.grow(2), Color(0, 0, 0, 0.85))
 		draw_rect(Rect2(r.position, Vector2(bw * clampf(boss.hp / boss.max_hp, 0, 1), 8)), Color(0.85, 0.25, 0.35))
 		UI.text_centered(self, "term", W * 0.5, 4, String(boss.def["name"]), UI.BONE, 16)
+	_draw_stickers(W, H)
 	_draw_subtitle(W, H)
 	_draw_endless(W, H)
 	if Settings.get_v("show_fps"):
@@ -179,26 +186,14 @@ func _draw() -> void:
 		draw_texture_rect(_death_tex, Rect2(c - s * 0.5, s), false, Color(1, 1, 1, k))
 
 
-## The frenzy meter under the jar; during a frenzy it burns down in rainbow.
+## The frenzy meter's label (the fish-skin strip itself is drawn with the photos).
 func _draw_frenzy(W: float, H: float) -> void:
-	if player.dead:
+	if player.dead or player.frenzy <= 0.0:
 		return
-	var r := Rect2(14, _stack_y + 14, 90, 7)
-	var on: bool = player.frenzy > 0.0
-	var k: float = player.frenzy / Player.FRENZY_TIME if on else player.frenzy_meter
-	if k <= 0.0 and not on:
-		return
-	draw_rect(r.grow(2), Color(0, 0, 0, 0.75))
-	var segs := 10
-	for i in segs:
-		if float(i) / segs >= k:
-			break
-		var c := Color.from_hsv(fmod(Time.get_ticks_msec() / 400.0 + i * 0.1, 1.0), 0.9, 1.0) if on else Color(1.0, 0.25 + i * 0.05, 0.6)
-		draw_rect(Rect2(r.position.x + i * (r.size.x / segs) + 1, r.position.y, r.size.x / segs - 2, r.size.y), c)
-	UI.text(self, "term", Vector2(r.end.x + 6, r.position.y - 6), "FRENZY" if on else "", Color.from_hsv(fmod(Time.get_ticks_msec() / 300.0, 1.0), 0.8, 1.0), 16)
+	UI.text(self, "term", Vector2(BAR.end.x + 5, _frenzy_y - 7), "FRENZY", Color.from_hsv(fmod(Time.get_ticks_msec() / 300.0, 1.0), 0.8, 1.0), 16)
 
 
-func _draw_stickers(ci: CanvasItem, W: float, H: float) -> void:
+func _draw_stickers(W: float, H: float) -> void:
 	if _stickers.is_empty() or player == null:
 		return
 	var cam: Camera3D = player.camera
@@ -223,15 +218,13 @@ func _draw_stickers(ci: CanvasItem, W: float, H: float) -> void:
 		var a := clampf((1.1 - t) / 0.45, 0.0, 1.0)
 		sp.y -= maxf(0.0, t - 0.6) * 60.0
 		var base := 0.5 if st[5] else 0.36
-		ci.draw_set_transform(sp, st[4], Vector2.ONE * sc * base)
+		draw_set_transform(sp, st[4], Vector2.ONE * sc * base)
 		if st[1] != null:
 			var bt: Texture2D = st[1]
-			# photo cut-outs come bigger than the bursts: fit them to the same size
-			var bs := bt.get_size() * minf(1.0, 250.0 / maxf(bt.get_size().x, bt.get_size().y))
-			ci.draw_texture_rect(bt, Rect2(-bs * 0.5 + Vector2(-30, 6), bs), false, Color(1, 1, 1, a))
+			draw_texture(bt, -bt.get_size() * 0.5 + Vector2(-30, 6), Color(1, 1, 1, a))
 		var wt: Texture2D = st[0]
-		ci.draw_texture(wt, -wt.get_size() * 0.5, Color(1, 1, 1, a))
-	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		draw_texture(wt, -wt.get_size() * 0.5, Color(1, 1, 1, a))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## ENDLESS: the wave and how many are left, and your best.
@@ -311,16 +304,17 @@ func _draw_crosshair(W: float, H: float) -> void:
 			draw_line(c + Vector2(0, -6), c + Vector2(0, 6), col, 1.0)
 
 
-const CARD := Rect2(6, 5, 162, 82)
-const CARD_ROT := -0.03
-const CARD_EDGE := [Vector2(0, 2), Vector2(37, 0), Vector2(70, 3), Vector2(108, 0), Vector2(162, 2), Vector2(160, 30),
-	Vector2(163, 58), Vector2(161, 82), Vector2(120, 80), Vector2(84, 83), Vector2(46, 80), Vector2(2, 82), Vector2(-1, 50), Vector2(1, 24)]
-const ARMOR_CARD := Rect2(16, 90, 118, 15)
+const EYE := {"center": 0, "left": 1, "right": 2, "up": 3, "half": 4, "shut": 5, "wide": 6}
+const EYE_FRAMES := 7
+const EYE_RECT := Rect2(4, 3, 60, 34.6)
+const BAR := Rect2(8, 42, 100, 7)
+const STRIP_H := 5.0
+var _armor_y := 0.0
+var _frenzy_y := 0.0
 
 
-func _card_xform() -> Transform2D:
-	var shake := Vector2(randf_range(-1, 1), randf_range(-1, 1)) * (2.0 if _hit_t > 0.0 else 0.0)
-	return Transform2D(CARD_ROT, CARD.position + shake)
+func _shake() -> Vector2:
+	return Vector2(randf_range(-1, 1), randf_range(-1, 1)) * (1.5 if _hit_t > 0.0 else 0.0)
 
 
 ## When you're hit: the eye squeezes shut, then stares, toward the hit.
@@ -338,7 +332,7 @@ func _tick_eye(delta: float, hp: float) -> void:
 	_eye_blink_t -= delta
 	if _eye_blink_t <= 0.0 and _eye_blink < 0.0:
 		_eye_blink = 0.0
-		_eye_blink_t = randf_range(1.5, 6.0) * (0.45 if hp < 35.0 else 1.0)
+		_eye_blink_t = randf_range(2.5, 7.0) * (0.5 if hp < 35.0 else 1.0)
 	if _eye_blink >= 0.0:
 		_eye_blink += delta
 		if _eye_blink > 0.2:
@@ -347,124 +341,122 @@ func _tick_eye(delta: float, hp: float) -> void:
 	_eye_wide_t -= delta
 	_eye_look_t -= delta
 	if _eye_look_t <= 0.0:
-		# idle glances about
-		_eye_look_t = randf_range(1.0, 3.5)
-		_eye_look = [0, 0, 0, -1, 1][randi() % 5]
+		# the odd glance about, now and then
+		_eye_look_t = randf_range(3.0, 7.0)
+		_eye_look = [0, 0, 0, 0, -1, 1][randi() % 6]
 	_tear_t = _tear_t + delta if hp < 30.0 and hp > 0.0 else 0.0
 
 
 func _eye_frame() -> int:
 	var hp := player.health
 	if player.dead:
-		return Hyper.EYE["up"]
+		return EYE["up"]
 	if _eye_shut_t > 0.0:
-		return Hyper.EYE["shut"]
+		return EYE["shut"]
 	if _eye_blink >= 0.0:
-		return Hyper.EYE["half"] if _eye_blink < 0.05 or _eye_blink > 0.15 else Hyper.EYE["shut"]
+		return EYE["half"] if _eye_blink < 0.05 or _eye_blink > 0.15 else EYE["shut"]
 	if _eye_wide_t > 0.0 or player.frenzy > 0.0 or hp > 100:
-		return Hyper.EYE["wide"]
+		return EYE["wide"]
 	if hp < 30 and fmod(_eye_t, 3.2) < 1.3:
-		return Hyper.EYE["half"]      # can barely keep it open
-	return Hyper.EYE["right"] if _eye_look > 0 else (Hyper.EYE["left"] if _eye_look < 0 else Hyper.EYE["center"])
+		return EYE["half"]      # can barely keep it open
+	return EYE["right"] if _eye_look > 0 else (EYE["left"] if _eye_look < 0 else EYE["center"])
 
 
-## The paper card, the HP number and the armor scrap (the photos go on top,
-## in _draw_photos).
+func _eye_src(t: Texture2D, f: int) -> Rect2:
+	var w := float(t.get_width()) / EYE_FRAMES
+	return Rect2(w * f, 0, w, t.get_height())
+
+
+## The HP and armor numbers (the photos go on top, in _draw_photos), and
+## where the strips under the meat bar go.
 func _draw_health() -> void:
 	var hp := player.health
-	var xf := _card_xform()
-	draw_set_transform_matrix(xf.translated_local(Vector2(3, 4)))
-	draw_colored_polygon(PackedVector2Array(CARD_EDGE), Color(0.08, 0.0, 0.1, 0.6))
-	draw_set_transform_matrix(xf)
-	draw_colored_polygon(PackedVector2Array(CARD_EDGE), Color(0.97, 0.95, 0.88))
-	# halftone dots in a corner, cheap print
-	for yy in 5:
-		for xx in 9:
-			draw_circle(Vector2(104 + xx * 6 + (yy % 2) * 3, 46 + yy * 5), 1.1 + yy * 0.25, Color(0.9, 0.2, 0.45, 0.35))
-	# the groove the meat lies in
-	draw_rect(Rect2(8, 66, 146, 12), Color(0.14, 0.02, 0.04))
-	# masking tape holding it on
-	draw_set_transform_matrix(xf * Transform2D(-0.7, Vector2(4, 2)))
-	draw_rect(Rect2(-14, -5, 30, 10), Color(0.93, 0.88, 0.66, 0.75))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# HP, in cut-out letters
 	var num := str(int(round(_shown_hp)))
-	var centre := xf * Vector2(130, 14)
-	if Collage.enabled():
-		UI.ransom(self, centre.x, centre.y, num, 26.0 if hp > 25 else 30.0)
-	else:
-		var col := Color(1, 0.3, 0.25) if hp <= 25 else Color(0.08, 0.03, 0.08)
-		UI.text(self, "anton", Vector2(centre.x - UI.text_width("anton", num, 32) * 0.5, centre.y - 4), num, col, 32)
-	_stack_y = CARD.end.y + 8.0
+	var col := UI.BONE
+	if hp <= 25:
+		col = Color(1, 0.3, 0.25)
+	elif hp > 100:
+		col = Color(0.55, 1.0, 0.8)
+	var at := Vector2(EYE_RECT.end.x + 3, 4) + _shake()
+	UI.text(self, "anton", at + Vector2(2, 2), num, Color(0, 0, 0, 0.7), 30)
+	UI.text(self, "anton", at, num, col, 30)
+	var y := BAR.end.y + 3.0
+	_armor_y = -1.0
 	if player.armor > 0:
-		var ax := Transform2D(0.04, ARMOR_CARD.position)
-		draw_set_transform_matrix(ax.translated_local(Vector2(2, 3)))
-		draw_rect(Rect2(Vector2.ZERO, ARMOR_CARD.size), Color(0.08, 0.0, 0.1, 0.55))
-		draw_set_transform_matrix(ax)
-		draw_rect(Rect2(Vector2.ZERO, ARMOR_CARD.size), Color(0.97, 0.95, 0.88))
-		draw_rect(Rect2(3, 3, 86, ARMOR_CARD.size.y - 6), Color(0.1, 0.12, 0.14))
-		var ac := Color(0.1, 0.3, 0.6) if player.armor_type == 2 else Color(0.2, 0.4, 0.1)
-		UI.text(self, "term", Vector2(93, -2), "%d" % player.armor, ac, 16)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		_stack_y = ARMOR_CARD.end.y + 8.0
+		_armor_y = y
+		# the armor count sits beside your HP, the bone strip under the meat
+		var ac := Color(0.6, 0.85, 1.0) if player.armor_type == 2 else Color(0.8, 0.95, 0.6)
+		var ap := at + Vector2(UI.text_width("anton", num, 30) + 5, 15)
+		UI.text(self, "term", ap + Vector2(1, 1), "%d ARMOR" % player.armor, Color(0, 0, 0, 0.7), 16)
+		UI.text(self, "term", ap, "%d ARMOR" % player.armor, ac, 16)
+		y += STRIP_H + 3.0
+	_frenzy_y = -1.0
+	if not player.dead and (player.frenzy > 0.0 or player.frenzy_meter > 0.0):
+		_frenzy_y = y
+		y += STRIP_H + 3.0
+	_stack_y = y + 4.0
 
 
-## Smooth-filtered layer on top: your eye, the meat strip, the fish-skin
-## armor strip, and the kill stickers.
+## A textured strip that tears off at the end (the meat, bone and fish skin).
+func _strip(ci: CanvasItem, tex: Texture2D, r: Rect2, frac: float, mod: Color) -> void:
+	ci.draw_rect(r.grow(1.0), Color(0.0, 0.0, 0.0, 0.5))
+	if frac <= 0.0:
+		return
+	var x0 := r.position.x
+	var xe := x0 + r.size.x * frac
+	var y0 := r.position.y
+	var h := r.size.y
+	var pts := PackedVector2Array([Vector2(x0, y0), Vector2(xe, y0), Vector2(xe + 1.5, y0 + h * 0.25), Vector2(xe - 1.0, y0 + h * 0.5),
+		Vector2(xe + 1.2, y0 + h * 0.75), Vector2(xe, y0 + h), Vector2(x0, y0 + h)])
+	var uvs := PackedVector2Array()
+	for p in pts:
+		uvs.append(Vector2((p.x - x0) / r.size.x * 0.7, (p.y - y0) / h))
+	ci.draw_colored_polygon(pts, mod, uvs, tex)
+
+
+## Smooth-filtered layer on top: your eye, the meat, the bone, the fish skin.
 func _draw_photos() -> void:
-	if player == null:
+	if player == null or show_map:
 		return
 	var ci := _photo
-	var W := size.x
-	var H := size.y
-	if not show_map:
-		var hp := player.health
-		var xf := _card_xform()
-		ci.draw_set_transform_matrix(xf * Transform2D(0.05, Vector2(46, 30)))
-		var f := _eye_frame()
-		var er := Rect2(-52, -33, 104, 65)
-		ci.draw_texture_rect(Hyper.region("hr_eye", f), er, false, Color(0.55, 0.5, 0.5) if player.dead else Color(1, 1, 1))
-		# bloodshot and puffy as you weaken
-		var sore := clampf((70.0 - float(hp)) / 50.0, 0.0, 1.0)
-		if sore > 0.0 and not player.dead:
-			ci.draw_texture_rect(Hyper.region("hr_eye_sore", f), er, false, Color(1, 1, 1, sore))
-		# a tear of blood when it's bad
-		if _tear_t > 0.0:
-			var k := fmod(_tear_t, 2.4) / 2.4
-			var a := Vector2(-6, 14)
-			var b := a + Vector2(1.5, 6.0 + 26.0 * k)
-			ci.draw_line(a, b, Color(0.5, 0.0, 0.03, 0.9), 2.4)
-			ci.draw_circle(b, 2.0, Color(0.55, 0.0, 0.03, 0.95))
-		# the meat: tears shorter as you lose health; the chunk just lost flashes
-		ci.draw_set_transform_matrix(xf)
-		var x0 := 9.0
-		var full := 144.0
-		var frac := clampf(float(hp) / 100.0, 0.0, 1.0)
-		var shown := clampf(_shown_hp / 100.0, 0.0, 1.0)
-		if shown > frac:
-			ci.draw_rect(Rect2(x0 + full * frac, 67, full * (shown - frac), 10), Color(1.0, 0.86, 0.82, 0.9))
-		if frac > 0.0:
-			var xe := x0 + full * frac
-			var pts := PackedVector2Array([Vector2(x0, 67), Vector2(xe, 67), Vector2(xe + 2.5, 69.5), Vector2(xe - 1.5, 72),
-				Vector2(xe + 2.0, 74.5), Vector2(xe, 77), Vector2(x0, 77)])
-			var uvs := PackedVector2Array()
-			for p in pts:
-				uvs.append(Vector2((p.x - x0) / full * 0.8, (p.y - 67.0) / 10.0))
-			var mod := Color(1, 1, 1)
-			if hp > 100:
-				mod = Color(1.0, 1.0, 0.75).lerp(Color(0.8, 1.2, 0.8), 0.5 + 0.5 * sin(_eye_t * 6.0))
-			elif player.dead:
-				mod = Color(0.45, 0.4, 0.4)
-			ci.draw_colored_polygon(pts, mod, uvs, _meat)
-		if player.armor > 0:
-			var ax := Transform2D(0.04, ARMOR_CARD.position)
-			ci.draw_set_transform_matrix(ax)
-			var am := 200.0 if player.armor_type == 2 else 100.0
-			var af := clampf(float(player.armor) / am, 0.0, 1.0)
-			var tint := Color(0.85, 0.95, 1.15) if player.armor_type == 2 else Color(1.0, 1.0, 0.9)
-			ci.draw_texture_rect_region(_scales, Rect2(3, 3, 86 * af, ARMOR_CARD.size.y - 6), Rect2(0, 0, 512 * af * 0.6, 32), tint)
-		ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	_draw_stickers(ci, W, H)
+	var hp := player.health
+	var sh := _shake()
+	var f := _eye_frame()
+	var er := Rect2(EYE_RECT.position + sh, EYE_RECT.size)
+	ci.draw_texture_rect_region(_eye_tex, er, _eye_src(_eye_tex, f), Color(0.55, 0.5, 0.5) if player.dead else Color(1, 1, 1))
+	# bloodshot and puffy as you weaken
+	var sore := clampf((70.0 - float(hp)) / 50.0, 0.0, 1.0)
+	if sore > 0.0 and not player.dead:
+		ci.draw_texture_rect_region(_sore_tex, er, _eye_src(_sore_tex, f), Color(1, 1, 1, sore))
+	# a tear of blood when it's bad
+	if _tear_t > 0.0:
+		var k := fmod(_tear_t, 2.4) / 2.4
+		var a := er.position + Vector2(er.size.x * 0.42, er.size.y * 0.74)
+		var b := a + Vector2(1.0, 3.0 + 14.0 * k)
+		ci.draw_line(a, b, Color(0.5, 0.0, 0.03, 0.9), 1.8)
+		ci.draw_circle(b, 1.5, Color(0.55, 0.0, 0.03, 0.95))
+	# the meat tears shorter as you lose health; the chunk just lost flashes
+	var bar := Rect2(BAR.position + sh, BAR.size)
+	var frac := clampf(float(hp) / 100.0, 0.0, 1.0)
+	var shown := clampf(_shown_hp / 100.0, 0.0, 1.0)
+	var mod := Color(1, 1, 1)
+	if hp > 100:
+		mod = Color(1.0, 1.0, 0.75).lerp(Color(0.8, 1.2, 0.8), 0.5 + 0.5 * sin(_eye_t * 6.0))
+	elif player.dead:
+		mod = Color(0.45, 0.4, 0.4)
+	_strip(ci, _meat, bar, frac, mod)
+	if shown > frac:
+		ci.draw_rect(Rect2(bar.position.x + bar.size.x * frac + 1.5, bar.position.y, bar.size.x * (shown - frac), bar.size.y), Color(1.0, 0.86, 0.82, 0.85))
+	if _armor_y >= 0.0:
+		var am := 200.0 if player.armor_type == 2 else 100.0
+		var tint := Color(0.85, 0.95, 1.15) if player.armor_type == 2 else Color(1.0, 1.0, 0.9)
+		_strip(ci, _bone, Rect2(BAR.position.x, _armor_y, BAR.size.x, STRIP_H), clampf(float(player.armor) / am, 0.0, 1.0), tint)
+	if _frenzy_y >= 0.0:
+		var on: bool = player.frenzy > 0.0
+		var k: float = player.frenzy / Player.FRENZY_TIME if on else player.frenzy_meter
+		# the fish skin shimmers through every colour during a frenzy
+		var gm := Color.from_hsv(fmod(_eye_t * 1.5, 1.0), 0.6, 1.3) if on else Color(1, 1, 1)
+		_strip(ci, _scales, Rect2(BAR.position.x, _frenzy_y, BAR.size.x, STRIP_H), clampf(k, 0.0, 1.0), gm)
 
 
 func _draw_keys() -> void:

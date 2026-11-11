@@ -56,8 +56,6 @@ static func burst(level: Node, pos: Vector3) -> void:
 
 
 static func _outline_rec(n: Node, m: Material, min_size := 0.1) -> void:
-	if n.has_meta("no_outline"):
-		return
 	if n is MeshInstance3D:
 		var mi := n as MeshInstance3D
 		if mi.mesh != null:
@@ -81,9 +79,7 @@ static func sticker(level: Node, pos: Vector3, big := false) -> void:
 	if not enabled() or level == null or level.world == null:
 		return
 	var burst: Texture2D = null
-	if randf() < 0.3:
-		burst = Hyper.sticker_tex()          # a photo cut-out behind the word
-	elif big or randf() < 0.45:
+	if big or randf() < 0.45:
 		burst = texture(BURSTS[randi() % BURSTS.size()])
 	level.world.hud.sticker(texture(STICKERS[randi() % STICKERS.size()]), burst, pos, big)
 

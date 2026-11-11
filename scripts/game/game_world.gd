@@ -151,8 +151,8 @@ func _ready() -> void:
 		elif a.begins_with("--armor="):
 			player.armor = int(a.substr(8))
 			player.armor_type = 1
-		elif a == "--hyperwalls":
-			_debug_hyperwalls()
+		elif a == "--fishtour":
+			_debug_fishtour()
 		elif a.begins_with("--peek="):
 			var xz := a.substr(7).split(",")
 			_debug_peek(Vector3(float(xz[0]), 0, float(xz[1])))
@@ -283,8 +283,8 @@ func _debug_peek(p: Vector3) -> void:
 	get_tree().quit()
 
 
-## Debug: walk up to each photo pasted on the walls and screenshot it.
-func _debug_hyperwalls() -> void:
+## Debug: walk up to each trout pasted on the walls and screenshot it.
+func _debug_fishtour() -> void:
 	Game.cheats["god"] = true
 	for e in level.enemies:
 		e.set_physics_process(false)
@@ -292,18 +292,16 @@ func _debug_hyperwalls() -> void:
 	hud.center("", 0.0)
 	DirAccess.make_dir_recursive_absolute("user://shots")
 	var k := 0
-	for c in level.hyper_walls.get_children():
-		var q: Node3D = c.get_child(0) if c is HyperFace else c
-		var n: Vector3 = q.global_basis.z.normalized()
-		var p: Vector3 = q.global_position + Vector3(n.x, 0, n.z).normalized() * 3.2
+	for q in level.wall_fish.get_children():
+		var n: Vector3 = (q as Node3D).global_basis.z.normalized()
+		var p: Vector3 = q.global_position + Vector3(n.x, 0, n.z).normalized() * 3.0
 		p.y = level.floor_at(p)
 		player.teleport_to(p)
 		player.yaw = atan2(n.x, n.z)
-		player.pitch = 0.05
-		print("[hyperwalls] ", k, " ", q.global_position)
+		player.pitch = 0.0
 		await get_tree().create_timer(0.5).timeout
 		await RenderingServer.frame_post_draw
-		get_viewport().get_texture().get_image().save_png("user://shots/hwall_%d.png" % k)
+		get_viewport().get_texture().get_image().save_png("user://shots/fish_%d.png" % k)
 		k += 1
 	get_tree().quit()
 
@@ -521,13 +519,8 @@ func _apply_settings() -> void:
 		for e in level.enemies:
 			if is_instance_valid(e) and e.model:
 				Collage.outline(e.model)
-			if is_instance_valid(e) and e.hyper_face:
-				e.hyper_face.visible = Collage.enabled()
-		for c in level.civilians:
-			if is_instance_valid(c) and c.hyper_face:
-				c.hyper_face.visible = Collage.enabled()
-		if level.hyper_walls:
-			level.hyper_walls.visible = Collage.enabled()
+		if level.wall_fish:
+			level.wall_fish.visible = Collage.enabled()
 		for p in level.pickups:
 			if is_instance_valid(p) and p.model:
 				Collage.outline(p.model)

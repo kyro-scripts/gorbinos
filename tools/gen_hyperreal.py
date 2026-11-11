@@ -1,20 +1,16 @@
-"""Hyperreal cut-outs: photo-real bits snipped out of a magazine and pasted
-into the cartoon world (the FISH collage look). Everything is painted
-procedurally - height fields lit like a studio photo, with pores, veins,
-fibres and wet highlights - then given a white scissor-cut paper border.
+"""The photo-real bits (the FISH collage look): your eye and the strips of
+raw meat, bone and fish skin that make the health, armor and frenzy bars on
+the HUD, and the trout pasted on the walls round every level. Everything
+is painted procedurally - height fields lit like a studio photo, with
+pores, veins, iris fibres, scales and wet highlights.
 
-  hr_eye.png, hr_eye_b.png   human eye, blue / brown iris; 7 frames:
-                             centre, left, right, rolled up, half shut,
-                             shut, wide
-  hr_eye_sore.png            the blue eye, bloodshot and puffy (same frames)
-  hr_mouth.png               human lips; 4 frames: shut, open, screaming, grin
-  hr_nose.png                a human nose
-  hr_eyeball.png             a loose eyeball trailing its nerve
-  hr_tooth.png               a pulled molar
-  hr_fish.png                a trout
-  hr_meat.png                a raw steak
-  ../ui/hud_meat.png         a strip of raw meat (the health bar)
-  ../ui/hud_scales.png       a strip of fish skin (the armor bar)
+  hr_eye.png           your eye; 7 frames: centre, left, right, rolled up,
+                       half shut, shut, wide
+  hr_eye_sore.png      the same eye, bloodshot and puffy (same frames)
+  hr_fish.png          a trout, cut out of a magazine
+  ../ui/hud_meat.png   a strip of raw meat (health)
+  ../ui/hud_bone.png   a strip of bone (armor)
+  ../ui/hud_scales.png a strip of fish skin (the frenzy meter)
 
 Run: python3 tools/gen_hyperreal.py
 """
@@ -219,7 +215,6 @@ def veins(w, h, starts, seed, count, scale, width=(1, 3), alpha=(0.3, 0.7), col=
 # ------------------------------------------------------------------ eye
 IRIS = {
     "blue": [(0.62, 0.6, 0.42), (0.36, 0.52, 0.7), (0.2, 0.33, 0.5), (0.06, 0.08, 0.12)],
-    "brown": [(0.55, 0.36, 0.14), (0.38, 0.22, 0.09), (0.24, 0.13, 0.06), (0.06, 0.04, 0.03)],
 }
 
 
@@ -411,7 +406,8 @@ def eye_frame(gaze=(0.0, 0.0), open_k=1.0, sore=0.0, iris="blue", seed=1):
     ll = strokes(W, H, lines, (0.07, 0.045, 0.035), scale)
     rgb = over(rgb, ll)
 
-    alpha = scissor_shape(W, H, W * 0.5, H * 0.52, W * 0.465, H * 0.445, 11, seed + 90, 0.07)
+    # cut close round the eye, so it reads at HUD size
+    alpha = scissor_shape(W, H, W * 0.5, H * 0.5, W * 0.385, H * 0.37, 11, seed + 90, 0.05)
     return rgb, alpha
 
 
@@ -423,323 +419,16 @@ def eye_atlas(name, iris, sore, seed):
     frames = []
     for (g, o) in EYE_FRAMES:
         rgb, a = eye_frame(g, o, sore, iris, seed)
-        frames.append(finish(rgb, a, (384, 240), 6, seed + 3))
-    atlas = Image.new("RGBA", (384 * len(frames), 240), (0, 0, 0, 0))
+        frames.append(finish(rgb, a, (384, 240), 4, seed + 3, (2, 3)))
+    # trim the empty margin (the same box for every frame, and both atlases)
+    box = (36, 32, 352, 214)
+    frames = [f.crop(box) for f in frames]
+    fw, fh = frames[0].size
+    atlas = Image.new("RGBA", (fw * len(frames), fh), (0, 0, 0, 0))
     for i, f in enumerate(frames):
-        atlas.paste(f, (i * 384, 0))
+        atlas.paste(f, (i * fw, 0))
     atlas.save(os.path.join(OUT, name + ".png"))
-    print("wrote", name)
-
-
-def cast_shadow(hf, px, steps=28, step_px=3.0, soft=0.04):
-    """Shadows the height field casts on itself, marching toward the light."""
-    h, w = hf.shape
-    lxy = LIGHT[:2] / np.linalg.norm(LIGHT[:2])
-    rise = LIGHT[2] / np.linalg.norm(LIGHT[:2])      # height gained per unit along the light
-    sh = np.zeros_like(hf)
-    for i in range(1, steps + 1):
-        dx = int(round(lxy[0] * step_px * i))
-        dy = int(round(lxy[1] * step_px * i))
-        shifted = np.full_like(hf, -1e9)
-        ys0, ys1 = max(0, -dy), min(h, h - dy)
-        xs0, xs1 = max(0, -dx), min(w, w - dx)
-        shifted[ys0:ys1, xs0:xs1] = hf[ys0 + dy:ys1 + dy, xs0 + dx:xs1 + dx]
-        dist = math.hypot(dx, dy) * px
-        occ = (shifted - (hf + dist * rise)) / soft
-        sh = np.maximum(sh, np.clip(occ, 0, 1))
-    return 1.0 - sh
-
-
-def skin_albedo(shape, seed, base=(0.88, 0.66, 0.56)):
-    mott = noise(shape, 14, seed, 4)
-    red = noise(shape, 6, seed + 1, 3)
-    alb = np.array(base) * (0.92 + 0.12 * mott)[..., None]
-    return mix(alb, np.array([0.86, 0.52, 0.5]), smooth(0.55, 0.95, red) * 0.35)
-
-
-def warm_shadows(rgb):
-    lum = rgb.mean(-1, keepdims=True)
-    return rgb + (1 - np.clip(lum * 1.6, 0, 1)) * np.array([0.07, 0.0, -0.02])
-
-
-# ------------------------------------------------------------------ mouth
-def mouth_frame(open_k=0.0, grin=0.0, seed=5):
-    W, H = 384 * SS, 240 * SS
-    XR = 1.6
-    x, y = grid(W, H, XR)
-    px = 2 * XR / W
-    hw = 0.95 + 0.18 * grin
-    t = np.clip(x / hw, -1.2, 1.2)
-    tc = np.clip(t, -1, 1)
-    ym = 0.05 - 0.13 * grin * tc ** 2 + 0.02 * tc ** 2
-    oh = open_k * 0.62 * (1 - tc ** 2) ** 0.7 + grin * 0.2 * (1 - tc ** 2) ** 0.5
-    o_top = ym - oh * 0.38
-    o_bot = ym + oh * 0.62
-    th_u = (0.2 * (1 - tc ** 2) ** 0.6 + 0.05 * np.exp(-((np.abs(tc) - 0.17) / 0.09) ** 2) - 0.03 * np.exp(-(tc / 0.06) ** 2)) * (1 - 0.4 * grin) * (1 - 0.25 * open_k)
-    th_l = 0.3 * (1 - tc ** 2) ** 0.55 * (1 - 0.35 * grin) * (1 - 0.2 * open_k)
-    l_top = o_top - th_u
-    l_bot = o_bot + th_l
-    span = smooth(1.02, 0.94, np.abs(t))
-    up_lip = (y > l_top) & (y < o_top + 0.002)
-    lo_lip = (y < l_bot) & (y > o_bot - 0.002)
-    aa = lambda d: np.clip(d / (px * 1.5), 0, 1)
-    up_m = aa(np.minimum(y - l_top, o_top - y + 0.004)) * span
-    lo_m = aa(np.minimum(l_bot - y, y - o_bot + 0.004)) * span
-    in_m = aa(np.minimum(y - o_top, o_bot - y)) * span * (oh > 0.004)
-
-    # ---- height
-    hf = np.zeros_like(x)
-    u_u = np.clip((o_top - y) / np.maximum(th_u, 1e-3), 0, 1)
-    u_l = np.clip((y - o_bot) / np.maximum(th_l, 1e-3), 0, 1)
-    wr = noise((H, W), 10, seed + 3, 2)
-    wrinkle = np.abs(np.sin(x * 70 + wr * 7)) ** 0.5
-    hf += up_m * (0.1 * np.sin(np.pi * u_u ** 0.75) - 0.008 * wrinkle * np.sin(np.pi * u_u))
-    hf += lo_m * (0.14 * np.sin(np.pi * u_l ** 0.7) - 0.01 * wrinkle * np.sin(np.pi * u_l))
-    # philtrum, nasolabial folds, the groove over the chin, the chin
-    above = l_top - y
-    ph = smooth(0.0, 0.08, above) * smooth(1.0, 0.4, above)
-    hf += ph * (0.018 * (np.exp(-((x - 0.13) / 0.07) ** 2) + np.exp(-((x + 0.13) / 0.07) ** 2)) - 0.01 * np.exp(-(x / 0.08) ** 2))
-    for sx in (-1, 1):
-        cx = sx * (1.05 + 0.25 * grin) + sx * 0.25 * (-y - 0.2)
-        hf -= 0.05 * np.exp(-((x - cx) / (0.07 + 0.03 * grin)) ** 2) * smooth(0.6, -0.1, y) * smooth(-1.0, -0.5, y)
-        # cheeks bunch up in a grin
-        hf += 0.12 * grin * np.exp(-(((x - sx * 1.25) / 0.3) ** 2 + ((y + 0.25) / 0.35) ** 2))
-    below = y - l_bot
-    hf -= 0.05 * np.exp(-((below - 0.12) / 0.07) ** 2) * smooth(0.9, 0.2, np.abs(x))
-    hf += 0.2 * smooth(0.15, 0.7, below) * smooth(1.2, 0.3, np.abs(x))
-    # mouth corners
-    for sx in (-1, 1):
-        hf -= 0.05 * np.exp(-(((x - sx * hw * 1.0) / 0.06) ** 2 + ((y - ym) / 0.05) ** 2))
-    hf += 0.02 * noise((H, W), 16, seed + 4, 3) + 0.003 * noise((H, W), 260, seed + 5, 1)
-    hf = hf - in_m * 0.15
-
-    n = normals(hf, 1.0, px)
-    skin = skin_albedo((H, W), seed + 10)
-    # a shadow of stubble
-    stub = (noise((H, W), 300, seed + 12, 1) > 0.86) & (np.abs(y - ym) > 0.25)
-    skin = mix(skin, skin * 0.72, stub * 0.35)
-    lipc = np.array([0.76, 0.4, 0.42]) * (0.93 + 0.1 * noise((H, W), 20, seed + 13, 2))[..., None]
-    lipc = mix(lipc, np.array([0.62, 0.26, 0.3]), np.clip(1 - u_u * 2.5, 0, 1) * up_m + np.clip(1 - u_l * 2.5, 0, 1) * lo_m)
-    lipc = lipc * (1 - 0.12 * wrinkle)[..., None]
-    lip_m = np.clip(up_m + lo_m, 0, 1)
-    alb = mix(skin, lipc, lip_m)
-    # the vermilion border is a touch paler
-    vb = np.exp(-(np.minimum(np.abs(y - l_top), np.abs(y - l_bot)) / 0.015) ** 2) * span
-    alb = mix(alb, alb * 1.12 + 0.02, vb * 0.5)
-    spec_map = lip_m * (0.6 + 0.8 * noise((H, W), 60, seed + 14, 2) * (1 - 0.7 * wrinkle)) + (1 - lip_m) * 0.25
-    rgb = light(n, alb, spec=0.55, power=38, spec_map=spec_map)
-    rgb *= ao(hf, 16, 1.4)[..., None]
-    rgb *= cast_shadow(hf, px, 20, 2.0, 0.03)[..., None] * 0.35 + 0.65
-    rgb = warm_shadows(rgb)
-
-    # ---- inside: dark, teeth, gums, tongue
-    if open_k > 0 or grin > 0:
-        depth = np.clip(np.minimum(y - o_top, o_bot - y) / np.maximum(oh * 0.5, 1e-3), 0, 1)
-        inside = mix(np.array([0.32, 0.08, 0.09]), np.array([0.06, 0.01, 0.02]), smooth(0.0, 0.7, depth))
-        inside = inside * (1 - 0.5 * smooth(0.6, 1.0, np.abs(tc)))[..., None]
-        r = np.random.default_rng(seed + 20)
-        widths = [0.17, 0.13, 0.12, 0.11, 0.11, 0.1]
-        tooth = np.zeros_like(x)
-        tcol = np.zeros(x.shape + (3,))
-        gum_y = o_top - 0.03 + (0.06 if grin > 0 else 0.0)
-        for row, (ty, tlen, wk) in enumerate([(gum_y, 0.2 if grin == 0 else 0.13 + oh.max() * 0.0, 1.0),
-                                               (o_bot + 0.03, -0.14, 0.82)]):
-            if row == 1 and open_k < 0.5 and grin == 0:
-                continue
-            for sx in (-1, 1):
-                cx = 0.0
-                for k, wd in enumerate(widths):
-                    wd *= wk
-                    xc = sx * (cx + wd * 0.5)
-                    cx += wd + 0.008
-                    ln = abs(tlen) * (1 - 0.1 * k) * (1.0 if grin == 0 else 1.0)
-                    if grin > 0:
-                        ln = abs(ym - ty) + 0.004 if row == 0 else abs(ty - ym) + 0.004
-                    yy = (y - ty) / ln if tlen > 0 or grin > 0 and row == 0 else (ty - y) / ln
-                    if row == 1 and grin > 0:
-                        yy = (ty - y) / ln
-                    lx = (x - xc) / (wd * 0.5)
-                    shape = (np.abs(lx) < 1) & (yy > 0) & (yy < 1 - 0.25 * lx ** 2)
-                    sm = shape.astype(np.float32)
-                    tooth = np.maximum(tooth, sm)
-                    bulge = np.sqrt(np.clip(1 - lx ** 2, 0, 1))
-                    c = np.array([0.94, 0.91, 0.82]) * (0.55 + 0.45 * bulge)[..., None]
-                    c = mix(c, np.array([0.86, 0.8, 0.62]) * (0.55 + 0.45 * bulge)[..., None], smooth(0.4, 0.0, yy) * 0.5)
-                    c = mix(c, np.array([0.7, 0.74, 0.8]) * (0.6 + 0.4 * bulge)[..., None], smooth(0.75, 1.0, yy) * 0.45)
-                    c = c * (1 - 0.35 * smooth(0.4, 1.0, k / 5.0))
-                    spec = smooth(0.85, 1.0, bulge) * smooth(0.1, 0.3, yy) * 0.35
-                    c = c + spec[..., None]
-                    tcol = np.where(shape[..., None], c, tcol)
-        gum = (y > o_top - 0.01) & (y < gum_y + 0.03) & (in_m > 0)
-        inside = mix(inside, np.array([0.82, 0.42, 0.46]) * (0.7 + 0.3 * noise((H, W), 30, seed + 22, 2))[..., None], gum * 0.9)
-        if open_k > 0.5:
-            tg = np.exp(-(((x) / 0.55) ** 2 + ((y - o_bot + 0.05) / 0.2) ** 2))
-            tongue = np.array([0.78, 0.36, 0.42]) * (0.75 + 0.35 * noise((H, W), 50, seed + 23, 2))[..., None]
-            tongue = tongue * (1 - 0.3 * np.exp(-(x / 0.04) ** 2))[..., None] + (smooth(0.55, 0.9, tg) * 0.18)[..., None]
-            inside = mix(inside, tongue, np.clip(tg * 2.2, 0, 1))
-        inside = mix(inside, tcol, tooth)
-        # the upper lip shades the top of the mouth
-        inside = inside * (1 - 0.5 * np.exp(-np.clip(y - o_top, 0, None) / 0.06))[..., None]
-        rgb = mix(rgb, inside, in_m * (1 - lip_m))
-
-    alpha = scissor_shape(W, H, W * 0.5, H * 0.52, W * 0.47, H * 0.45, 11, seed + 90, 0.07)
-    return rgb, alpha
-
-
-MOUTH_FRAMES = [(0.0, 0.0), (0.32, 0.0), (0.85, 0.0), (0.0, 1.0)]
-
-
-def mouth_atlas():
-    frames = []
-    for o, g in MOUTH_FRAMES:
-        rgb, a = mouth_frame(o, g, 5)
-        frames.append(finish(rgb, a, (384, 240), 6, 8))
-    atlas = Image.new("RGBA", (384 * len(frames), 240), (0, 0, 0, 0))
-    for i, f in enumerate(frames):
-        atlas.paste(f, (i * 384, 0))
-    atlas.save(os.path.join(OUT, "hr_mouth.png"))
-    print("wrote hr_mouth")
-
-
-# ------------------------------------------------------------------ nose
-def nose(seed=21):
-    W = H = 256 * SS
-    x, y = grid(W, H, 1.0)
-    px = 2.0 / W
-    hf = np.zeros_like(x)
-    bw = 0.13 + 0.09 * smooth(-1.0, 0.3, y)
-    hf += 0.42 * np.exp(-(x / bw) ** 2) * smooth(-1.15, -0.55, y) * smooth(0.55, 0.3, y)
-    def blob(cx, cy, rx, ry, k):
-        d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2
-        return k * np.sqrt(np.clip(1 - d, 0, 1))
-    def soft_union(a, b, k=18.0):
-        return np.log(np.exp(a * k) + np.exp(b * k)) / k
-    tip = blob(0, 0.3, 0.3, 0.27, 0.42)
-    hf = soft_union(hf, tip)
-    for sx in (-1, 1):
-        al = blob(sx * 0.27, 0.45, 0.2, 0.17, 0.26)
-        hf = soft_union(hf, al)
-        # the crease round each wing
-        dd = np.sqrt(((x - sx * 0.27) / 0.21) ** 2 + ((y - 0.45) / 0.19) ** 2)
-        hf -= 0.02 * np.exp(-((dd - 1.0) / 0.1) ** 2) * smooth(0.7, 0.5, y) * smooth(0.05, 0.2, np.abs(x))
-    hf += 0.1 * smooth(0.3, 1.0, np.abs(x)) * smooth(0.9, -0.2, y)   # cheeks
-    nostril = np.zeros_like(x)
-    for sx in (-1, 1):
-        a = 0.45 * sx
-        xr = (x - sx * 0.15) * math.cos(a) + (y - 0.58) * math.sin(a)
-        yr = -(x - sx * 0.15) * math.sin(a) + (y - 0.58) * math.cos(a)
-        d = (xr / 0.1) ** 2 + (yr / 0.055) ** 2
-        nostril = np.maximum(nostril, smooth(1.05, 0.7, d))
-    hf -= nostril * 0.25
-    hf += 0.018 * noise((H, W), 14, seed + 1, 3) + 0.004 * noise((H, W), 220, seed + 2, 1)
-    pores = noise((H, W), 160, seed + 3, 1)
-    hf -= 0.004 * (pores > 0.82) * smooth(0.6, 0.0, np.sqrt(x ** 2 + (y - 0.3) ** 2))
-    n = normals(hf, 1.0, px)
-    alb = skin_albedo((H, W), seed + 10)
-    red = np.exp(-((x / 0.35) ** 2 + ((y - 0.32) / 0.3) ** 2)) * 0.5 + sum(np.exp(-(((x - sx * 0.3) / 0.2) ** 2 + ((y - 0.42) / 0.2) ** 2)) for sx in (-1, 1)) * 0.4
-    alb = mix(alb, np.array([0.9, 0.5, 0.48]), np.clip(red, 0, 0.6))
-    alb = mix(alb, np.array([0.18, 0.05, 0.05]), nostril)
-    alb *= (1 - 0.1 * (pores > 0.82))[..., None]
-    sm = 0.4 + 0.9 * np.exp(-((x / 0.2) ** 2 + ((y - 0.2) / 0.2) ** 2)) + 0.3 * np.exp(-((x / 0.1) ** 2 + ((y + 0.2) / 0.5) ** 2))
-    rgb = light(n, alb, spec=0.35, power=32, spec_map=sm * (0.6 + 0.6 * noise((H, W), 80, seed + 4, 1)))
-    rgb *= ao(hf, 20, 1.5)[..., None]
-    rgb *= (cast_shadow(hf, px, 30, 3.0, 0.03) * 0.55 + 0.45)[..., None]
-    rgb = warm_shadows(rgb)
-    pts = [(0.38 * W, 0.02 * H), (0.62 * W, 0.03 * H), (0.78 * W, 0.42 * H), (0.98 * W, 0.66 * H), (0.93 * W, 0.92 * H),
-           (0.55 * W, 0.98 * H), (0.12 * W, 0.94 * H), (0.03 * W, 0.68 * H), (0.22 * W, 0.4 * H)]
-    alpha = polygon_mask(W, H, pts)
-    finish(rgb, alpha, (256, 256), 6, seed).save(os.path.join(OUT, "hr_nose.png"))
-    print("wrote hr_nose")
-
-
-# ------------------------------------------------------------------ eyeball
-def eyeball(seed=31):
-    W = H = 256 * SS
-    x, y = grid(W, H, 1.0)
-    px = 2.0 / W
-    cx, cy, R = -0.12, -0.08, 0.66
-    d2 = ((x - cx) ** 2 + (y - cy) ** 2) / R ** 2
-    ball = np.clip((1 - d2) / (px * 3 / R), 0, 1)
-    z = np.sqrt(np.clip(1 - d2, 0, 1))
-    nrm = np.stack([(x - cx) / R, (y - cy) / R, z], -1)
-    sclera = np.array([0.94, 0.9, 0.85])
-    scale = lambda p: (int((p[0] + 1) / 2 * W), int((p[1] + 1) / 2 * H))
-    # the iris, looking off to the side
-    icx, icy, ri = cx + 0.24, cy - 0.12, 0.27
-    dx, dy = (x - icx) / 0.8, y - icy
-    dd = np.sqrt(dx ** 2 + dy ** 2) / ri
-    th = np.arctan2(dy, dx)
-    fib = noise((H, W), 90, seed + 1, 2)
-    icol = mix(np.array([0.5, 0.42, 0.2]), np.array([0.25, 0.42, 0.3]), smooth(0.3, 0.8, dd)) * (0.65 + 0.6 * (0.5 + 0.5 * np.sin(th * 60 + fib * 8)))[..., None]
-    icol = mix(icol, np.array([0.05, 0.07, 0.06]), smooth(0.85, 1.0, dd))
-    icol = mix(icol, np.array([0.02, 0.02, 0.02]), smooth(0.4, 0.34, dd))
-    im = 1 - smooth(0.96, 1.04, dd)
-    alb = mix(sclera, icol, im)
-    vl = veins(W, H, [(cx - 0.6, cy + 0.3), (cx + 0.1, cy + 0.6), (cx - 0.5, cy - 0.4), (cx + 0.55, cy + 0.3)], seed + 3, 34, scale,
-               width=(1, 3), alpha=(0.35, 0.8), toward=(icx, icy), length=0.6)
-    vl[..., 3] *= 1 - im
-    alb = over(alb, vl)
-    # it's been pulled out: bloody round the back
-    back = smooth(0.55, 1.0, np.sqrt(d2)) * smooth(-0.3, 0.6, (x - cx) * -0.4 + (y - cy) * 0.9)
-    alb = mix(alb, np.array([0.55, 0.08, 0.08]), back * 0.75)
-    rgb = light(nrm, alb, wrap=0.4, ambient=0.25, spec=0.9, power=70)
-    rgb = rgb * ball[..., None]
-    # the optic nerve and a scrap of muscle trailing off
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    dr = ImageDraw.Draw(layer)
-    r = np.random.default_rng(seed + 5)
-    pts = [(cx + 0.35, cy + 0.5)]
-    ang = 1.0
-    for k in range(14):
-        ang += r.normal(0, 0.25) - 0.04
-        pts.append((pts[-1][0] + math.cos(ang) * 0.055, pts[-1][1] + math.sin(ang) * 0.055))
-    for k in range(len(pts) - 1):
-        wdt = int((0.1 - 0.05 * k / len(pts)) * W / 2)
-        for j, (c, wk) in enumerate([((0.55, 0.12, 0.12), 1.0), ((0.82, 0.48, 0.45), 0.6), ((0.95, 0.75, 0.7), 0.22)]):
-            dr.line([scale(pts[k]), scale(pts[k + 1])], fill=tuple(int(v * 255) for v in c) + (255,), width=max(1, int(wdt * wk)))
-    nerve = np.asarray(layer.filter(ImageFilter.GaussianBlur(1.5))).astype(np.float32) / 255.0
-    nerve_m = nerve[..., 3] * (1 - ball)
-    rgb = mix(rgb, nerve[..., :3], nerve_m)
-    alpha = np.clip(ball + nerve_m, 0, 1)
-    # blood drips
-    blood = (noise((H, W), 8, seed + 7, 3) > 0.7) & (alpha > 0.5)
-    rgb = mix(rgb, np.array([0.42, 0.02, 0.03]) + 0.15 * noise((H, W), 60, seed + 8, 1)[..., None], blood * 0.6)
-    finish(rgb, alpha, (256, 256), 6, seed).save(os.path.join(OUT, "hr_eyeball.png"))
-    print("wrote hr_eyeball")
-
-
-# ------------------------------------------------------------------ tooth
-def tooth(seed=41):
-    W, H = 192 * SS, 256 * SS
-    x, y = grid(W, H, 0.75)
-    px = 1.5 / W
-    crown_w = 0.62 * (1 - 0.15 * smooth(-0.5, -0.05, y))
-    cusp = 0.09 * np.abs(np.sin((x + 0.05) / 0.62 * math.pi * 1.5)) + 0.12 * (np.abs(x) / 0.62) ** 4
-    crown = (np.abs(x) < crown_w) & (y > -0.82 + cusp) & (y < -0.02)
-    cr_d = (np.abs(x) / crown_w) ** 2 + np.clip((-0.42 - y) / 0.45, 0, None) ** 2 + np.clip((y + 0.25) / 0.4, 0, None) ** 2 * 0.5
-    roots = np.zeros_like(x)
-    for sx in (-1, 1):
-        k = np.clip((y + 0.1) / 1.0, 0, 1)
-        rc = sx * (0.26 + 0.12 * k)
-        rw = 0.22 * (1 - k) ** 0.7 + 0.02
-        roots = np.maximum(roots, ((np.abs(x - rc) < rw) & (y > -0.15) & (y < 0.9)).astype(np.float32) * np.sqrt(np.clip(1 - ((x - rc) / rw) ** 2, 0, 1)))
-    hf = np.where(crown, 0.4 * np.sqrt(np.clip(1 - cr_d, 0, 1)) + 0.05 * np.cos((x / 0.62) * 7) * smooth(-0.45, -0.8, y), 0.0)
-    hf = np.maximum(hf, roots * 0.22)
-    mask = np.clip(crown.astype(np.float32) + (roots > 0), 0, 1)
-    mask = ndimage.gaussian_filter(mask, 1.0)
-    hf += 0.008 * noise((H, W), 40, seed + 1, 2)
-    n = normals(hf, 1.0, px)
-    enamel = np.array([0.95, 0.94, 0.88]) * (0.94 + 0.08 * noise((H, W), 20, seed + 2, 2))[..., None]
-    dentin = np.array([0.86, 0.74, 0.55]) * (0.9 + 0.12 * noise((H, W), 30, seed + 3, 2))[..., None]
-    alb = mix(enamel, dentin, smooth(-0.1, 0.05, y))
-    blood = smooth(0.35, 0.9, y) * (0.5 + 0.5 * noise((H, W), 10, seed + 4, 2))
-    alb = mix(alb, np.array([0.5, 0.04, 0.05]), np.clip(blood, 0, 0.9))
-    stain = np.exp(-(((x - 0.15) / 0.08) ** 2 + ((y + 0.6) / 0.06) ** 2))
-    alb = mix(alb, np.array([0.35, 0.25, 0.15]), stain * 0.8)
-    rgb = light(n, alb, wrap=0.4, ambient=0.25, spec=0.6, power=45, spec_map=0.5 + 0.5 * (y < 0) + 0.5 * blood)
-    rgb *= ao(hf, 10, 2.0)[..., None]
-    finish(rgb, mask, (192, 256), 6, seed).save(os.path.join(OUT, "hr_tooth.png"))
-    print("wrote hr_tooth")
+    print("wrote", name, atlas.size)
 
 
 # ------------------------------------------------------------------ fish
@@ -849,7 +538,6 @@ def fish(seed=51):
     print("wrote hr_fish")
 
 
-# ------------------------------------------------------------------ meat
 def meat_albedo(x, y, H, W, seed, fat_edge):
     small = np.random.default_rng(seed).random((H // 2 + 1, W // 24 + 2))
     fibre = ndimage.zoom(small, (H / (H // 2), W / (W // 24)), order=3)[:H, :W]
@@ -863,34 +551,6 @@ def meat_albedo(x, y, H, W, seed, fat_edge):
     return alb, fibre, marb
 
 
-def meat(seed=61):
-    W, H = 320 * SS, 256 * SS
-    XR = 1.25
-    x, y = grid(W, H, XR)
-    px = 2 * XR / W
-    th = np.arctan2(y / 0.82, x / 1.12)
-    rr = np.sqrt((x / 1.12) ** 2 + (y / 0.82) ** 2)
-    wob = 1 + 0.1 * (noise((H, W), 4, seed, 2) - 0.5) * 2
-    inside = rr / wob
-    mask = np.clip((1 - inside) / (px * 2), 0, 1)
-    fat_edge = smooth(0.8, 0.9, inside) * smooth(0.2, -0.5, np.sin(th))
-    alb, fibre, marb = meat_albedo(x, y, H, W, seed, fat_edge)
-    # a round bone
-    bd = np.sqrt(((x + 0.4) / 1.15) ** 2 + ((y - 0.15) / 0.85) ** 2) * (1 + 0.12 * (noise((H, W), 6, seed + 11, 2) - 0.5))
-    bone = smooth(0.2, 0.18, bd)
-    marrow = smooth(0.13, 0.08, bd)
-    alb = mix(alb, np.array([0.93, 0.89, 0.78]) * (0.85 + 0.15 * noise((H, W), 50, seed + 5, 2))[..., None], bone)
-    alb = mix(alb, np.array([0.5, 0.14, 0.12]) * (0.6 + 0.6 * noise((H, W), 80, seed + 6, 1))[..., None], marrow)
-    hf = 0.18 * np.sqrt(np.clip(1 - inside ** 2, 0, 1)) + 0.03 * fat_edge + 0.01 * fibre + 0.015 * bone - 0.02 * marrow
-    hf += 0.006 * noise((H, W), 60, seed + 7, 2)
-    n = normals(hf, 1.0, px)
-    rgb = light(n, alb, wrap=0.3, ambient=0.25, spec=0.7, power=48, spec_map=0.3 + 1.0 * smooth(0.5, 0.8, noise((H, W), 40, seed + 8, 2)))
-    rgb *= ao(hf, 10, 1.5)[..., None]
-    finish(rgb, mask, (320, 256), 6, seed).save(os.path.join(OUT, "hr_meat.png"))
-    print("wrote hr_meat")
-
-
-# ------------------------------------------------------------------ HUD strips
 def hud_strips(seed=71):
     W, H = 512 * SS, 48 * SS
     x, y = grid(W, H, 512 / 48, 1.0)
@@ -927,6 +587,21 @@ def hud_strips(seed=71):
     edge = np.clip((1 - np.abs(y)) / (px * 2), 0, 1)
     to_img(rgb, edge).resize((512, 32), Image.LANCZOS).save(os.path.join(UI_OUT, "hud_scales.png"))
     print("wrote hud_scales")
+    # a strip of bone for armor: ivory, pitted, a hairline crack or two
+    W, H = 512 * SS, 32 * SS
+    x, y = grid(W, H, 512 / 32, 1.0)
+    px = 2.0 / H
+    pits = noise((H, W), 160, seed + 30, 1)
+    hf = 0.12 * np.sqrt(np.clip(1 - y ** 2, 0, 1)) + 0.012 * noise((H, W), 40, seed + 31, 3) - 0.01 * (pits > 0.85)
+    crack = np.abs(noise((H, W), 6, seed + 32, 3) - 0.5) < 0.012
+    hf -= 0.01 * crack
+    n = normals(hf, 1.0, px)
+    alb = mix(np.array([0.93, 0.89, 0.78]), np.array([0.82, 0.74, 0.58]), noise((H, W), 12, seed + 33, 3) * 0.8)
+    alb = mix(alb, np.array([0.45, 0.35, 0.25]), crack * 0.7 + (pits > 0.85) * 0.3)
+    rgb = light(n, alb, wrap=0.35, ambient=0.3, spec=0.35, power=30)
+    edge = np.clip((1 - np.abs(y)) / (px * 2), 0, 1)
+    to_img(rgb, edge).resize((512, 32), Image.LANCZOS).save(os.path.join(UI_OUT, "hud_bone.png"))
+    print("wrote hud_bone")
 
 
 if __name__ == "__main__":
@@ -935,14 +610,7 @@ if __name__ == "__main__":
     if "eye" in which or "all" in which:
         eye_atlas("hr_eye", "blue", 0.0, 11)
         eye_atlas("hr_eye_sore", "blue", 1.0, 11)
-        eye_atlas("hr_eye_b", "brown", 0.15, 17)
-    if "mouth" in which or "all" in which:
-        mouth_atlas()
-    if "bits" in which or "all" in which:
-        nose()
-        eyeball()
-        tooth()
+    if "fish" in which or "all" in which:
         fish()
-        meat()
     if "hud" in which or "all" in which:
         hud_strips()
