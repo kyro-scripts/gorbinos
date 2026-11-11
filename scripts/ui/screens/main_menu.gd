@@ -1,6 +1,6 @@
 extends Control
-## Title screen: printed paper with trout drifting past, the name in
-## ransom-note letters, the options on torn paper strips, and a turntable
+## Title screen: printed paper with trout drifting past, the name in big
+## bold type, the options on torn paper strips, and a turntable
 ## with a Gorbino, a Snirby and a snotling.
 
 var backdrop: MenuBackdrop
@@ -115,7 +115,7 @@ func _process(delta: float) -> void:
 	Creatures.animate(snirb, t + 1.3, delta, {"move": 0.0, "windup": fmod(t + 2.0, 5.0) > 4.4})
 	Creatures.animate(snot, t + 0.6, delta, {"move": 0.0, "blink": fmod(t + 1.0, 4.3) < 0.12})
 	var root := menu.stack.size() <= 1
-	menu.top_y = 128.0 if root else 150.0
+	menu.top_y = 142.0 if root else 150.0
 	preview.visible = not menu.page().get("wide", false)
 	var side := minf(size.y * 0.7, size.x * 0.42)
 	preview.position = Vector2(size.x - side - 6, size.y - side - 10)
@@ -123,14 +123,11 @@ func _process(delta: float) -> void:
 	title.queue_redraw()
 
 
-## The name, in letters cut out of a dozen magazines; it shrinks away up
-## the corner once you're in a sub-page.
+## The name; it shrinks away up the corner once you're in a sub-page.
 func _draw_title() -> void:
 	var root := menu.stack.size() <= 1
-	var k := 1.0 if root else 0.62
-	var x := 34.0 + 124.0 * k
-	var y := 14.0 + sin(t * 1.3) * 2.0
-	title.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	UI.ransom(title, x, y, "GORBINO'S", 40.0 * k)
-	UI.ransom(title, x + 18.0 * k, y + 52.0 * k, "QUEST", 46.0 * k)
+	var k := 1.0 if root else 0.6
+	var y := 8.0 + sin(t * 1.3) * 1.5
+	MenuView.heading(title, 34.0, y, "GORBINO'S", int(round(48 * k)), true)
+	MenuView.heading(title, 34.0, y + 50.0 * k, "QUEST", int(round(56 * k)), true)
 	UI.text(title, "term", Vector2(8, size.y - 20), "V1.9.6", Color(0.75, 0.65, 0.7), 16)

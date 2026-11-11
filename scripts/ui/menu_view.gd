@@ -1,9 +1,8 @@
 class_name MenuView
 extends Control
-## Stacked menu, cut and pasted: every option is a torn strip of paper with
-## the words on it, the chosen one lit up and pulled out, with a photo-real
-## trout nibbling at it. Title in ransom-note letters. Sliders / toggles /
-## choices / key binding rows.
+## Stacked menu: every option is a torn strip of paper with the words on
+## it, the chosen one lit up and pulled out, with a photo-real trout
+## nibbling at it. Sliders / toggles / choices / key binding rows.
 
 signal emptied
 
@@ -318,11 +317,7 @@ func _draw() -> void:
 		cx = left_x + row_w * 0.5
 	var y := top_y
 	if show_title and p.has("title") and String(p["title"]) != "":
-		var title := String(p["title"])
-		if Collage.enabled():
-			UI.ransom(self, cx, y - 56, title, 30.0)
-		else:
-			UI.text_centered(self, "big", cx, y - 56, title, Color.WHITE)
+		heading(self, cx, y - 58, String(p["title"]), 34)
 	_draw_list(p, cx, y, row_w, big)
 	if p.has("footer"):
 		# a strip of masking tape along the bottom
@@ -334,6 +329,16 @@ func _draw() -> void:
 		UI.text_centered(self, "menu_hi", cx, size.y - 56, _flash, Color(UI.ACID, clampf(_flash_t, 0, 1)))
 	if waiting_bind != "":
 		UI.text_centered(self, "term", cx, size.y - 44, "PRESS A KEY OR MOUSE BUTTON. ESC TO CANCEL.", UI.ACID, 16)
+
+
+## A heading in plain bold type: cream, with the pink plate printed a little
+## off and a dark shadow under it.
+static func heading(ci: CanvasItem, cx: float, y: float, s: String, sz: int, left := false) -> void:
+	var w := UI.text_width("anton", s, sz)
+	var x := cx if left else cx - w * 0.5
+	UI.text(ci, "anton", Vector2(x + 4, y + 4), s, Color(0.05, 0.0, 0.06, 0.8), sz)
+	UI.text(ci, "anton", Vector2(x + 2, y + 1), s, Color(0.98, 0.12, 0.5), sz)
+	UI.text(ci, "anton", Vector2(x, y), s, PAPER, sz)
 
 
 ## A torn strip of paper: straight along the top and bottom, ragged at the

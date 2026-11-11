@@ -53,7 +53,7 @@ Doors also open when you walk into them, except locked doors (find the keycard) 
 
 Gorbino's Quest is drawn like something cut out of a cheap magazine and pasted together, in the spirit of FISH and Cruelty Squad. The picture comes out like bad print: the colour plates don't quite line up and twitch a few times a second, the shadows are halftone dots, the highlights go to cream paper, ink lines run where colours break, and the colours are pushed hard. Creatures, pickups, your gun and your knife arm are snipped out with white paper borders that boil slightly, so things pop off the background. Kills slap a ransom-note sticker over the action (SPLORT!, GORB!, BLAMMO, BYE BYE...), explosions get cut-out bursts, and the big words on screen are ransom-note letters cut from a dozen magazines. And here and there on the walls of every level, a photo-real trout has been pasted up. All of it can be switched off with **COLLAGE FX** in OPTIONS > VIDEO.
 
-The title screen, pause menu and death menu are the same scrapbook: the name in ransom-note letters, every option a torn strip of paper (the chosen one lit up and pulled out, with a trout nibbling at its end), over printed halftone paper with trout drifting past.
+The title screen, pause menu and death menu share one look: the name in big bold type, every option a torn strip of paper (the chosen one lit up and pulled out, with a trout nibbling at its end), over printed halftone paper with trout drifting past.
 
 ### Frenzy and the slide
 
