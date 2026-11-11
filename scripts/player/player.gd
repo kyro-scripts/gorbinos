@@ -28,6 +28,14 @@ var gut_move_to := Vector3.INF
 var gut_crouch := 0.0
 var gut_grace := 0.0              # a moment of safety after a gut ends
 var fov_punch := 0.0              # brief zoom kicks (gutting)
+var slide_t := 0.0                # > 0 while sliding along the floor
+var slide_dir := Vector3.ZERO
+var slide_dip := 0.0              # how far the eye has dropped for the slide
+var _slide_cd := 0.0
+var _slid_into := {}
+var frenzy := 0.0                 # > 0: FRENZY seconds left
+var frenzy_meter := 0.0           # 0..1, filled by kills
+var _last_kill_t := 0.0
 var yaw := 0.0
 var pitch := 0.0
 var health := 100
@@ -195,8 +203,14 @@ func _physics_process(delta: float) -> void:
 	if wish.length() > 1.0:
 		wish = wish.normalized()
 	var sprinting := (Input.is_action_pressed("sprint") if autopilot == null else auto_sprint)
-	var max_speed := SPRINT if sprinting else WALK
-	if on_floor:
+	var max_speed := (SPRINT if sprinting else WALK) * (1.15 if frenzy > 0.0 else 1.0)
+	_slide_cd -= delta
+	var hspeed := Vector2(velocity.x, velocity.z).length()
+	if autopilot == null and Input.is_action_just_pressed("slide") and on_floor and slide_t <= 0.0 and _slide_cd <= 0.0 and hspeed > 3.0:
+		_start_slide()
+	if slide_t > 0.0:
+		_slide(delta, on_floor, wish)
+	elif on_floor:
 		coyote = 0.12
 		_apply_friction(delta)
 		_accelerate(wish, max_speed, GROUND_ACCEL, delta)
@@ -212,6 +226,9 @@ func _physics_process(delta: float) -> void:
 		jump_buffer = 0.14
 	jump_buffer -= delta
 	if jump_buffer > 0.0 and coyote > 0.0:
+		if slide_t > 0.0:
+			# jump out of a slide and keep the speed
+			slide_t = 0.0
 		velocity.y = JUMP_V
 		jump_buffer = 0.0
 		coyote = 0.0
@@ -238,6 +255,103 @@ func _physics_process(delta: float) -> void:
 	_cur_pos = global_position
 	_hazards(delta)
 	_footsteps(delta)
+	_tick_frenzy(delta)
+
+
+# ------------------------------------------------------------------ slide
+func _start_slide() -> void:
+	slide_t = 0.62
+	_slide_cd = 0.75
+	_slid_into.clear()
+	var hv := Vector3(velocity.x, 0, velocity.z)
+	slide_dir = hv.normalized() if hv.length() > 0.5 else -Basis(Vector3.UP, yaw).z
+	var sp := maxf(hv.length() + 3.0, 14.0)
+	velocity.x = slide_dir.x * sp
+	velocity.z = slide_dir.z * sp
+	Audio.play("slide", -2.0, randf_range(0.95, 1.05))
+	fov_punch = 6.0
+
+
+## Low and fast, a little steering, slowing as it goes. Anything you slide
+## into gets kicked off its feet.
+func _slide(delta: float, on_floor: bool, wish: Vector3) -> void:
+	slide_t -= delta
+	var hv := Vector3(velocity.x, 0, velocity.z)
+	var sp := hv.length()
+	sp = move_toward(sp, 7.0, delta * 12.0)
+	var dir := hv.normalized() if hv.length() > 0.1 else slide_dir
+	if wish.length() > 0.1:
+		dir = dir.slerp(wish.normalized(), clampf(delta * 2.5, 0.0, 1.0))
+	velocity.x = dir.x * sp
+	velocity.z = dir.z * sp
+	if on_floor:
+		coyote = 0.12
+		if randf() < delta * 20.0:
+			Fx.puff(level, global_position + Vector3(randf_range(-0.3, 0.3), 0.05, randf_range(-0.3, 0.3)), Vector3.UP)
+	else:
+		velocity.y -= GRAVITY * delta
+	for e in level.enemies:
+		if not is_instance_valid(e) or e.dead or e.gutted or _slid_into.has(e):
+			continue
+		var d: Vector3 = e.global_position - global_position
+		d.y = 0.0
+		if d.length() < RADIUS + float(e.radius) + 0.35:
+			_slid_into[e] = true
+			e.take_damage(14.0, self, (d.normalized() + Vector3.UP * 0.3).normalized(), "melee")
+			if not e.dead and not e.def.get("boss", false):
+				e.knock += (d.normalized() * 9.0 + Vector3.UP * 2.0)
+			Audio.play_at("hit_flesh", e.center_point(), 0.0, 0.8)
+			shake(0.15)
+	if slide_t <= 0.0:
+		slide_t = 0.0
+
+
+# ------------------------------------------------------------------ frenzy
+const FRENZY_TIME := 8.0
+const FRENZY_SHOUTS := ["GORBTASTIC!", "MEAT PARADE!", "BLORPOCALYPSE!", "SPLATTERDAY!", "UNHINGED!",
+	"FULL GORB!", "OOPS ALL GUTS!", "MEAT MEAT MEAT!"]
+
+
+## A kill: fills the frenzy meter. Kills in quick succession fill it faster.
+func on_kill(en: Node) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	var chain := now - _last_kill_t < 3.0
+	_last_kill_t = now
+	if frenzy > 0.0:
+		frenzy = minf(frenzy + 0.6, FRENZY_TIME)
+		if randf() < 0.3 and world:
+			world.hud.center(FRENZY_SHOUTS[randi() % FRENZY_SHOUTS.size()], 0.9)
+		return
+	frenzy_meter += 0.2 if chain else 0.12
+	if en.def.get("boss", false):
+		frenzy_meter = 1.0
+	if frenzy_meter >= 1.0:
+		_start_frenzy()
+
+
+func _start_frenzy() -> void:
+	frenzy = FRENZY_TIME
+	frenzy_meter = 0.0
+	Audio.play("frenzy_on", 2.0)
+	Audio.play("gorb_talk_" + ["a", "c", "e"][randi() % 3], 4.0, 1.5)
+	fov_punch = 12.0
+	shake(0.3)
+	if world:
+		world.hud.center("FRENZY!", 1.6)
+
+
+func _tick_frenzy(delta: float) -> void:
+	if frenzy > 0.0:
+		frenzy -= delta
+		Audio.music_player.pitch_scale = move_toward(Audio.music_player.pitch_scale, 1.22, delta * 2.0)
+		if frenzy <= 0.0:
+			frenzy = 0.0
+			if world:
+				world.hud.message("THE FRENZY PASSES")
+	else:
+		Audio.music_player.pitch_scale = move_toward(Audio.music_player.pitch_scale, 1.0, delta * 1.0)
+		if Time.get_ticks_msec() / 1000.0 - _last_kill_t > 4.0:
+			frenzy_meter = maxf(0.0, frenzy_meter - delta * 0.06)
 
 
 func _apply_friction(delta: float) -> void:
@@ -335,7 +449,8 @@ func _update_head(f: float) -> void:
 		eye = lerpf(EYE, 0.35, clampf(death_t * 2.5, 0.0, 1.0))
 	if not gutting:
 		gut_crouch = move_toward(gut_crouch, 0.0, get_process_delta_time() * 2.5)
-	head.global_position = p + Vector3(0, eye + step_offset - land_dip - gut_crouch, 0)
+	slide_dip = move_toward(slide_dip, 0.75 if slide_t > 0.0 else 0.0, get_process_delta_time() * (8.0 if slide_t > 0.0 else 4.0))
+	head.global_position = p + Vector3(0, eye + step_offset - land_dip - gut_crouch - slide_dip, 0)
 	head.rotation = Vector3(0, yaw, 0)
 
 
@@ -480,12 +595,17 @@ func try_pickup(pk: Pickup) -> bool:
 			took = weapons.give_ammo("cells", int(20 * amult))
 		"cells_box":
 			took = weapons.give_ammo("cells", int(100 * amult))
+		"fuel":
+			took = weapons.give_ammo("fuel", int(25 * amult))
+		"fuel_box":
+			took = weapons.give_ammo("fuel", int(80 * amult))
 		"backpack":
 			inv["backpack"] = true
 			weapons.give_ammo("bullets", 10)
 			weapons.give_ammo("shells", 4)
 			weapons.give_ammo("rockets", 1)
 			weapons.give_ammo("cells", 20)
+			weapons.give_ammo("fuel", 25)
 			took = true
 		"key_red", "key_blue", "key_yellow":
 			keys[t.substr(4)] = true

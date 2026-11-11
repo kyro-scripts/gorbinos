@@ -56,6 +56,7 @@ func _ready() -> void:
 	scale = Vector3.ONE * VM_SCALE
 	position = REST
 	_build()
+	Collage.outline_viewmodel(self)
 
 
 func _build() -> void:

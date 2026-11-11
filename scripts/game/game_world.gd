@@ -92,6 +92,10 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_apply_settings)
 	_apply_settings()
 	_capture(true)
+	if level.data.get("endless", false):
+		endless = Endless.new()
+		add_child(endless)
+		endless.setup(self)
 	if Game.autoplay:
 		autopilot = load("res://scripts/test/autopilot.gd").new()
 		autopilot.setup(self)
@@ -128,6 +132,20 @@ func _ready() -> void:
 			_debug_trick(a.substr(11))
 		elif a == "--civshot":
 			_debug_civshot()
+		elif a == "--slidetest":
+			get_tree().create_timer(0.6).timeout.connect(func():
+				player.velocity = -Basis(Vector3.UP, player.yaw).z * 12.0
+				player._start_slide()
+				get_tree().create_timer(0.25).timeout.connect(func():
+					print("SLIDE t=%.2f speed=%.1f dip=%.2f" % [player.slide_t, Vector2(player.velocity.x, player.velocity.z).length(), player.slide_dip])
+					if not OS.get_cmdline_user_args().has("--shot-name=slide"):
+						get_tree().quit()))
+		elif a == "--frenzy":
+			get_tree().create_timer(0.5).timeout.connect(func(): player._start_frenzy())
+		elif a == "--flametest":
+			_debug_flametest()
+		elif a.begins_with("--whiptest"):
+			_debug_whiptest(a.substr(11) if a.length() > 11 else "green")
 		elif a.begins_with("--peek="):
 			var xz := a.substr(7).split(",")
 			_debug_peek(Vector3(float(xz[0]), 0, float(xz[1])))
@@ -174,6 +192,70 @@ func _debug_guttest(etype: String) -> void:
 	await get_tree().create_timer(1.0).timeout
 	player.finisher.start(en)
 	_debug_shots("gut", [0.05, 0.3, 0.42, 0.65, 0.95, 1.25, 1.5, 1.8, 2.05, 2.3, 2.6, 3.2, 4.5], true)
+
+
+## Debug: three Gorbinos down the hall, hold the flamethrower on them.
+func _debug_flametest() -> void:
+	Game.cheats["god"] = true
+	var yaw := level.start_yaw
+	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+	var right := Vector3(cos(yaw), 0, -sin(yaw))
+	for k in 3:
+		var p: Vector3 = level.player_start + fwd * (4.5 + k * 0.8) + right * (k - 1) * 1.4
+		p.y = level.floor_at(p)
+		var en := Enemy.new()
+		level.entity_root().add_child(en)
+		en.setup(["green", "yellow", "blue"][k], level, p, yaw + PI)
+		level.enemies.append(en)
+		en.set_physics_process(true)
+	player.weapons.owned.append("flamer")
+	player.weapons.ammo["fuel"] = 200
+	player.weapons.switch_to("flamer")
+	hud.center("", 0.0)
+	await get_tree().create_timer(0.6).timeout
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	var shots := [0.3, 0.7, 1.2, 1.8, 2.6, 3.6]
+	var t := 0.0
+	var si := 0
+	while si < shots.size():
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		if t < 1.4 and player.weapons.cooldown <= 0.0:
+			player.weapons._try_fire()
+		if t >= shots[si]:
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png("user://shots/flame_%d.png" % si)
+			si += 1
+	var burning := 0
+	var dead := 0
+	for e in level.enemies:
+		if is_instance_valid(e):
+			burning += 1 if e.burn_t > 0.0 else 0
+			dead += 1 if e.dead else 0
+	print("FLAME burning=%d dead=%d fuel=%d" % [burning, dead, int(player.weapons.ammo["fuel"])])
+	get_tree().quit()
+
+
+## Debug: put a creature down the hall, whip it in and screenshot the lot.
+func _debug_whiptest(etype: String) -> void:
+	Game.cheats["god"] = true
+	var yaw := level.start_yaw
+	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+	var p: Vector3 = level.player_start + fwd * 8.0
+	p.y = level.floor_at(p)
+	var en := Enemy.new()
+	level.entity_root().add_child(en)
+	en.setup(etype, level, p, yaw + PI)
+	level.enemies.append(en)
+	hud.center("", 0.0)
+	await get_tree().create_timer(0.8).timeout
+	var eye: Vector3 = player.eye_point()
+	var d: Vector3 = en.center_point() - eye
+	print("WHIP target in sights: ", player.finisher.find_whip_target() == en, " dot=", (-player.camera.global_transform.basis.z).dot(d.normalized()),
+		" dist=", d.length(), " los=", level.has_los(eye, en.center_point()), " dead=", en.dead, " gutted=", en.gutted)
+	player.finisher._whip_start(en)
+	_debug_shots("whip", [0.06, 0.13, 0.25, 0.38, 0.5, 0.9, 1.6, 2.6], true)
 
 
 ## Debug: stand at a spot and look all round it.
@@ -377,6 +459,8 @@ func _debug_lineup() -> void:
 
 
 func _exit_tree() -> void:
+	Audio.music_player.pitch_scale = 1.0
+	Engine.time_scale = 1.0
 	Audio.set_world(null)
 	Audio.stop_ambience()
 	get_tree().paused = false
@@ -397,6 +481,18 @@ func _apply_settings() -> void:
 	post.set_shader_parameter("src_size", Vector2(vp.size))
 	post.set_shader_parameter("levels", Settings.color_levels())
 	post.set_shader_parameter("gamma", float(Settings.get_v("gamma")))
+	post.set_shader_parameter("zine", 1.0 if Collage.enabled() else 0.0)
+	if level:
+		for e in level.enemies:
+			if is_instance_valid(e) and e.model:
+				Collage.outline(e.model)
+		for p in level.pickups:
+			if is_instance_valid(p) and p.model:
+				Collage.outline(p.model)
+	if player:
+		if player.weapons.vm:
+			Collage.outline_viewmodel(player.weapons.vm)
+		Collage.outline_viewmodel(player.offhand)
 	if player:
 		player.camera.fov = float(Settings.get_v("fov"))
 
@@ -413,6 +509,8 @@ func _process(delta: float) -> void:
 			player.flash_color = Color(0, 0, 0, 0)
 		_flash.a = move_toward(_flash.a, 0.0, delta * 1.4)
 		post.set_shader_parameter("flash_color", _flash)
+		_frenzy_fx = move_toward(_frenzy_fx, 1.0 if player.frenzy > 0.0 else 0.0, delta * 3.0)
+		post.set_shader_parameter("frenzy", _frenzy_fx)
 	if player.dead:
 		dead_t += delta
 		if dead_t > 1.6 and not death_menu_shown:
@@ -461,6 +559,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		hud.show_map = not hud.show_map
 	elif event.is_action_pressed("quicksave"):
 		if player.gutting:
+			return
+		if endless:
+			hud.message("NO SAVING IN THE PIT.")
 			return
 		save_to("quick")
 		hud.message("QUICKSAVED.")
@@ -543,6 +644,15 @@ func _show_death_menu() -> void:
 	menu.allow_empty_back = false
 	var latest = Game.latest_save()
 	menu.top_y = 180.0
+	if endless:
+		var b: Dictionary = endless.best
+		var title := "SURVIVED %d WAVES   %d KILLS" % [maxi(endless.wave - 1, 0), endless.kills]
+		hud.center("NEW BEST!" if endless.new_best else "BEST: WAVE %d" % int(b.get("wave", 0)), 999.0)
+		menu.push({"title": title, "tiles": true, "cols": 2, "items": [
+			{"label": "TRY AGAIN", "icon": "tile_retry", "cb": func(): Game.restart_level()},
+			{"label": "QUIT TO MENU", "icon": "tile_quit", "cb": func(): Game.goto_menu()},
+		], "back": func(): pass})
+		return
 	menu.push({"title": "", "tiles": true, "cols": 3, "items": [
 		{"label": "RESTART LEVEL", "icon": "tile_retry", "cb": func(): Game.restart_level()},
 		{"label": "LOAD LAST SAVE", "icon": "tile_load", "enabled": latest != null, "cb": func(): Game.load_from_save(Game.latest_save())},
@@ -557,6 +667,8 @@ func on_player_died() -> void:
 
 
 var _hitstop_token := 0
+var _frenzy_fx := 0.0
+var endless: Endless = null
 
 
 ## Freeze the world for a moment (real seconds). Skipped while gutting,

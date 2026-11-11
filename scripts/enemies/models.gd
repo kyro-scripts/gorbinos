@@ -282,6 +282,31 @@ static func weapon(wname: String, with_hands := true) -> Node3D:
 			muzzle.position = Vector3(0, 0, -0.4)
 			if with_hands:
 				root.add_child(mi(box(0.075, 0.09, 0.1), glove, Vector3(0.0, -0.13, 0.09), Vector3(-12, 0, 0)))
+		"flamer":
+			# a red gas canister slung under a long nozzle, a brass feed pipe,
+			# a little blue pilot light, and a Gorbino sticker on the tank
+			var tank_m := Mat.world("gun_red", o)
+			root.add_child(mi(cyl(0.065, 0.065, 0.26, 12), tank_m, Vector3(0, -0.075, 0.02), Vector3(90, 0, 0)))
+			root.add_child(mi(sphere(0.065, 12, 6), tank_m, Vector3(0, -0.075, -0.11)))
+			root.add_child(mi(sphere(0.065, 12, 6), tank_m, Vector3(0, -0.075, 0.15)))
+			root.add_child(mi(cyl(0.067, 0.067, 0.03, 12), Mat.world("white", {"origin": true, "tint": Color(1.0, 0.85, 0.1)}), Vector3(0, -0.075, -0.04), Vector3(90, 0, 0)))
+			root.add_child(mi(box(0.004, 0.05, 0.05), Mat.world("cr_gorb_yellow", o), Vector3(0.066, -0.075, 0.06)))
+			root.add_child(mi(cyl(0.02, 0.02, 0.05, 8), brass, Vector3(0, -0.005, 0.14)))
+			root.add_child(mi(box(0.07, 0.06, 0.32), dark, Vector3(0, 0.02, -0.05)))
+			root.add_child(mi(cyl(0.022, 0.026, 0.3, 10), metal, Vector3(0, 0.03, -0.32), Vector3(90, 0, 0)))
+			root.add_child(mi(cyl(0.04, 0.026, 0.06, 10), dark, Vector3(0, 0.03, -0.49), Vector3(90, 0, 0)))
+			for k in 4:
+				root.add_child(mi(cyl(0.03, 0.03, 0.01, 10), dark, Vector3(0, 0.03, -0.22 - k * 0.05), Vector3(90, 0, 0)))
+			# the brass feed pipe from the tank up to the barrel
+			root.add_child(mi(cyl(0.008, 0.008, 0.28, 6), brass, Vector3(0.04, -0.02, -0.2), Vector3(90, 0, 0)))
+			root.add_child(mi(cyl(0.008, 0.008, 0.06, 6), brass, Vector3(0.04, -0.045, -0.07), Vector3(0, 0, 0)))
+			var pilot := mi(sphere(0.012, 6, 4), Mat.make("white", {"origin": true, "fullbright": 1.0, "tint": Color(0.35, 0.6, 1.0)}), Vector3(0, -0.01, -0.53))
+			root.add_child(pilot)
+			parts["pilot"] = pilot
+			root.add_child(mi(box(0.04, 0.12, 0.05), dark, Vector3(0, -0.06, 0.2), Vector3(-15, 0, 0)))
+			muzzle.position = Vector3(0, 0.03, -0.55)
+			if with_hands:
+				root.add_child(mi(box(0.075, 0.09, 0.1), glove, Vector3(0.0, -0.11, 0.21), Vector3(-15, 0, 0)))
 	root.set_meta("parts", parts)
 	return root
 
@@ -399,6 +424,16 @@ static func pickup(ptype: String) -> Node3D:
 			var lan := Mat.world("pk_" + ptype, {"origin": true, "tint": Color(0.7, 0.7, 0.7)})
 			for sx in [-1.0, 1.0]:
 				root.add_child(mi(box(0.02, 0.3, 0.008), lan, Vector3(0.08 * sx, 0.88, 0), Vector3(0, 0, -15 * sx)))
+		"fuel", "fuel_box":
+			# red jerry cans with a spout
+			var can := Mat.world("gun_red", o)
+			var n := 1 if ptype == "fuel" else 2
+			for k in n:
+				var x := (k - (n - 1) * 0.5) * 0.3
+				root.add_child(mi(box(0.22, 0.3, 0.12), can, Vector3(x, 0.15, 0)))
+				root.add_child(mi(box(0.2, 0.025, 0.1), Mat.world("white", {"origin": true, "tint": Color(1.0, 0.85, 0.1)}), Vector3(x, 0.2, 0)))
+				root.add_child(mi(cyl(0.02, 0.025, 0.08, 6), Mat.world("gun_dark", o), Vector3(x + 0.06, 0.33, 0), Vector3(0, 0, -20)))
+				root.add_child(mi(box(0.12, 0.03, 0.03), Mat.world("gun_dark", o), Vector3(x - 0.03, 0.31, 0)))
 		_:
 			if ptype.begins_with("w_"):
 				var w := weapon(ptype.substr(2).replace("shotgun", "shotgun").replace("ssg", "ssg"), false)

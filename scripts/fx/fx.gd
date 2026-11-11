@@ -38,6 +38,8 @@ static func anim(level: Node, tname: String, pos: Vector3, size: float, fps: flo
 
 static func explosion(level: Node, pos: Vector3, big := true) -> void:
 	anim(level, "explosion", pos, 3.6 if big else 2.4, 16.0)
+	if big:
+		Collage.burst(level, pos)
 	light(level, pos, Color(1.0, 0.55, 0.15), 9.0 if big else 6.0, 2.2, 0.35)
 	Audio.play_at("explosion", pos, 3.0 if big else 0.0, randf_range(0.9, 1.1))
 	debris(level, pos, Color(0.25, 0.2, 0.18), 8)
@@ -120,6 +122,7 @@ static func gibs(level: Node, pos: Vector3, skin: Color, goo: Color, n: int) -> 
 			_:
 				g.add_child(Models.mi(Models.box(sz * 0.25, sz * 0.25, sz * 1.4), bone, Vector3.ZERO, Vector3(randf() * 90, randf() * 90, 0)))
 		level.fx_root().add_child(g)
+		Collage.outline(g)
 		g.splat = goo
 		g.global_position = pos + Vector3(randf_range(-0.3, 0.3), randf_range(-0.2, 0.4), randf_range(-0.3, 0.3))
 		g.vel = Vector3(randf_range(-5, 5), randf_range(3, 8), randf_range(-5, 5))

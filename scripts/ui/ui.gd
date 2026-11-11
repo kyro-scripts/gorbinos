@@ -113,3 +113,55 @@ static func frame(ci: CanvasItem, r: Rect2, fill := Color(0.05, 0.02, 0.07, 0.92
 	ci.draw_rect(r, fill)
 	ci.draw_rect(Rect2(r.position + Vector2(3, 3), r.size), Color(0, 0, 0, 0.5), false, w)
 	ci.draw_rect(r, edge, false, w)
+
+
+const RANSOM_CHIPS := [Color(0.98, 0.12, 0.5), Color(1.0, 0.9, 0.08), Color(0.08, 0.78, 1.0), Color(0.1, 0.08, 0.1),
+	Color(0.97, 0.95, 0.88), Color(0.47, 1.0, 0.24), Color(1.0, 0.43, 0.08), Color(0.59, 0.24, 1.0), Color(0.9, 0.08, 0.12)]
+const RANSOM_FONTS := ["anton", "big", "term", "small_bold"]
+
+
+## Ransom-note lettering: every letter cut out of a different magazine, on
+## its own chip of coloured paper, tilted, and twitching a few times a
+## second. Centred on center_x; y is the top.
+static func ransom(ci: CanvasItem, center_x: float, y: float, s: String, size := 26.0, alpha := 1.0) -> void:
+	var seed := hash(s)
+	var boil := int(Time.get_ticks_msec() / 160)
+	var glyphs := []
+	var total := 0.0
+	for k in s.length():
+		var ch := s.substr(k, 1)
+		if ch == " ":
+			glyphs.append(null)
+			total += size * 0.4
+			continue
+		var h := hash(seed + k * 7919)
+		var fname: String = RANSOM_FONTS[h % RANSOM_FONTS.size()]
+		var fs := int(size * [1.0, 0.9, 1.15, 0.7][h % 4] * (0.9 + float((h >> 5) % 5) * 0.05))
+		var w := text_width(fname, ch, fs) + 6.0
+		glyphs.append([ch, fname, fs, w, h])
+		total += w - 1.0
+	var x := center_x - total * 0.5
+	for g in glyphs:
+		if g == null:
+			x += size * 0.4
+			continue
+		var h: int = g[4]
+		var fs: int = g[2]
+		var w: float = g[3]
+		var bg: Color = RANSOM_CHIPS[(h >> 3) % RANSOM_CHIPS.size()]
+		var fg := Color(0.06, 0.03, 0.06) if bg.get_luminance() > 0.55 else Color(0.98, 0.96, 0.9)
+		var twitch := float(hash(h + boil) % 100) / 100.0 - 0.5
+		var rot := (float((h >> 7) % 100) / 100.0 - 0.5) * 0.3 + twitch * 0.06
+		var hh := fs * 1.15
+		var oy := y + (float((h >> 9) % 7) - 3.0) + twitch * 1.5
+		ci.draw_set_transform(Vector2(x + w * 0.5, oy + hh * 0.5), rot, Vector2.ONE)
+		var r := Rect2(-w * 0.5, -hh * 0.5, w, hh)
+		ci.draw_rect(Rect2(r.position + Vector2(3, 3), r.size), Color(0.08, 0.0, 0.1, 0.7 * alpha))
+		ci.draw_rect(r.grow(2.0), Color(0.97, 0.95, 0.88, alpha))
+		ci.draw_rect(r, Color(bg, alpha))
+		var f := font(String(g[1]))
+		var asc := f.get_ascent(fs)
+		var tw := f.get_string_size(String(g[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs)
+		ci.draw_string(f, Vector2(-tw.x * 0.5, -hh * 0.5 + (hh - tw.y) * 0.5 + asc), String(g[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(fg, alpha))
+		x += w - 1.0
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

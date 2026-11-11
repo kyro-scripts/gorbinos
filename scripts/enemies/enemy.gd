@@ -88,6 +88,13 @@ var boss_phase := 0
 var summoned := false
 var col_shape: CollisionShape3D
 var gutted := false          # held by the player's knife: frozen, then dies
+var burn_t := 0.0             # > 0: on fire, running about screaming
+var _burn_src: Node = null
+var _burn_tick := 0.0
+var _burn_dir := Vector3.ZERO
+var _burn_turn := 0.0
+var _flames: Array = []
+var charred := false
 var gut_phase := ""          # set by the finisher: stab, slice, rip, yank
 var gut_k := 0.0
 var _gut_wound: Node3D
@@ -135,6 +142,7 @@ func setup(t: String, lvl: Level, pos: Vector3, p_yaw: float) -> void:
 			model = Models.snirby({"tint": def.get("tint", Color(1, 1, 1)), "glow": def.get("glow", false), "fly": def.get("fly", false)})
 	model.scale = Vector3.ONE * sc
 	add_child(model)
+	Collage.outline(model)
 	parts = model.get_meta("parts")
 	_skin_mat = parts.get("skin_mat")
 	global_position = pos
@@ -187,6 +195,9 @@ func _physics_process(delta: float) -> void:
 		return
 	if gutted:
 		_gut_animate(delta)
+		return
+	if burn_t > 0.0:
+		_burning(delta)
 		return
 	var pl := _player()
 	if pl == null or not is_instance_valid(pl):
@@ -273,6 +284,103 @@ func _physics_process(delta: float) -> void:
 		if _fly_snd_t <= 0.0 and dist < 20.0:
 			_fly_snd_t = 1.0
 			Audio.play_at("snirb_fly", global_position + Vector3(0, 1, 0), -10.0, randf_range(0.9, 1.1))
+
+
+# ------------------------------------------------------------------ fire
+## Set alight (by the flamethrower, or by a burning friend bumping into it).
+func ignite(src: Node, dur := 4.0) -> void:
+	if dead or gutted or def.get("boss", false):
+		return
+	if burn_t <= 0.0:
+		Audio.play_at("flame_ignite", center_point(), 0.0, randf_range(0.9, 1.15))
+		Audio.play_at(def["pain_snd"], center_point(), 3.0, float(def.get("pitch", 1.0)) * 1.4)
+		_burn_turn = 0.0
+		var sc := float(def.get("scale", 1.0))
+		for k in 4:
+			var f := Sprite3D.new()
+			f.texture = Mat.tex("proj_fire")
+			f.hframes = 2
+			f.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			f.shaded = false
+			f.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			f.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			f.pixel_size = 0.02 * sc
+			f.position = Vector3(randf_range(-0.3, 0.3), height * randf_range(0.3, 0.9), randf_range(-0.3, 0.3)) * sc
+			add_child(f)
+			_flames.append(f)
+	burn_t = maxf(burn_t, dur)
+	_burn_src = src
+	alerted = true
+
+
+static var _char_mat: Material
+
+
+func _char_model() -> void:
+	if _char_mat == null:
+		_char_mat = Mat.make("black", {"origin": true, "tint": Color(0.2, 0.13, 0.1), "shade": 0.8, "gloss": 0.25})
+	_char_rec(model)
+
+
+func _char_rec(n: Node) -> void:
+	if n is MeshInstance3D:
+		(n as MeshInstance3D).material_override = _char_mat
+	for c in n.get_children():
+		_char_rec(c)
+
+
+func _put_out() -> void:
+	burn_t = 0.0
+	for f in _flames:
+		if is_instance_valid(f):
+			f.queue_free()
+	_flames.clear()
+
+
+## On fire: forget the player, run about screaming, set others alight.
+func _burning(delta: float) -> void:
+	burn_t -= delta
+	_burn_tick -= delta
+	var sc := float(def.get("scale", 1.0))
+	if _burn_tick <= 0.0:
+		_burn_tick = 0.25
+		Audio.play_at("burn_sizzle", center_point(), -6.0, randf_range(0.8, 1.2))
+		if randf() < 0.35:
+			Audio.play_at(def["pain_snd"], center_point(), 2.0, float(def.get("pitch", 1.0)) * randf_range(1.3, 1.6))
+		Fx.smoke(level, center_point() + Vector3(0, height * 0.4 * sc, 0))
+		# it spreads to anyone close
+		for e in level.enemies:
+			if e != self and is_instance_valid(e) and not e.dead and e.burn_t <= 0.0 \
+					and e.global_position.distance_to(global_position) < radius + float(e.radius) + 0.5:
+				e.ignite(_burn_src, 3.0)
+		take_damage(4.0, _burn_src, Vector3.ZERO, "fire")
+		if dead:
+			return
+	# flames lick and flicker
+	for f in _flames:
+		if is_instance_valid(f):
+			f.frame = (int(anim_t * 12.0) + f.get_index()) % 2
+			f.scale = Vector3.ONE * (0.8 + 0.4 * absf(sin(anim_t * 9.0 + f.get_index())))
+	# run about in a blind panic
+	_burn_turn -= delta
+	if _burn_turn <= 0.0:
+		_burn_turn = randf_range(0.35, 0.8)
+		var a := randf() * TAU
+		_burn_dir = Vector3(cos(a), 0, sin(a))
+	var spd := float(def["speed"]) * 1.25
+	var np := global_position + _burn_dir * spd * delta
+	if flying or not level.circle_blocked(np, radius, global_position.y, false, height):
+		if not flying:
+			np.y = level.floor_at(np)
+		global_position = np
+	else:
+		_burn_turn = 0.0
+	_face(_burn_dir, delta, 10.0)
+	move_amount = 1.0
+	Creatures.animate(model, anim_t * 2.2, delta, {"move": 1.0, "pain": fmod(anim_t, 0.5) < 0.25, "windup": fmod(anim_t, 0.5) >= 0.25})
+	if burn_t <= 0.0:
+		_put_out()
+		state = "chase"
 
 
 func _chase_dir(pl: Node, to_p: Vector3, dist: float, has_los: bool, delta: float) -> Vector3:
@@ -399,6 +507,7 @@ func can_be_gutted() -> bool:
 
 ## The player's knife goes in: freeze, face the player and open a wound.
 func begin_gutted(pl: Node) -> void:
+	_put_out()
 	gutted = true
 	state = "gutted"
 	alerted = true
@@ -492,6 +601,12 @@ func _gut_animate(delta: float) -> void:
 			h = 0.24 + 0.76 * k
 			peel = 0.1 + 0.9 * k
 			shake = 0.05
+		"whipped", "", "approach":
+			# on the end of the whip, or about to be cut: no wound yet, flailing
+			w = 0.0
+			h = 0.0
+			peel = 0.0
+			shake = 0.06 if gut_phase == "whipped" else 0.02
 		_:
 			w = 1.15
 			h = 1.0
@@ -670,6 +785,9 @@ func take_damage(amount: float, source: Node, dir: Vector3, kind := "bullet") ->
 		if hp <= 0.0:
 			# a beat of hit-stop on the kill
 			level.world.hitstop(0.04)
+			level.player.on_kill(self)
+			if level.world.endless:
+				level.world.endless.on_kill()
 	if hp <= 0.0:
 		_die(amount, kind, dir)
 		return
@@ -684,6 +802,12 @@ func _die(amount: float, kind: String, dir: Vector3) -> void:
 	dead = true
 	state = "dead"
 	death_kind = kind
+	if burn_t > 0.0 or kind == "fire":
+		# burnt to a crisp: blackened, still smoking for a while
+		charred = true
+		_put_out()
+		_char_model()
+	Collage.sticker(level, center_point() + Vector3(0, 0.5 + height * 0.3, 0), def.get("boss", false))
 	col_shape.disabled = true
 	var bc := blood_color()
 	var flat := Vector3(dir.x, 0, dir.z)
@@ -767,6 +891,8 @@ const THROE := 0.22
 
 func _animate_death(delta: float) -> void:
 	death_t += delta
+	if charred and death_t < 8.0 and fmod(death_t, 0.4) < delta:
+		Fx.smoke(level, center_point())
 	if gibbed:
 		set_physics_process(false)
 		return

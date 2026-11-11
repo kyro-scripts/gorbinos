@@ -459,6 +459,7 @@ static func video_page(view: MenuView, on_change: Callable) -> Dictionary:
 		{"type": "slider", "label": "FIELD OF VIEW", "key": "fov", "min": 70.0, "max": 120.0, "step": 5.0,
 			"fmt": func(v): return "%d" % int(v), "on_change": cb},
 		{"type": "slider", "label": "BRIGHTNESS", "key": "gamma", "min": 0.6, "max": 1.6, "step": 0.1, "on_change": cb},
+		{"type": "toggle", "label": "COLLAGE FX", "key": "collage", "on_change": cb},
 		{"type": "toggle", "label": "VSYNC", "key": "vsync"},
 		{"type": "choice", "label": "FPS LIMIT", "key": "max_fps", "options": ["UNLIMITED", "60", "120", "144", "240"]},
 		{"label": "BACK", "cb": func(): view.pop()},

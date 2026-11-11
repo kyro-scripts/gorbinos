@@ -2,13 +2,18 @@ class_name Finisher
 extends Node
 ## Knife work. Press MELEE (F) near a creature to gut it: the camera locks
 ## on, the knife goes in, slices across, rips the belly open and the guts
-## spill out. Nothing can hurt the player while it happens. With nobody in
-## reach, MELEE is a quick slash.
+## spill out. Nothing can hurt the player while it happens. Aim MELEE at a
+## creature further off and a tentacle whips out of your left wrist, grabs
+## it and yanks it straight onto the knife. With nobody about, MELEE is a
+## quick slash.
 
 const REACH := 1.9                      # metres beyond the creature's radius
 const PHASES := ["approach", "stab", "slice", "rip", "yank", "return"]
 const DUR := {"approach": 0.3, "stab": 0.14, "slice": 0.85, "rip": 0.65, "yank": 0.28, "return": 0.4}
 const SLASH_DMG := 34.0
+const WHIP_RANGE := 17.0
+const WHIP_DMG := 45.0
+const WHIP_DUR := {"out": 0.13, "yank": 0.3, "back": 0.16}
 
 var player: Node
 var offhand: Offhand
@@ -24,6 +29,13 @@ var _slash_cd := 0.0
 var _slash_hit := false
 var _spurt_t := 0.0
 var _slowmo_token := 0
+var whip_available: Node = null          # what a whip would grab (HUD prompt)
+var whip_target: Node = null
+var whip_phase := ""
+var whip_t := 0.0
+var _tentacle: Tentacle
+var _yank_from := Vector3.ZERO
+var _whip_cd := 0.0
 
 
 func active() -> bool:
@@ -73,18 +85,26 @@ func _process(delta: float) -> void:
 			_abort()
 		return
 	_slash_cd -= delta
+	_whip_cd -= delta
+	if whip_phase != "":
+		_whip_update(delta)
+		return
 	if not active():
 		_scan_t -= delta
 		if _scan_t <= 0.0:
 			_scan_t = 0.1
 			available = find_target()
+			whip_available = find_whip_target() if available == null and _whip_cd <= 0.0 else null
 		if offhand.mode == "slash" and not _slash_hit and offhand.slash_t > 0.1:
 			_slash_hit = true
 			_slash_damage()
 		if _want_melee() and _slash_cd <= 0.0:
 			var e := find_target()
+			var w: Node = null if e else (find_whip_target() if _whip_cd <= 0.0 else null)
 			if e:
 				start(e)
+			elif w:
+				_whip_start(w)
 			else:
 				_slash_cd = 0.45
 				_slash_hit = false
@@ -116,7 +136,8 @@ func start(e: Node) -> void:
 	player.gutting = true
 	offhand.mode = "gut"
 	offhand.trick = ""
-	e.begin_gutted(player)
+	if not e.gutted:
+		e.begin_gutted(player)
 	var away: Vector3 = player.global_position - e.global_position
 	away.y = 0.0
 	if away.length() < 0.05:
@@ -258,6 +279,128 @@ func _spill(cut: Vector3, bc: Color) -> void:
 		g.add_to_group("gibs")
 
 
+# ------------------------------------------------------------------ the whip
+## The creature you're aiming at, out of knife reach but within whip range.
+func find_whip_target() -> Node:
+	var lvl: Node = player.level
+	if lvl == null:
+		return null
+	var eye: Vector3 = player.eye_point()
+	var fwd: Vector3 = -player.camera.global_transform.basis.z
+	var best: Node = null
+	var bs := 0.975
+	for e in lvl.enemies:
+		if not is_instance_valid(e) or e.dead or e.gutted:
+			continue
+		var d: Vector3 = e.center_point() - eye
+		var dist := d.length()
+		if dist > WHIP_RANGE or dist < 0.5:
+			continue
+		# a forgiving cone that widens for big things and close things
+		var s := fwd.dot(d / dist) + atan(float(e.radius) / dist) * 0.25
+		if s < bs:
+			continue
+		if not lvl.has_los(eye, e.center_point()):
+			continue
+		bs = s
+		best = e
+	return best
+
+
+func _hand() -> Vector3:
+	return player.camera.global_transform * Vector3(-0.32, -0.3, -0.85)
+
+
+func _whip_start(e: Node) -> void:
+	whip_target = e
+	whip_phase = "out"
+	whip_t = 0.0
+	whip_available = null
+	_whip_cd = 0.9
+	offhand.start_slash()
+	_tentacle = Tentacle.new()
+	player.level.fx_root().add_child(_tentacle)
+	_tentacle.lay(_hand(), e.center_point(), 0.0, 1.0, 0.0)
+	Audio.play("whip_crack", 0.0, randf_range(0.9, 1.1))
+
+
+func _whip_update(delta: float) -> void:
+	whip_t += delta
+	var dur: float = WHIP_DUR[whip_phase]
+	var k := clampf(whip_t / dur, 0.0, 1.0)
+	var alive: bool = whip_target != null and is_instance_valid(whip_target) and not whip_target.dead
+	if not alive and whip_phase != "back":
+		_whip_back()
+		return
+	match whip_phase:
+		"out":
+			_tentacle.lay(_hand(), whip_target.center_point(), k * k * (3.0 - 2.0 * k), 1.0 - k * 0.6, delta)
+			if k >= 1.0:
+				_whip_grab()
+		"yank":
+			# haul it in on an arc and drop it right in front of the knife
+			var e: Node = whip_target
+			var flat: Vector3 = player.global_position - _yank_from
+			flat.y = 0.0
+			var stand: Vector3 = player.global_position - flat.normalized() * (float(e.radius) + 0.62)
+			var kk := k * k
+			var p := _yank_from.lerp(stand, kk)
+			p.y = lerpf(_yank_from.y, player.level.floor_at(stand), kk) + sin(k * PI) * 0.9
+			e.global_position = p
+			_tentacle.lay(_hand(), e.center_point(), 1.0, 0.25, delta)
+			if k >= 1.0:
+				e.global_position.y = player.level.floor_at(e.global_position)
+				_tentacle.queue_free()
+				_tentacle = null
+				whip_phase = ""
+				e.gut_phase = ""
+				start(e)
+		"back":
+			if _tentacle:
+				var tip: Vector3 = _tentacle.segs[_tentacle.SEGS - 1].global_position
+				_tentacle.lay(_hand(), tip, 1.0 - k, 1.0, delta)
+			if k >= 1.0:
+				if _tentacle:
+					_tentacle.queue_free()
+				_tentacle = null
+				whip_phase = ""
+				whip_target = null
+
+
+func _whip_grab() -> void:
+	var e: Node = whip_target
+	var lvl: Node = player.level
+	Fx.blood(lvl, e.center_point(), e.blood_color(), 10, 0.04)
+	if e.can_be_gutted():
+		# got it: it's coming to you
+		e.begin_gutted(player)
+		e.gut_phase = "whipped"
+		player.gutting = true
+		_yank_from = e.global_position
+		whip_phase = "yank"
+		whip_t = 0.0
+		Audio.play("whip_yank", 0.0, randf_range(0.9, 1.1))
+		Audio.play_at(e.def["pain_snd"], e.center_point(), 2.0, float(e.def.get("pitch", 1.0)) * 1.3)
+		player.shake(0.15)
+	else:
+		# too big or too high to haul in: it just gets lashed
+		var dir: Vector3 = (e.center_point() - player.eye_point()).normalized()
+		e.take_damage(WHIP_DMG, player, dir, "melee")
+		Audio.play("whip_yank", -3.0, 1.3)
+		_whip_back()
+
+
+func _whip_back() -> void:
+	whip_phase = "back"
+	whip_t = 0.0
+	if whip_target and is_instance_valid(whip_target) and whip_target.gutted and not active():
+		# lost it mid-yank: let it go
+		whip_target.gut_finish(Vector3.FORWARD)
+		player.gutting = false
+	if _tentacle == null:
+		whip_phase = ""
+
+
 func _slash_damage() -> void:
 	var lvl: Node = player.level
 	var fwd: Vector3 = -player.camera.global_transform.basis.z
@@ -290,6 +433,10 @@ func _end() -> void:
 
 
 func _abort() -> void:
+	if _tentacle and is_instance_valid(_tentacle):
+		_tentacle.queue_free()
+	_tentacle = null
+	whip_phase = ""
 	if target and is_instance_valid(target) and not target.dead:
 		target.gut_finish(Vector3.FORWARD)
 	if _rope and is_instance_valid(_rope):

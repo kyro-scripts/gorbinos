@@ -22,13 +22,16 @@ func _ready() -> void:
 		var t = load("res://scripts/test/test_runner.gd").new()
 		add_child(t)
 		return
+	if args.has("--endless"):
+		Game.start_endless(1)
+		return
 	for a in args:
 		if a.begins_with("--level="):
 			Game.difficulty = 1
 			Game.inventory = Game.new_inventory()
 			if args.has("--arsenal"):
-				Game.inventory["weapons"] = ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma"]
-				Game.inventory["ammo"] = {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300}
+				Game.inventory["weapons"] = ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma", "flamer"]
+				Game.inventory["ammo"] = {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300, "fuel": 200}
 				Game.inventory["mags"] = {"pistol": 12, "shotgun": 6, "ssg": 2, "mg": 60, "rocket": 4}
 			if args.has("--lowammo"):
 				Game.inventory["ammo"] = {"bullets": 0, "shells": 0, "rockets": 0, "cells": 0}
@@ -58,6 +61,7 @@ func _ui_test() -> void:
 		get_viewport().get_texture().get_image().save_png("user://shots/ui_%s.png" % n)
 	show_menu()
 	var mm = current
+	await snap.call("main")
 	mm.menu.push(MenuView.options_page(mm.menu))
 	await snap.call("options")
 	mm.menu.push(MenuView.video_page(mm.menu, Callable()))

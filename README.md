@@ -16,7 +16,9 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 | ![Death](docs/screenshots/death.png) | ![Options](docs/screenshots/options.png) |
 | ![Butterfly knife](docs/screenshots/butterfly_knife.png) | ![Gutting](docs/screenshots/gutting.png) |
 | ![Arsenal](docs/screenshots/arsenal.png) | ![Pickups](docs/screenshots/pickups.png) |
-| ![Locals](docs/screenshots/locals.png) | |
+| ![Locals](docs/screenshots/locals.png) | ![Collage look](docs/screenshots/collage.png) |
+| ![Tentacle whip](docs/screenshots/whip.png) | ![Flamethrower](docs/screenshots/flamethrower.png) |
+| ![Frenzy](docs/screenshots/frenzy.png) | ![Endless](docs/screenshots/endless.png) |
 
 ## Playing it
 
@@ -32,11 +34,12 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 | Look | Mouse |
 | Fire | Left mouse / Ctrl |
 | Use / open doors / switches | E / Right mouse |
-| Knife: slash, or gut a creature in reach | F / Middle mouse |
+| Knife: slash, gut a creature in reach, or whip one in from afar | F / Middle mouse |
 | Jump | Space |
+| Slide | C |
 | Sprint | Shift |
 | Reload | R |
-| Weapons | 1-6, mouse wheel, Q = last weapon |
+| Weapons | 1-7, mouse wheel, Q = last weapon |
 | Automap | Tab |
 | Quick save / quick load | F5 / F9 |
 | Pause menu | Esc |
@@ -44,6 +47,20 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 Doors also open when you walk into them, except locked doors (find the keycard) and secret walls (look for odd textures and press USE).
 
 ## The game
+
+### The look
+
+Gorbino's Quest is drawn like something cut out of a cheap magazine and pasted together, in the spirit of FISH and Cruelty Squad. The picture comes out like bad print: the colour plates don't quite line up and twitch a few times a second, the shadows are halftone dots, the highlights go to cream paper, ink lines run where colours break, and the colours are pushed hard. Creatures, pickups, your gun and your knife arm are snipped out with white paper borders that boil slightly, so things pop off the background. Kills slap a ransom-note sticker over the action (SPLORT!, GORB!, BLAMMO, BYE BYE...), explosions get cut-out bursts, and the big words on screen are ransom-note letters cut from a dozen magazines. All of it can be switched off with **COLLAGE FX** in OPTIONS > VIDEO.
+
+### Frenzy and the slide
+
+Kills fill a frenzy meter under the jar; kills in quick succession fill it faster. When it's full you go into a **FRENZY** for eight seconds: the colours cycle and strobe, the plates fly apart, the music speeds up, you move faster and every gun fires faster, and a gurgling announcer shouts things like MEAT PARADE! and BLORPOCALYPSE!. Kills during a frenzy keep it going.
+
+Press **C** while running to slide: you drop low and shoot along the floor, steering a little, and anything you slide into gets kicked off its feet. Jump out of a slide to keep the speed.
+
+### Endless
+
+**ENDLESS** on the title screen drops you into THE GORB PIT, an arena with a sunken pit, raised corners and pillars, and four alcoves the waves pour out of. Every wave is bigger and nastier than the last, every fifth brings an elite, and between waves there's a short breather with ammo, health and armor; the double shotgun, rocket launcher, flamethrower and plasma rifle arrive as rewards along the way. Your best wave is kept.
 
 ### Episode: six levels, one campaign
 
@@ -68,6 +85,8 @@ Your left hand holds a butterfly knife, and it never sits still: it does real ba
 
 Get close to a creature (a red **[F] GUT** appears under the crosshair) and press **F** to gut it. The camera locks on and you drop to the cut. The knife goes in with a jolt and a moment of slow motion, then drags across the belly while the wound opens behind it: a dark hole with a raw rim, the flaps of skin peeling back, the creature shaking and the cut spurting in pulses like a heartbeat. Then it rips open, the guts slop out onto the floor with a few loose organs, and a loop of intestine comes out snagged on the blade. The creature falls backwards with its belly open to the ceiling and bleeds out into a spreading pool. Nothing can hurt you while you're doing it, or for a moment after. It works on everything that walks; flyers and the final boss are too big or too high.
 
+Aim **F** at a creature further off (a faint **[F] YANK** shows under the crosshair) and a tentacle whips out of your left wrist, wraps round it and hauls it through the air straight onto the knife, and the gut follows. Things too big or too high to haul in just get lashed.
+
 ### The locals
 
 Not every Gorbino wants to kill you. Every level has a few pairs of little pastel Gorbinos (pink, mint, peach, lilac, grey) in work smocks and hats, with names like Glorbo, Snorf, Brenda and Lil Gorb. They stand about having gurgly conversations ("WHAT ARE WE PACKING TODAY?" "GORBINOS." "WHAT ARE WE?" "...KEEP PACKING.") with subtitles, and when you walk up they turn and tell you something ("I WAS GROWN IN VAT NINE. NINE IS THE GOOD VAT."). They talk in wet, rolled-R Gorbino gurgles. When the shooting starts they squeal and scatter, they shuffle out of your way, and if one dies its friend notices. The monsters ignore them; your bullets don't.
@@ -82,6 +101,7 @@ Not every Gorbino wants to kill you. Every level has a few pairs of little paste
 | 4 | Machine gun | bullets | six spinning barrels, 60-round drum, spread blooms. Hazard paint |
 | 5 | Rocket launcher | rockets | splash damage; rocket jumping works. Shark face painted on the tube |
 | 6 | Plasma rifle | cells | plasma bolts; no mag but it overheats (press R to vent). A specimen jar on top, something floating in it |
+| 7 | Flamethrower | fuel | a short cone of fire. Anything caught in it catches, runs about screaming, sets its friends alight and dies charred and smoking. A red gas canister with a Gorbino sticker; found in the industrial complex's armory, fuel cans after that |
 
 Recoil, muzzle flashes, dynamic muzzle lighting, ejected casings, viewmodel sway and bob, and procedural reload animations are all included. Hits flash a small white marker on the crosshair; kills flash a bigger red one, with a beat of hit-stop. Point-blank shots land even when something is pressed right up against you.
 
@@ -106,7 +126,7 @@ Enemies wake on sight or when they hear gunfire through the level. They path aro
 
 ### Options
 
-Master, music and SFX volume. Difficulty: Mercy, Standard, Cruelty, Hell. Window mode, resolution, **pixel crunch** (render scale 1/1 to 1/6), **colour depth** (8-bit or 12-bit dithered, or true colour), FOV, brightness, vsync and FPS limit. Mouse speed and invert. Full key rebinding. Head bob, crosshair style (circle, dot, cross, none), auto-reload and FPS counter. Settings are saved to `user://settings.cfg`.
+Master, music and SFX volume. Difficulty: Mercy, Standard, Cruelty, Hell. Window mode, resolution, **pixel crunch** (render scale 1/1 to 1/6), **colour depth** (8-bit or 12-bit dithered, or true colour), FOV, brightness, vsync and FPS limit. Mouse speed and invert. Full key rebinding. Collage FX on or off. Head bob, crosshair style (circle, dot, cross, none), auto-reload and FPS counter. Settings are saved to `user://settings.cfg`.
 
 ### Saving
 
@@ -126,14 +146,18 @@ scripts/
   enemies/       enemy.gd (AI + variants), creatures.gd (Gorbino/Snirby/Snotling rigs
                  and animation), models.gd (weapons/pickups), projectile.gd,
                  civilian.gd (the locals and what they say)
+  fx/collage.gd  the cut-out look: paper borders, stickers; tentacle.gd (the whip),
+                 flame_bit.gd (the flamethrower's fire)
   fx/            explosions, blood, gibs, decals, dynamic lights, pickups, barrels, props,
                  gut_rope.gd (spilling intestines)
-  game/          game_world.gd (the running level, HUD, pause), dread.gd (the creepy stuff)
+  game/          game_world.gd (the running level, HUD, pause), dread.gd (the creepy stuff),
+                 endless.gd (waves in the Gorb Pit)
   ui/            HUD, menus, intermission, story, ending, splash
   levels/        level data (generated by tools/levels/*.py)
   test/          headless test runner + autopilot bot
   tools/         import_gorbino.gd: splits the supplied Gorbino model into body + feet
-shaders/         world (sector light + fog + dynamic lights), post (dither), sky
+shaders/         world (sector light + fog + dynamic lights), post (print/collage look,
+                 frenzy, dither), outline (paper cut-out borders), sky
 tools/           asset generators (textures, sprites, fonts, SFX, music) + level kit
 ```
 
@@ -154,6 +178,7 @@ godot --headless --path . -s scripts/tools/import_gorbino.gd  # supplied Gorbino
 python3 tools/gen_clay.py       # "pre-rendered clay" UI: health jar, DEATH, menu tiles, logo, cursor, icon
 python3 tools/import_user_audio.py  # weapon sounds, voice lines, enemy shot (idk.wav) from tools/user_audio/
 python3 tools/gen_gore.py       # wound, guts and butterfly-knife textures
+python3 tools/gen_collage.py    # ransom-note stickers and cut-out bursts
 python3 tools/gen_audio_extra.py  # knife, gore, heartbeat and dread sounds
 python3 tools/levels/level1_village.py   # ...and so on for each level
 ```
@@ -174,6 +199,11 @@ godot --headless --fixed-fps 120 --path . -- --autoplay  # a bot plays the whole
 godot --headless --fixed-fps 120 --path . -- --autoplay --single --level=3 --arsenal
 godot --path . -- --level=1 --guttest=snirby                # gut a creature and screenshot each phase
 godot --path . -- --level=4 --civshot                       # go and listen to the locals
+godot --path . -- --level=1 --whiptest=green                # whip a creature in and gut it
+godot --path . -- --level=1 --flametest                     # set three Gorbinos on fire
+godot --path . -- --level=1 --frenzy                        # start in a frenzy
+godot --path . -- --endless                                 # straight into ENDLESS
+godot --headless --fixed-fps 120 --path . -- --autoplay --endless   # the bot plays ENDLESS
 ```
 
 The level validator runs a breadth-first search over each map with the player's movement rules, collecting keys and firing switches and triggers, to prove the exit can be reached. The autopilot bot then plays the levels with the real player physics: it paths to keys, switches and exits, opens doors, rides lifts, climbs stairs and fights.

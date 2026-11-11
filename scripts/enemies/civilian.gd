@@ -206,7 +206,7 @@ static func populate(lv: Level) -> void:
 			a.partner = b
 			b.partner = a
 			a.lead = true
-			a.chat_cd = rng.randf_range(0.5, 3.0)
+			a.chat_cd = rng.randf_range(15.0, 60.0)
 
 
 static func _spawn(lv: Level, th: String, rng: RandomNumberGenerator, names: Array, pos: Vector3, id: int) -> Civilian:
@@ -253,7 +253,7 @@ func setup(lv: Level, pos: Vector3, p_theme: String, rng: RandomNumberGenerator,
 	lines = LINES[theme].duplicate()
 	line_i = rng.randi_range(0, lines.size() - 1)
 	_anim_t = rng.randf() * 10.0
-	talk_cd = rng.randf_range(0.0, 2.0)
+	talk_cd = rng.randf_range(10.0, 40.0)
 
 
 ## A smock round the belly in the level's work colours.
@@ -303,6 +303,17 @@ func _hat(kind: int) -> void:
 			head.add_child(leaf)
 
 
+## Locals across the whole level share a quiet spell: after one says
+## something, nobody else pipes up for a good while.
+static func can_speak(lv: Node) -> bool:
+	var now := Time.get_ticks_msec() / 1000.0
+	var next: float = lv.get_meta("civ_next_line", 0.0)
+	if now < next:
+		return false
+	lv.set_meta("civ_next_line", now + randf_range(25.0, 55.0))
+	return true
+
+
 func center_point() -> Vector3:
 	return global_position + Vector3(0, height * 0.55, 0)
 
@@ -325,7 +336,8 @@ func panic(from: Vector3) -> void:
 	if panic_t <= 0.0:
 		_chat = []
 		Audio.play_at("gorb_yelp_" + ["a", "b"][randi() % 2], center_point(), -1.0, randf_range(0.9, 1.3))
-		if level.world and global_position.distance_to(level.player.global_position) < 12.0 and randf() < 0.5:
+		if level.world and global_position.distance_to(level.player.global_position) < 12.0 and randf() < 0.15 \
+				and Civilian.can_speak(level):
 			level.world.say(who, PANIC[randi() % PANIC.size()])
 	panic_t = randf_range(5.0, 8.0)
 	_pick_flee(from)
@@ -380,7 +392,7 @@ func _die(amount: float, dir: Vector3, quiet := false) -> void:
 		Fx.gibs(level, center_point(), Color(0.9, 0.75, 0.8), blood_color(), 6)
 		model.visible = false
 	Fx.pool(level, Vector3(global_position.x, level.floor_at(global_position), global_position.z), blood_color(), 0.9)
-	if partner and is_instance_valid(partner) and not partner.dead and level.world and randf() < 0.7:
+	if partner and is_instance_valid(partner) and not partner.dead and level.world and randf() < 0.35:
 		level.world.say(partner.who, [who + "! NOOO! GORB!", "THEY GOT " + who + "!", "I'LL PACK YOUR BOXES, " + who + "..."][randi() % 3])
 	# everyone nearby loses it
 	for c in level.civilians:
@@ -434,11 +446,13 @@ func _physics_process(delta: float) -> void:
 		if dist < 3.6 and _scan <= 0.0:
 			_scan = 0.3
 			if talk_cd <= 0.0 and _chat.is_empty() and level.world and level.has_los(center_point(), pl.eye_point()):
-				talk_cd = randf_range(7.0, 10.0)
-				if partner:
-					partner.talk_cd = maxf(partner.talk_cd, 4.0)
-				_say(String(lines[line_i % lines.size()]), true)
-				line_i += 1
+				# they don't always have something to say
+				talk_cd = randf_range(30.0, 60.0)
+				if randf() < 0.3 and Civilian.can_speak(level):
+					if partner:
+						partner.talk_cd = maxf(partner.talk_cd, 30.0)
+					_say(String(lines[line_i % lines.size()]), true)
+					line_i += 1
 		if dist < 1.7 and dist > 0.01:
 			# you're walking into them: shuffle out of the way
 			var away := -to_p / dist
@@ -485,7 +499,12 @@ func _chat_tick(delta: float, dist: float) -> void:
 	if _chat.is_empty():
 		if chat_cd > 0.0 or dist > 11.0 or dist < 3.0 or level.world == null:
 			return
-		if level.world.hud.subtitle_busy():
+		if randf() > 0.2:
+			# most of the time they just stand there
+			chat_cd = randf_range(25.0, 50.0)
+			return
+		if level.world.hud.subtitle_busy() or not Civilian.can_speak(level):
+			chat_cd = randf_range(8.0, 20.0)
 			return
 		if not (level.has_los(center_point(), level.player.eye_point()) or dist < 6.0):
 			return
@@ -498,7 +517,7 @@ func _chat_tick(delta: float, dist: float) -> void:
 		return
 	if _chat_i >= _chat.size() or dist > 16.0:
 		_chat = []
-		chat_cd = randf_range(10.0, 18.0)
+		chat_cd = randf_range(60.0, 120.0)
 		return
 	var speaker: Civilian = self if _chat_i % 2 == 0 else partner
 	var line := String(_chat[_chat_i])

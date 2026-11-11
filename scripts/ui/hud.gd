@@ -25,6 +25,7 @@ var _face_t := 0.0                # subliminal face flash
 var _hm_t := 0.0                  # hit marker
 var _hm_kill := false
 var _face_kind := 0
+var _stickers: Array = []         # collage stickers: [word, burst, world pos, t, rot, big]
 var _say_who := ""                # subtitles
 var _say_text := ""
 var _say_t := 0.0
@@ -52,6 +53,12 @@ func hit_marker(kill: bool) -> void:
 func flash_face(dur := 0.07) -> void:
 	_face_t = dur
 	_face_kind = randi() % 2
+
+
+func sticker(word: Texture2D, burst: Texture2D, pos: Vector3, big: bool) -> void:
+	_stickers.append([word, burst, pos, 0.0, randf_range(-0.35, 0.35), big])
+	if _stickers.size() > 8:
+		_stickers.pop_front()
 
 
 func subtitle_busy() -> bool:
@@ -99,6 +106,9 @@ func _process(delta: float) -> void:
 	_face_t -= delta
 	_hm_t -= delta
 	_say_t -= delta
+	for st in _stickers:
+		st[3] += delta
+	_stickers = _stickers.filter(func(st): return st[3] < 1.1)
 	_dead_t = _dead_t + delta if player and player.dead else 0.0
 	_noise_t -= delta
 	if _noise_t <= 0.0:
@@ -119,6 +129,7 @@ func _draw() -> void:
 	_draw_hit_marker(W, H)
 	_draw_gut_prompt(W, H)
 	_draw_health()
+	_draw_frenzy(W, H)
 	_draw_ammo(W, H)
 	_draw_keys()
 	# messages, bottom left
@@ -131,14 +142,19 @@ func _draw() -> void:
 		y += 17
 	if center_t > 0.0 and center_msg != "":
 		var a := clampf(center_t * 2.0, 0.0, 1.0)
-		UI.text_centered(self, "anton", W * 0.5, H * 0.26, center_msg, Color(UI.BONE, a), 30)
+		if Collage.enabled():
+			UI.ransom(self, W * 0.5, H * 0.22, center_msg, 26.0, a)
+		else:
+			UI.text_centered(self, "anton", W * 0.5, H * 0.26, center_msg, Color(UI.BONE, a), 30)
 	if boss and is_instance_valid(boss) and not boss.dead:
 		var bw := W * 0.5
 		var r := Rect2(W * 0.25, 22, bw, 8)
 		draw_rect(r.grow(2), Color(0, 0, 0, 0.85))
 		draw_rect(Rect2(r.position, Vector2(bw * clampf(boss.hp / boss.max_hp, 0, 1), 8)), Color(0.85, 0.25, 0.35))
 		UI.text_centered(self, "term", W * 0.5, 4, String(boss.def["name"]), UI.BONE, 16)
+	_draw_stickers(W, H)
 	_draw_subtitle(W, H)
+	_draw_endless(W, H)
 	if Settings.get_v("show_fps"):
 		UI.text(self, "term", Vector2(W - 70, 8), "FPS %d" % Engine.get_frames_per_second(), UI.ACID, 16)
 	if _face_t > 0.0:
@@ -148,6 +164,72 @@ func _draw() -> void:
 		var s := _death_tex.get_size() * 0.62 * lerpf(2.2, 1.0, k * k)
 		var c := Vector2(W * 0.5, 92) + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * (1.0 - k) * 6.0
 		draw_texture_rect(_death_tex, Rect2(c - s * 0.5, s), false, Color(1, 1, 1, k))
+
+
+## The frenzy meter under the jar; during a frenzy it burns down in rainbow.
+func _draw_frenzy(W: float, H: float) -> void:
+	if player.dead:
+		return
+	var r := Rect2(14, 98, 90, 7)
+	var on: bool = player.frenzy > 0.0
+	var k: float = player.frenzy / Player.FRENZY_TIME if on else player.frenzy_meter
+	if k <= 0.0 and not on:
+		return
+	draw_rect(r.grow(2), Color(0, 0, 0, 0.75))
+	var segs := 10
+	for i in segs:
+		if float(i) / segs >= k:
+			break
+		var c := Color.from_hsv(fmod(Time.get_ticks_msec() / 400.0 + i * 0.1, 1.0), 0.9, 1.0) if on else Color(1.0, 0.25 + i * 0.05, 0.6)
+		draw_rect(Rect2(r.position.x + i * (r.size.x / segs) + 1, r.position.y, r.size.x / segs - 2, r.size.y), c)
+	UI.text(self, "term", Vector2(r.end.x + 6, r.position.y - 6), "FRENZY" if on else "", Color.from_hsv(fmod(Time.get_ticks_msec() / 300.0, 1.0), 0.8, 1.0), 16)
+
+
+func _draw_stickers(W: float, H: float) -> void:
+	if _stickers.is_empty() or player == null:
+		return
+	var cam: Camera3D = player.camera
+	var vsize := cam.get_viewport().get_visible_rect().size
+	if vsize.x <= 0:
+		return
+	var k := Vector2(W, H) / vsize
+	for st in _stickers:
+		var p: Vector3 = st[2]
+		if cam.is_position_behind(p):
+			continue
+		var t: float = st[3]
+		var sp := cam.unproject_position(p) * k
+		# slap on, hold, then drift up and fade
+		var sc := 0.0
+		if t < 0.08:
+			sc = lerpf(0.2, 1.25, t / 0.08)
+		elif t < 0.15:
+			sc = lerpf(1.25, 1.0, (t - 0.08) / 0.07)
+		else:
+			sc = 1.0
+		var a := clampf((1.1 - t) / 0.45, 0.0, 1.0)
+		sp.y -= maxf(0.0, t - 0.6) * 60.0
+		var base := 0.5 if st[5] else 0.36
+		draw_set_transform(sp, st[4], Vector2.ONE * sc * base)
+		if st[1] != null:
+			var bt: Texture2D = st[1]
+			draw_texture(bt, -bt.get_size() * 0.5 + Vector2(-30, 6), Color(1, 1, 1, a))
+		var wt: Texture2D = st[0]
+		draw_texture(wt, -wt.get_size() * 0.5, Color(1, 1, 1, a))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+## ENDLESS: the wave and how many are left, and your best.
+func _draw_endless(W: float, H: float) -> void:
+	var w = player.world
+	if w == null or w.endless == null:
+		return
+	var e: Endless = w.endless
+	var s := e.status()
+	var tw := UI.text_width("anton", s, 22)
+	draw_rect(Rect2(W * 0.5 - tw * 0.5 - 8, 6, tw + 16, 28), Color(0, 0, 0, 0.6))
+	UI.text_centered(self, "anton", W * 0.5, 6, s, UI.ACID if e.state == "rest" else UI.BONE, 22)
+	UI.text_centered(self, "term", W * 0.5, 34, "BEST: WAVE %d" % int(e.best.get("wave", 0)), UI.DIM, 16)
 
 
 func _draw_subtitle(W: float, H: float) -> void:
@@ -278,14 +360,15 @@ func _draw_ammo(W: float, H: float) -> void:
 	var right := W - 14.0
 	var big := ""
 	var small := ""
-	if String(d["style"]) == "heat":
+	var no_mag := String(d["style"]) in ["heat", "flame"]
+	if no_mag:
 		big = str(wp.reserve())
 	else:
 		big = str(wp.mag_count())
 		small = "/%d" % wp.reserve()
 	var bw := UI.text_width("anton", big, 40)
 	var sw := UI.text_width("anton", small, 20) if small != "" else 0.0
-	var col := Color(1, 0.3, 0.25) if (String(d["style"]) != "heat" and wp.mag_count() == 0) else UI.BONE
+	var col := Color(1, 0.3, 0.25) if ((not no_mag and wp.mag_count() == 0) or (no_mag and wp.reserve() == 0)) else UI.BONE
 	UI.text(self, "anton", Vector2(right - sw - bw - 4, H - 58), big, col, 40)
 	if small != "":
 		UI.text(self, "anton", Vector2(right - sw, H - 40), small, Color(0.75, 0.7, 0.7), 20)
@@ -319,11 +402,14 @@ func _draw_hit_marker(W: float, H: float) -> void:
 
 func _draw_gut_prompt(W: float, H: float) -> void:
 	var f = player.finisher
-	if f == null or f.active() or f.available == null or player.dead or show_map:
+	if f == null or f.active() or f.whip_phase != "" or player.dead or show_map:
 		return
 	var pulse := 0.65 + 0.35 * sin(Time.get_ticks_msec() * 0.012)
 	var key := Settings.bind_label("melee").split(" / ")[0]
-	UI.text_centered(self, "anton", W * 0.5, H * 0.5 + 18, "[%s] GUT" % key, Color(1, 0.12, 0.08, pulse), 24)
+	if f.available != null:
+		UI.text_centered(self, "anton", W * 0.5, H * 0.5 + 18, "[%s] GUT" % key, Color(1, 0.12, 0.08, pulse), 24)
+	elif f.whip_available != null:
+		UI.text_centered(self, "term", W * 0.5, H * 0.5 + 16, "[%s] YANK" % key, Color(1, 0.5, 0.85, 0.55), 16)
 
 
 func _draw_face(W: float, H: float) -> void:

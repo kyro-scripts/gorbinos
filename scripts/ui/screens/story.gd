@@ -61,7 +61,10 @@ func _draw() -> void:
 	draw_texture_rect_region(bg, Rect2(Vector2.ZERO, size), Rect2(Vector2(t * 6.0, t * 3.0), size / 3.0), Color(0.45, 0.4, 0.5))
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.45))
 	UI.text_centered(self, "term", size.x * 0.5, 18, "NOW ENTERING", UI.ACID, 16)
-	UI.text_centered(self, "big", size.x * 0.5, 36, title, Color.WHITE)
+	if Collage.enabled():
+		UI.ransom(self, size.x * 0.5, 38, title, 30.0)
+	else:
+		UI.text_centered(self, "big", size.x * 0.5, 36, title, Color.WHITE)
 	var y := 92.0
 	var remaining := int(shown)
 	for ln in lines:

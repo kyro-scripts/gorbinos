@@ -610,6 +610,56 @@ func _spawn_entities() -> void:
 		var key: String = tele_src[i]
 		if tele_dst.has(key):
 			teleports[i] = tele_dst[key]
+	_spawn_extras()
+
+
+## Things added after the maps were drawn, without touching the maps: the
+## flamethrower in the industrial complex's armory, and fuel cans left next
+## to the big ammo boxes from then on.
+const EXTRAS := {
+	"SNIRBY INDUSTRIAL COMPLEX": [["w_flamer", 60, 27], ["fuel_box", 59, 26]],
+}
+const FUEL_FROM := ["SNIRBY INDUSTRIAL COMPLEX", "THE GORBINO MINES", "CONSUMER HEADQUARTERS",
+	"THE ENDLESS GORBINO FACILITY", "SNIRBY DIMENSION"]
+
+
+func _spawn_extras() -> void:
+	var name := String(data.get("name", ""))
+	var taken := {}
+	for e in entity_specs:
+		taken[idx_of(e["cell"])] = true
+	var extra_id := 800000
+	for ex in EXTRAS.get(name, []):
+		extra_id += 1
+		_extra_pickup(String(ex[0]), Vector2i(int(ex[1]), int(ex[2])), extra_id)
+		taken[idx_of(Vector2i(int(ex[1]), int(ex[2])))] = true
+	if not name in FUEL_FROM:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(name + "fuel")
+	for e in entity_specs:
+		if not String(e["type"]) in ["shells_box", "cells_box", "rockets_box", "bullets_box"] or rng.randf() > 0.6:
+			continue
+		var c: Vector2i = e["cell"]
+		for dv in DIRS4:
+			var n: Vector2i = c + dv
+			var ni := idx_of(n)
+			if ni < 0 or solid[ni] != 0 or movers.has(ni) or taken.has(ni) or absf(floor_h[ni] - floor_h[idx_of(c)]) > 0.05:
+				continue
+			if String(cells[ni].get("liquid", "")) != "":
+				continue
+			extra_id += 1
+			_extra_pickup("fuel", n, extra_id)
+			taken[ni] = true
+			break
+
+
+func _extra_pickup(t: String, c: Vector2i, id: int) -> void:
+	var pk := Pickup.new()
+	pk.spawn_id = id
+	_entity_root.add_child(pk)
+	pk.setup(t, cell_center(c))
+	pickups.append(pk)
 
 
 # ================================================================== queries

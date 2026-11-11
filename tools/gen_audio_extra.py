@@ -276,8 +276,70 @@ def gorbino_talk():
         save("gorb_yelp_" + "ab"[i], np.tanh(v * 2.6), 0.7)
 
 
+# ------------------------------------------------------------------ new toys
+def toys():
+    # whip: a rising swish, a hard crack and a wet slap
+    d = 0.18
+    tt = t_(d)
+    swish = bp(noise(d), 800, 5000) * np.clip(tt / d, 0, 1) ** 2
+    crack = hp(noise(0.03), 2500) * env(int(SR * 0.03), 0.0003, 0.006, 5)
+    slap = squelch(0.12, 600, 21) * env(int(SR * 0.12), 0.002, 0.04, 4)
+    save("whip_crack", mix(swish * 0.5, at(crack * 1.4, d - 0.01), at(slap * 0.6, d)), 0.9)
+    # yank: stretchy wet rubber, a twang that drops
+    d = 0.42
+    tt = t_(d)
+    f = 190 * np.exp(-tt * 3.0) + 60 + 8 * np.sin(2 * np.pi * 14 * tt)
+    tw = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt * 5)
+    x = mix(tw * 0.8, squelch(d, 380, 22) * env(int(SR * d), 0.01, 0.15, 3) * 0.7)
+    save("whip_yank", np.tanh(x * 1.5), 0.85)
+    # flamethrower: a whoosh to start, a roar that loops, a whoomp when
+    # something catches, and the sizzle of something burning
+    d = 0.5
+    tt = t_(d)
+    nz = noise(d)
+    k = np.clip(tt / 0.3, 0, 1)
+    x = (lp(nz, 600) * (1 - k) + lp(nz, 3000) * k) * np.clip(tt / 0.05, 0, 1) * np.exp(-np.maximum(tt - 0.3, 0) * 5)
+    save("flame_start", x, 0.8)
+    d = 1.2
+    n = int(SR * d)
+    roar = bp(noise(d), 180, 1800) * (0.75 + 0.25 * lp(noise(d), 9) * 6).clip(0.4, 1.2) + lp(noise(d), 160) * 1.2
+    for _ in range(50):
+        p = int(R.uniform(0, d - 0.01) * SR)
+        roar[p:p + 40] += R.uniform(-1, 1, 40) * np.exp(-np.arange(40) / 8) * 1.5
+    fade = int(SR * 0.1)
+    roar[:fade] = roar[:fade] * np.linspace(0, 1, fade) + roar[-fade:] * np.linspace(1, 0, fade)
+    roar = roar[:n - fade]
+    save("flame_loop", roar, 0.7)
+    d = 0.6
+    tt = t_(d)
+    thump = np.sin(2 * np.pi * np.cumsum(70 + 90 * np.exp(-tt * 15)) / SR) * env(len(tt), 0.003, 0.15, 3)
+    swell = lp(noise(d), 1500) * np.sin(np.pi * np.clip(tt / d, 0, 1)) ** 2
+    save("flame_ignite", mix(thump, swell * 0.6), 0.9)
+    d = 0.9
+    tt = t_(d)
+    sz = hp(noise(d), 3000) * (0.5 + 0.5 * (R.random(len(tt)) < 0.04)) * np.exp(-tt * 1.5)
+    save("burn_sizzle", sz, 0.5)
+    # slide: grit dragged along the floor
+    d = 0.55
+    tt = t_(d)
+    x = bp(noise(d), 500, 3500) * (0.7 + 0.3 * lp(noise(d), 30) * 5).clip(0.3, 1.3) * np.clip(tt / 0.02, 0, 1) * np.exp(-tt * 3)
+    x += lp(noise(d), 200) * np.exp(-tt * 4) * 0.8
+    save("slide", x, 0.7)
+    # frenzy: a filthy rising stinger
+    d = 1.4
+    tt = t_(d)
+    f = 80 * 2 ** (tt / d * 2.5)
+    saw = (np.cumsum(f) / SR % 1.0) * 2 - 1
+    saw2 = (np.cumsum(f * 1.5) / SR % 1.0) * 2 - 1
+    dist = np.tanh((saw + saw2 * 0.7) * 2.5)
+    x = (lp(dist, 900) * (1 - tt / d) + lp(dist, 3900) * (tt / d)) * np.clip(tt / 0.02, 0, 1) * np.exp(-np.maximum(tt - 1.0, 0) * 8)
+    hit = lp(noise(0.3), 2500) * env(int(SR * 0.3), 0.001, 0.08, 4)
+    save("frenzy_on", mix(x, at(hit, 1.0)), 0.9)
+
+
 if __name__ == "__main__":
     knife()
     gore()
     dread()
     gorbino_talk()
+    toys()

@@ -2,7 +2,7 @@ class_name Weapons
 extends Node3D
 ## Weapon inventory, firing, reloading and the first-person viewmodel.
 
-const ORDER := ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma"]
+const ORDER := ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma", "flamer"]
 const DATA := {
 	"pistol": {"slot": 1, "name": "PISTOL", "ammo": "bullets", "mag": 12, "use": 1, "auto": false, "rate": 0.14,
 		"dmg": 18.0, "pellets": 1, "spread": 0.010, "reload": 0.75, "style": "mag", "snd": "pistol_fire", "kick": 1.2, "vkick": 0.05},
@@ -17,8 +17,10 @@ const DATA := {
 		"snd": "rocket_fire", "kick": 5.5, "vkick": 0.12},
 	"plasma": {"slot": 6, "name": "PLASMA RIFLE", "ammo": "cells", "mag": 0, "use": 1, "auto": true, "rate": 0.07,
 		"dmg": 21.0, "proj": "plasma", "speed": 80.0, "heat": 5.5, "style": "heat", "snd": "plasma_fire", "kick": 0.7, "vkick": 0.025},
+	"flamer": {"slot": 7, "name": "FLAMETHROWER", "ammo": "fuel", "mag": 0, "use": 1, "auto": true, "rate": 0.05,
+		"dmg": 4.5, "range": 8.5, "style": "flame", "snd": "", "kick": 0.15, "vkick": 0.004},
 }
-const MAX_AMMO := {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300}
+const MAX_AMMO := {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300, "fuel": 200}
 const BASE_POS := Vector3(0.07, -0.082, -0.19)
 const VM_SCALE := 0.36
 
@@ -26,7 +28,7 @@ var player: Player
 var owned := ["pistol"]
 var current := "pistol"
 var last := "pistol"
-var ammo := {"bullets": 40, "shells": 0, "rockets": 0, "cells": 0}
+var ammo := {"bullets": 40, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0}
 var mags := {"pistol": 12}
 var backpack := false
 var cooldown := 0.0
@@ -51,6 +53,10 @@ var _fire_held_last := false
 var _spin_speed := 0.0
 var _eject: Array = []
 var holster := 0.0            # 1 = lowered out of sight (while gutting)
+var _flame_on := 0.0          # > 0 while the flamethrower is going
+var _flame_snd_t := 0.0
+var _flame_light_t := 0.0
+var _flame_noise_t := 0.0
 
 
 func _ready() -> void:
@@ -103,7 +109,7 @@ func give_ammo(t: String, n: int) -> bool:
 func give_weapon(w: String, dropped := false) -> bool:
 	var d: Dictionary = DATA[w]
 	var t: String = d["ammo"]
-	var gave_ammo := give_ammo(t, {"bullets": 20, "shells": 8, "rockets": 2, "cells": 40}[t])
+	var gave_ammo := give_ammo(t, {"bullets": 20, "shells": 8, "rockets": 2, "cells": 40, "fuel": 60}[t])
 	if owned.has(w):
 		return gave_ammo
 	owned.append(w)
@@ -155,6 +161,7 @@ func _build_vm() -> void:
 	vm = Models.weapon(current, true)
 	vm.scale = Vector3.ONE * VM_SCALE
 	holder.add_child(vm)
+	Collage.outline_viewmodel(vm)
 	vm_parts = vm.get_meta("parts")
 	var muzzle: Marker3D = vm_parts["muzzle"]
 	if flash.get_parent():
@@ -189,6 +196,7 @@ func _process(delta: float) -> void:
 		return
 	cooldown -= delta
 	flash_t -= delta
+	_flame_on -= delta
 	flash.visible = flash_t > 0.0
 	spread_bloom = move_toward(spread_bloom, 0.0, delta * 0.08)
 	_handle_heat(delta)
@@ -231,8 +239,8 @@ func _process(delta: float) -> void:
 func _handle_input() -> void:
 	if player.autopilot:
 		return
-	for i in range(1, 7):
-		if Input.is_action_just_pressed("weapon_%d" % i):
+	for i in range(1, ORDER.size() + 1):
+		if InputMap.has_action("weapon_%d" % i) and Input.is_action_just_pressed("weapon_%d" % i):
 			var w: String = ORDER[i - 1]
 			if owned.has(w):
 				switch_to(w)
@@ -330,6 +338,16 @@ func _try_fire() -> void:
 	var d := cur()
 	var t: String = d["ammo"]
 	var style := String(d["style"])
+	if style == "flame":
+		if int(ammo.get(t, 0)) < int(d["use"]):
+			Audio.play("dryfire", -4.0)
+			cooldown = 0.3
+			_auto_switch_empty()
+			return
+		ammo[t] -= int(d["use"])
+		cooldown = float(d["rate"]) * (0.75 if player.frenzy > 0.0 else 1.0)
+		_flame(d)
+		return
 	if style == "heat":
 		if overheat:
 			return
@@ -357,13 +375,71 @@ func _try_fire() -> void:
 			return
 		var use := mini(int(d["use"]), mag_count())
 		mags[current] = mag_count() - use
-	cooldown = float(d["rate"])
+	cooldown = float(d["rate"]) * (0.65 if player.frenzy > 0.0 else 1.0)
 	_fire(d)
 	if style != "heat" and mag_count() <= 0 and reserve() > 0 and Settings.get_v("auto_reload"):
 		# auto reload after the recoil settles
 		get_tree().create_timer(float(d["rate"]) * 0.9).timeout.connect(func():
 			if is_instance_valid(self) and state == "idle" and mag_count() <= 0:
 				start_reload())
+
+
+## One tick of the flamethrower: a cone of fire in front of you that sets
+## alight whatever it touches, and the puffs of flame you can see.
+func _flame(d: Dictionary) -> void:
+	var lvl: Node = player.level
+	var cam := player.camera
+	var basis := cam.global_transform.basis
+	var fwd := -basis.z
+	var eye: Vector3 = cam.global_position
+	if _flame_on <= 0.0:
+		Audio.play("flame_start", -2.0, randf_range(0.95, 1.05))
+		_flame_snd_t = 0.25
+	_flame_on = 0.12
+	_flame_snd_t -= float(d["rate"])
+	if _flame_snd_t <= 0.0:
+		_flame_snd_t = 0.95
+		Audio.play("flame_loop", -3.0, randf_range(0.95, 1.05))
+	_flame_noise_t -= float(d["rate"])
+	if _flame_noise_t <= 0.0:
+		_flame_noise_t = 0.5
+		lvl.noise_at(player.global_position, 18)
+	var nozzle: Vector3 = vm_parts["muzzle"].global_position if vm_parts.has("muzzle") else eye + fwd * 0.6
+	# the stream you see starts at the nozzle but is aimed from the eye
+	var start := nozzle.lerp(eye + fwd * 0.5, 0.5)
+	for k in 3:
+		var spread := basis.x * randf_range(-1, 1) * 0.14 + basis.y * randf_range(-1, 1) * 0.09
+		FlameBit.spawn(lvl, start, (fwd + spread).normalized() * randf_range(15.0, 19.0) + player.velocity * 0.6)
+	_flame_light_t -= float(d["rate"])
+	if _flame_light_t <= 0.0:
+		_flame_light_t = 0.1
+		Fx.light(lvl, eye + fwd * 2.5, Color(1.0, 0.55, 0.15), 7.0, 1.6, 0.14)
+	# everything in the cone burns
+	var rng: float = d["range"]
+	var targets: Array = []
+	for e in lvl.enemies:
+		if is_instance_valid(e) and not e.dead:
+			targets.append(e)
+	for b in lvl.barrels:
+		if is_instance_valid(b) and not b.exploded:
+			targets.append(b)
+	for c in lvl.civilians:
+		if is_instance_valid(c) and not c.dead:
+			targets.append(c)
+	for tg in targets:
+		var to: Vector3 = tg.center_point() - eye
+		var dist := to.length()
+		if dist > rng + float(tg.get("radius") if tg.get("radius") != null else 0.5):
+			continue
+		var dir := to / maxf(dist, 0.01)
+		if fwd.dot(dir) < (0.84 if dist > 2.0 else 0.5):
+			continue
+		if not lvl.has_los(eye, tg.center_point()):
+			continue
+		tg.take_damage(float(d["dmg"]), player, dir, "fire")
+		if tg.has_method("ignite"):
+			tg.ignite(player)
+	recoil = minf(recoil + float(d["vkick"]), 0.05)
 
 
 func _auto_switch_empty() -> void:

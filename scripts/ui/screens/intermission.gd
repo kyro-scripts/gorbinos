@@ -100,7 +100,10 @@ func _draw() -> void:
 	draw_texture_rect_region(bg, Rect2(Vector2.ZERO, size), Rect2(Vector2(t * 10, 0), size / 2.0), Color(0.6, 0.6, 0.6))
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.4))
 	var cx := size.x * 0.5
-	UI.text_centered(self, "big", cx, 14, Game.level_name(level_index), Color.WHITE)
+	if Collage.enabled():
+		UI.ransom(self, cx, 14, Game.level_name(level_index), 30.0)
+	else:
+		UI.text_centered(self, "big", cx, 14, Game.level_name(level_index), Color.WHITE)
 	var ss := stamp_tex.get_size() * 0.6
 	draw_texture_rect(stamp_tex, Rect2(Vector2(cx - ss.x * 0.5, 62), ss), false, Color(1, 1, 1, 1))
 	var labels := ["KILLS", "ITEMS", "SECRETS", "TIME"]

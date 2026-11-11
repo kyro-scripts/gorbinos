@@ -43,6 +43,7 @@ var pending_restore = null       # level state to restore after the level is bui
 var level_override = null        # test harness: level data used instead of LEVELS
 var autoplay := false            # test harness: bot plays the game
 var cheats := {"god": false}
+var endless := false             # playing ENDLESS in the Gorb Pit
 
 
 func _ready() -> void:
@@ -71,14 +72,31 @@ func new_inventory() -> Dictionary:
 	return {
 		"health": 100, "armor": 0, "armor_type": 0,
 		"weapons": ["pistol"], "current": "pistol",
-		"ammo": {"bullets": 40, "shells": 0, "rockets": 0, "cells": 0},
+		"ammo": {"bullets": 40, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0},
 		"mags": {"pistol": 12},
 		"backpack": false,
 	}
 
 
 # ------------------------------------------------------------------ flow
+## ENDLESS: straight into the Gorb Pit with a pistol, shotgun and machine gun.
+func start_endless(diff_index: int) -> void:
+	difficulty = diff_index
+	endless = true
+	level_override = load("res://scripts/levels/endless_pit.gd").DATA
+	inventory = new_inventory()
+	inventory["weapons"] = ["pistol", "shotgun", "mg"]
+	inventory["current"] = "shotgun"
+	inventory["ammo"] = {"bullets": 120, "shells": 24, "rockets": 0, "cells": 0, "fuel": 0}
+	inventory["mags"] = {"pistol": 12, "shotgun": 6, "mg": 60}
+	total_stats = {"kills": 0, "kills_total": 0, "items": 0, "items_total": 0, "secrets": 0, "secrets_total": 0, "time": 0.0}
+	level_index = 0
+	start_level(0)
+
+
 func new_game(diff_index: int) -> void:
+	endless = false
+	level_override = null
 	difficulty = diff_index
 	inventory = new_inventory()
 	total_stats = {"kills": 0, "kills_total": 0, "items": 0, "items_total": 0, "secrets": 0, "secrets_total": 0, "time": 0.0}
@@ -140,6 +158,9 @@ func save_level_start(i: int) -> void:
 
 
 func goto_menu() -> void:
+	if endless:
+		endless = false
+		level_override = null
 	main.show_menu()
 
 
@@ -214,7 +235,7 @@ func _fix_inventory(inv: Dictionary) -> Dictionary:
 		out[k] = inv[k]
 	for k in ["health", "armor", "armor_type"]:
 		out[k] = int(out[k])
-	var ammo := {}
+	var ammo := {"bullets": 0, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0}
 	for k in out["ammo"].keys():
 		ammo[k] = int(out["ammo"][k])
 	out["ammo"] = ammo
