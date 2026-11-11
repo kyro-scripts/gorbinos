@@ -108,6 +108,7 @@ func _move(dir: int) -> void:
 		sel = (sel + dir + items.size()) % items.size()
 		if _selectable(items[sel]):
 			break
+	_sel_t = 0.0
 	Audio.play("menu_move", -6.0)
 	queue_redraw()
 
@@ -144,9 +145,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_UP, KEY_W:
-				_move(-_tile_cols() if _is_tiles() else -1)
+				_move(-1)
 			KEY_DOWN, KEY_S:
-				_move(_tile_cols() if _is_tiles() else 1)
+				_move(1)
 			KEY_LEFT, KEY_A:
 				if _is_tiles():
 					_move(-1)
@@ -174,6 +175,7 @@ func _input(event: InputEvent) -> void:
 		var idx := _row_at(event.position)
 		if idx >= 0 and idx != sel and _selectable(_items()[idx]):
 			sel = idx
+			_sel_t = 0.0
 			Audio.play("menu_move", -10.0)
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -301,8 +303,6 @@ func _value_text(it: Dictionary) -> String:
 	return ""
 
 
-const TILE := 92.0
-const TILE_GAP := 12.0
 var _tex_cache := {}
 
 
@@ -316,9 +316,6 @@ func _tex(n: String) -> Texture2D:
 func _is_tiles() -> bool:
 	return page().get("tiles", false)
 
-
-func _tile_cols() -> int:
-	return int(page().get("cols", 4))
 
 
 func _draw() -> void:
@@ -345,46 +342,44 @@ func _draw() -> void:
 		UI.text_centered(self, "term", cx, size.y - 44, "PRESS A KEY OR MOUSE BUTTON. ESC TO CANCEL.", UI.ACID, 16)
 
 
+## The big menus (title, pause, death): a stack of clay sculpture buttons,
+## each a lumpy slab with its icon and its name in the logo's clay letters.
+## The chosen one lights up pink with a lime rim and lifts a little.
 func _draw_tiles(cx: float, y: float) -> void:
 	var items := _items()
-	var cols := mini(_tile_cols(), items.size())
-	var rows := int(ceil(float(items.size()) / cols))
-	var total_w := cols * TILE + (cols - 1) * TILE_GAP
+	if items.is_empty():
+		return
+	var gap := 3.0
+	var room := size.y - y - 44.0
+	var bh := clampf(room / items.size() - gap, 30.0, 46.0)
 	for k in items.size():
 		var it: Dictionary = items[k]
-		var r := k / cols
-		var c := k % cols
-		var in_row := mini(cols, items.size() - r * cols)
-		var row_w := in_row * TILE + (in_row - 1) * TILE_GAP
-		var x0 := cx - row_w * 0.5 + c * (TILE + TILE_GAP)
-		var y0 := y + r * (TILE + TILE_GAP)
-		var rect := Rect2(x0, y0, TILE, TILE)
-		_rows.append([rect, k])
+		var key := String(it.get("icon", "")).replace("tile_", "btn_")
 		var en := _selectable(it)
 		var is_sel := k == sel and en
+		var tex := _tex(key + ("_on" if is_sel else ""))
+		var bw := bh * (tex.get_width() / float(tex.get_height())) if tex else bh * 4.2
+		var rect := Rect2(cx - bw * 0.5, y + k * (bh + gap), bw, bh)
+		_rows.append([rect, k])
 		var drawn := rect
 		if is_sel:
-			drawn = rect.grow(4.0 + sin(anim_t * 9.0) * 1.5)
-			drawn.position += Vector2(randf_range(-0.6, 0.6), randf_range(-0.6, 0.6))
-		draw_rect(Rect2(drawn.position + Vector2(5, 5), drawn.size), Color(0, 0, 0, 0.6))
-		var t := _tex(String(it.get("icon", "")))
-		var mod := Color(1, 1, 1) if en else Color(0.35, 0.3, 0.35)
-		if t:
-			draw_texture_rect(t, drawn, false, mod)
+			var lift := minf(_sel_t * 10.0, 1.0)
+			drawn = Rect2(rect.get_center() - rect.size * (0.5 + 0.04 * lift), rect.size * (1.0 + 0.08 * lift))
+			drawn.position += Vector2(6.0 * lift, sin(anim_t * 3.0) * 0.8)
+			_sel_rect = drawn
+		var mod := Color(1, 1, 1) if en else Color(0.4, 0.36, 0.4, 0.8)
+		if tex:
+			draw_texture_rect(tex, drawn, false, mod)
 		else:
 			draw_rect(drawn, Color(0.2, 0.1, 0.15))
 			UI.text_centered(self, "menu", drawn.get_center().x, drawn.get_center().y - 12, String(it.get("label", "")))
-		if is_sel:
-			draw_rect(drawn, UI.ACID, false, 3.0)
-			_sel_rect = drawn
-	# the selected tile's name under the grid
 	if sel < items.size() and _selectable(items[sel]):
-		var lab := String(items[sel].get("label", ""))
-		var ly := y + rows * (TILE + TILE_GAP) + 2
-		UI.text_centered(self, "menu_hi", cx, ly, lab, Color.WHITE, 24)
 		var desc := String(items[sel].get("desc", ""))
 		if desc != "":
-			UI.text_centered(self, "term", cx, ly + 30, desc, UI.BONE, 16)
+			var dy := y + items.size() * (bh + gap) + 4.0
+			var dw := UI.text_width("term", desc, 16)
+			draw_rect(Rect2(cx - dw * 0.5 - 6, dy - 1, dw + 12, 18), Color(0, 0, 0, 0.6))
+			UI.text_centered(self, "term", cx, dy, desc, UI.BONE, 16)
 
 
 func _draw_list(p: Dictionary, cx: float, y: float) -> void:

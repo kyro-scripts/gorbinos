@@ -51,7 +51,7 @@ Doors also open when you walk into them, except locked doors (find the keycard) 
 
 ### The look
 
-Gorbino's Quest is drawn like something cut out of a cheap magazine and pasted together, in the spirit of FISH and Cruelty Squad. The picture comes out like bad print: the colour plates don't quite line up and twitch a few times a second, the shadows are halftone dots, the highlights go to cream paper, ink lines run where colours break, and the colours are pushed hard. Creatures, pickups, your gun and your knife arm are snipped out with white paper borders that boil slightly, so things pop off the background. Kills slap a ransom-note sticker over the action (SPLORT!, GORB!, BLAMMO, BYE BYE...), explosions get cut-out bursts, and the big words on screen are ransom-note letters cut from a dozen magazines. And here and there on the walls of every level, a photo-real trout has been pasted up. In the pause and death menus, a trout nibbles at whatever you've picked. All of it can be switched off with **COLLAGE FX** in OPTIONS > VIDEO.
+Gorbino's Quest is drawn like something cut out of a cheap magazine and pasted together, in the spirit of FISH and Cruelty Squad. The picture comes out like bad print: the colour plates don't quite line up and twitch a few times a second, the shadows are halftone dots, the highlights go to cream paper, ink lines run where colours break, and the colours are pushed hard. Creatures, pickups, your gun and your knife arm are snipped out with white paper borders that boil slightly, so things pop off the background. Kills slap a ransom-note sticker over the action (SPLORT!, GORB!, BLAMMO, BYE BYE...), explosions get cut-out bursts, and the big words on screen are ransom-note letters cut from a dozen magazines. And here and there on the walls of every level, a photo-real trout has been pasted up. The title, pause and death menus' buttons are clay sculptures like the logo: lumpy glossy slabs with their icon and name in orange clay letters; the chosen one lights up pink with a lime rim, and in the pause and death menus a trout nibbles at it. All of it can be switched off with **COLLAGE FX** in OPTIONS > VIDEO.
 
 ### Frenzy and the slide
 
@@ -177,7 +177,7 @@ python3 tools/gen_music.py      # 10 music tracks (needs ffmpeg with libvorbis);
 python3 tools/gen_creatures.py  # Snotling skin, eyes and mouths; the Gorbino's attack maw
 python3 tools/import_user_models.py  # supplied Gorbino texture -> 6 colour variants, Snirby face
 godot --headless --path . -s scripts/tools/import_gorbino.gd  # supplied Gorbino mesh -> body + feet
-python3 tools/gen_clay.py       # "pre-rendered clay" UI: DEATH, menu tiles, logo, cursor, icon
+python3 tools/gen_clay.py       # "pre-rendered clay" UI: DEATH, menu buttons, logo, cursor, icon
 python3 tools/import_user_audio.py  # weapon sounds, voice lines, enemy shot (idk.wav) from tools/user_audio/
 python3 tools/gen_gore.py       # wound, guts and butterfly-knife textures
 python3 tools/gen_collage.py    # ransom-note stickers and cut-out bursts

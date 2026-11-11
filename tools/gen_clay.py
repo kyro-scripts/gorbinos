@@ -301,6 +301,112 @@ def tiles():
     tile("quit", "QUIT", "x", "veins", 7580, (255, 60, 60))
 
 
+# ------------------------------------------------------------------ menu buttons
+BUTTONS = [
+    ("new", "NEW QUEST", "face", (255, 140, 40)),
+    ("continue", "CONTINUE", "arrow", (120, 255, 60)),
+    ("endless", "ENDLESS", "ring", (230, 80, 255)),
+    ("options", "OPTIONS", "gear", (120, 180, 255)),
+    ("exit", "EXIT", "x", (130, 255, 60)),
+    ("resume", "RESUME", "arrow", (255, 120, 40)),
+    ("save", "SAVE", "disk", (255, 220, 60)),
+    ("load", "LOAD", "eye", (240, 230, 220)),
+    ("retry", "RESTART", "ring", (200, 120, 90)),
+    ("quit", "QUIT", "x", (255, 60, 60)),
+]
+
+
+def _grow(a, r):
+    out = a.copy()
+    for dy in range(-r, r + 1):
+        for dx in range(-r, r + 1):
+            if dx * dx + dy * dy <= r * r:
+                out = np.maximum(out, np.roll(np.roll(a, dy, 0), dx, 1))
+    return out
+
+
+def clay_button(name, label, kind, icon_col, seed, hot):
+    """A lumpy, glossy clay slab with the icon sculpted on the left and the
+    label in the logo's orange clay letters. hot: the chosen one, lit up
+    pink with a lime rim."""
+    W, H = 440, 104
+    # the slab: a rounded bar whose edges have been squashed lumpy by hand
+    m = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(m).rounded_rectangle([12, 12, W - 12, H - 12], radius=34, fill=255)
+    mb = np.asarray(m.filter(ImageFilter.GaussianBlur(6))).astype(np.float32) / 255.0
+    lump = value_noise(max(W, H), 10, seed, 3)[:H, :W] - 0.5
+    slab = ((mb + lump * 0.45) > 0.5).astype(np.float32)
+    h = bevel(slab, 12) * 3
+    h *= 1 + (value_noise(max(W, H), 22, seed + 1, 3)[:H, :W] - 0.5) * 0.5
+    if hot:
+        stops = [(0, (130, 20, 60)), (0.5, (245, 80, 135)), (1, (255, 185, 205))]
+    else:
+        stops = [(0, (36, 6, 22)), (0.5, (105, 28, 58)), (1, (175, 80, 110))]
+    base = flesh_base(W, H, seed + 2, stops)
+    d1, _, _ = worley(max(W, H), 60, seed + 3)
+    base[(d1[:H, :W] < 2.0)] *= 0.62
+    body = shade_height(h, base, mask=slab, spec=0.9, shin=30)
+    out = np.zeros((H, W, 4), np.float32)
+    # soft drop shadow, and the lime rim when it's chosen
+    sh = np.roll(np.roll(slab, 6, 0), 5, 1)
+    out[..., 3] = sh * 0.6
+    if hot:
+        rim = _grow(slab, 5)
+        out[..., :3] = out[..., :3] * (1 - rim[..., None]) + np.array([0.75, 1.0, 0.1]) * rim[..., None]
+        out[..., 3] = np.maximum(out[..., 3], rim)
+    out[..., :3] = body[..., :3] * slab[..., None] + out[..., :3] * (1 - slab[..., None])
+    out[..., 3] = np.maximum(out[..., 3], slab)
+    # the icon, sculpted on the left
+    ih, imk = icon_height(kind, H, H)
+    ibase = flesh_base(H, H, seed + 4, [(0, tuple(int(c * 0.45) for c in icon_col)), (1, icon_col)])
+    ic = shade_height(ih, ibase, mask=imk, spec=1.0, shin=36)
+    iw = np.zeros((H, W)); iw[:, 14:14 + H] = imk
+    icn = np.zeros((H, W, 3)); icn[:, 14:14 + H] = ic[..., :3]
+    ish = np.roll(np.roll(iw, 4, 0), 4, 1) * slab
+    out[..., :3] *= 1 - ish[..., None] * 0.55
+    if kind == "eye":
+        yy, xx = np.mgrid[0:H, 0:H].astype(np.float32)
+        r = np.hypot(xx - H / 2, yy - (H / 2 - 6))
+        icn[:, 14:14 + H][r < 10] = (0.05, 0.0, 0.0)
+        icn[:, 14:14 + H][(r < 14) & (r >= 10)] = (0.8, 0.5, 0.0)
+    if kind == "face":
+        yy, xx = np.mgrid[0:H, 0:H].astype(np.float32)
+        sub = icn[:, 14:14 + H]
+        for ex in (-13, 13):
+            r = np.hypot(xx - (H / 2 + ex), yy - (H / 2 - 15))
+            sub[r < 8] = (0.95, 0.75, 0.1)
+            sub[(r < 8) & (np.abs(yy - (H / 2 - 15)) < 2)] = (0.02, 0.0, 0.0)
+        my = H / 2 + 10
+        sub[(np.abs(yy - my) < 6) & (np.abs(xx - H / 2) < 17)] = (0.18, 0.0, 0.03)
+    out[..., :3] = icn * iw[..., None] + out[..., :3] * (1 - iw[..., None])
+    # the label, in the logo's clay letters
+    f = font("Anton-Regular.ttf", 56)
+    tmp = Image.new("L", (W, H), 0)
+    bb = ImageDraw.Draw(tmp).textbbox((0, 0), label, font=f)
+    tm = text_mask(W, H, label, "Anton-Regular.ttf", 56, pos=(122 - bb[0], (H - (bb[3] - bb[1])) // 2 - bb[1] - 2))
+    a = (tm > 0.5).astype(np.float32)
+    th = bevel(tm, 5) * 3
+    th *= 1 + (value_noise(max(W, H), 24, seed + 5, 3)[:H, :W] - 0.5) * 0.4
+    if hot:
+        lstops = [(0, (160, 80, 0)), (0.5, (255, 200, 50)), (1, (255, 250, 180))]
+    else:
+        lstops = [(0, (120, 40, 0)), (0.5, (255, 120, 20)), (1, (255, 210, 120))]
+    lab = shade_height(th, flesh_base(W, H, seed + 6, lstops), mask=a, spec=1.0, shin=34)
+    outl = _grow(a, 3)
+    lsh = np.roll(np.roll(outl, 3, 0), 3, 1)
+    out[..., :3] *= 1 - lsh[..., None] * 0.5
+    out[..., :3] = out[..., :3] * (1 - outl[..., None]) + np.array([0.06, 0.0, 0.02]) * outl[..., None]
+    out[..., :3] = lab[..., :3] * a[..., None] + out[..., :3] * (1 - a[..., None])
+    out[..., 3] = np.maximum(out[..., 3], outl)
+    save(out, "btn_%s%s.png" % (name, "_on" if hot else ""))
+
+
+def buttons():
+    for k, (name, label, kind, col) in enumerate(BUTTONS):
+        for hot in (False, True):
+            clay_button(name, label, kind, col, 7600 + k * 10, hot)
+
+
 # ------------------------------------------------------------------ backgrounds, border
 def menu_bg():
     W = 128
@@ -444,6 +550,7 @@ if __name__ == "__main__":
     ranks()
     logo()
     tiles()
+    buttons()
     menu_bg()
     border()
     cursor()
