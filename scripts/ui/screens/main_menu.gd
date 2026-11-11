@@ -1,9 +1,15 @@
 extends Control
-## Title screen: organic backdrop, clay logo, image tiles, and a turntable
-## with a Gorbino and a Snirby.
+## Title screen: a weird tile in the style of THE GORB PIT (purple flesh,
+## lime streaks, staring eyes) scrolling behind everything, the name made of
+## trout skin, the clay buttons in a column under it, and a turntable with a
+## Gorbino, a Snirby and a snotling.
+
+const BG_SCALE := 2.0            # screen units per texel of the background tile
+const BG_SPEED := Vector2(14.0, 9.0)
 
 var bg: Texture2D
-var logo: Texture2D
+var title_tex: Texture2D
+var title: Control
 var menu: MenuView
 var t := 0.0
 var vp: SubViewport
@@ -17,8 +23,15 @@ var preview: TextureRect
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	bg = load("res://assets/ui/menu_bg.png")
-	logo = load("res://assets/ui/logo.png")
+	bg = load("res://assets/ui/menu_pit.png")
+	title_tex = load("res://assets/ui/title_fish.png")
+	# the title is a big photo-real image: drawn smooth on its own layer
+	title = Control.new()
+	title.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	add_child(title)
+	title.draw.connect(_draw_title)
 	_build_stage()
 	menu = MenuView.new()
 	menu.top_y = 150.0
@@ -110,9 +123,9 @@ func _process(delta: float) -> void:
 	Creatures.animate(snirb, t + 1.3, delta, {"move": 0.0, "windup": fmod(t + 2.0, 5.0) > 4.4})
 	Creatures.animate(snot, t + 0.6, delta, {"move": 0.0, "blink": fmod(t + 1.0, 4.3) < 0.12})
 	var tiles: bool = menu.page().get("tiles", false)
-	# the logo and the buttons share a column in the left quarter, the
+	# the title and the buttons share a column in the left quarter, the
 	# turntable sits in the right quarter
-	menu.top_y = 112.0 if tiles else 150.0
+	menu.top_y = 128.0 if tiles else 150.0
 	menu.center_offset = (_column_x() - size.x * 0.5) if tiles else -100.0
 	preview.visible = not menu.page().get("wide", false)
 	if tiles:
@@ -125,21 +138,37 @@ func _process(delta: float) -> void:
 		preview.position = Vector2(size.x - side - 6, size.y - side - 8)
 		preview.size = Vector2(side, side)
 	queue_redraw()
+	title.queue_redraw()
 
 
+## The Gorb Pit tile, scrolling down and to the right, darkened behind the
+## title and buttons so they stand out.
 func _draw() -> void:
-	var off := Vector2(t * 6.0, t * 3.0)
-	draw_texture_rect_region(bg, Rect2(Vector2.ZERO, size), Rect2(off, size / 1.5), Color(1, 1, 1))
-	# vignette
+	var off := Vector2(fmod(t * BG_SPEED.x, bg.get_width() * BG_SCALE), fmod(t * BG_SPEED.y, bg.get_height() * BG_SCALE))
+	draw_texture_rect_region(bg, Rect2(Vector2.ZERO, size), Rect2(-off / BG_SCALE, size / BG_SCALE))
+	var w := size.x
+	var h := size.y
+	var dark := Color(0.02, 0.0, 0.04, 0.72)
+	var clear := Color(0.02, 0.0, 0.04, 0.2)
+	draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(w * 0.55, 0), Vector2(w * 0.55, h), Vector2(0, h)]),
+		PackedColorArray([dark, clear, clear, dark]))
+	draw_rect(Rect2(w * 0.55, 0, w * 0.45, h), clear)
 	for k in 6:
-		var a := 0.12 * (6 - k) / 6.0
-		draw_rect(Rect2(Vector2.ZERO, size).grow(-k * 14), Color(0, 0, 0, a), false, 14.0)
-	var ls := logo.get_size() * 0.42
-	var lp := Vector2(_column_x() - ls.x * 0.5, 10 + sin(t * 1.3) * 2.0)
-	draw_texture_rect(logo, Rect2(lp.round(), ls.round()), false)
-	UI.text(self, "term", Vector2(size.x - UI.text_width("term", "V1.9.6", 16) - 8, 4), "V1.9.6", Color(0.7, 0.65, 0.6), 16)
+		draw_rect(Rect2(Vector2.ZERO, size).grow(-k * 12), Color(0, 0, 0, 0.12 * (6 - k) / 6.0), false, 12.0)
+	UI.text(self, "term", Vector2(size.x - UI.text_width("term", "V1.9.6", 16) - 8, 4), "V1.9.6", Color(0.75, 0.65, 0.7), 16)
 
 
-## Centre line of the logo-and-buttons column.
+## The name, made of trout skin, at the top of the column; it shrinks up
+## into the corner on the settings pages.
+func _draw_title() -> void:
+	var root: bool = menu.page().get("tiles", false)
+	var w := 178.0 if root else 104.0
+	var ts := Vector2(w, w * title_tex.get_height() / title_tex.get_width())
+	var cx := _column_x() if root else 18.0 + w * 0.5
+	var p := Vector2(cx - ts.x * 0.5, 6.0 + sin(t * 1.3) * 1.5)
+	title.draw_texture_rect(title_tex, Rect2(p, ts), false)
+
+
+## Centre line of the title-and-buttons column.
 func _column_x() -> float:
 	return maxf(150.0, size.x * 0.25)

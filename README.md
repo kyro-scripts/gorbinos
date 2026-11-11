@@ -51,7 +51,7 @@ Doors also open when you walk into them, except locked doors (find the keycard) 
 
 ### The look
 
-Gorbino's Quest is drawn like something cut out of a cheap magazine and pasted together, in the spirit of FISH and Cruelty Squad. The picture comes out like bad print: the colour plates don't quite line up and twitch a few times a second, the shadows are halftone dots, the highlights go to cream paper, ink lines run where colours break, and the colours are pushed hard. Creatures, pickups, your gun and your knife arm are snipped out with white paper borders that boil slightly, so things pop off the background. Kills slap a ransom-note sticker over the action (SPLORT!, GORB!, BLAMMO, BYE BYE...), explosions get cut-out bursts, and the big words on screen are ransom-note letters cut from a dozen magazines. And here and there on the walls of every level, a photo-real trout has been pasted up. The title, pause and death menus' buttons are clay sculptures like the logo: lumpy glossy slabs with their icon and name in orange clay letters, evenly spaced in a column under the logo (in the pause menu, two rows of three); the chosen one lights up pink with a lime rim, and in the pause and death menus a trout nibbles at it. All of it can be switched off with **COLLAGE FX** in OPTIONS > VIDEO.
+Gorbino's Quest is drawn like something cut out of a cheap magazine and pasted together, in the spirit of FISH and Cruelty Squad. The picture comes out like bad print: the colour plates don't quite line up and twitch a few times a second, the shadows are halftone dots, the highlights go to cream paper, ink lines run where colours break, and the colours are pushed hard. Creatures, pickups, your gun and your knife arm are snipped out with white paper borders that boil slightly, so things pop off the background. Kills slap a ransom-note sticker over the action (SPLORT!, GORB!, BLAMMO, BYE BYE...), explosions get cut-out bursts, and the big words on screen are ransom-note letters cut from a dozen magazines. And here and there on the walls of every level, a photo-real trout has been pasted up. The title screen scrolls a weird tile in the style of THE GORB PIT (wavy purple flesh, lime streaks, staring eyeballs) behind everything, with the name GORBINO'S QUEST in the game's own type made of glossy trout skin, and the creature turntable beside it. The title, pause and death menus' buttons are clay sculptures: lumpy glossy slabs with their icon and name in orange clay letters, evenly spaced in a column under the title (in the pause menu, two rows of three); the chosen one lights up pink with a lime rim, and in the pause and death menus a trout nibbles at it. All of it can be switched off with **COLLAGE FX** in OPTIONS > VIDEO.
 
 ### Frenzy and the slide
 
@@ -181,7 +181,8 @@ python3 tools/gen_clay.py       # "pre-rendered clay" UI: DEATH, menu buttons, l
 python3 tools/import_user_audio.py  # weapon sounds, voice lines, enemy shot (idk.wav) from tools/user_audio/
 python3 tools/gen_gore.py       # wound, guts and butterfly-knife textures
 python3 tools/gen_collage.py    # ransom-note stickers and cut-out bursts
-python3 tools/gen_hyperreal.py  # photo-real trout for the walls; the HUD's eye and its meat, bone and fish-skin strips
+python3 tools/gen_menu.py       # the title screen's scrolling Gorb Pit tile
+python3 tools/gen_hyperreal.py  # photo-real trout for the walls; the HUD's eye and its meat, bone and fish-skin strips; the fish-skin title
 python3 tools/gen_audio_extra.py  # knife, gore, heartbeat and dread sounds
 python3 tools/levels/level1_village.py   # ...and so on for each level
 ```

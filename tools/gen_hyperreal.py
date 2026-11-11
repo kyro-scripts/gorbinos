@@ -11,6 +11,7 @@ pores, veins, iris fibres, scales and wet highlights.
   ../ui/hud_meat.png   a strip of raw meat (health)
   ../ui/hud_bone.png   a strip of bone (armor)
   ../ui/hud_scales.png a strip of fish skin (the frenzy meter)
+  ../ui/title_fish.png the title, GORBINO'S QUEST, made of fish skin
 
 Run: python3 tools/gen_hyperreal.py
 """
@@ -604,6 +605,96 @@ def hud_strips(seed=71):
     print("wrote hud_bone")
 
 
+# ------------------------------------------------------------------ title
+def title_fish(seed=81):
+    """GORBINO'S QUEST in the game's own type (Anton), the letters made of
+    wet trout skin: puffy, scaled, olive on top, a pink stripe, silver
+    below, black spots."""
+    from PIL import ImageFont
+    font_path = os.path.join(ROOT, "assets", "fonts", "Anton-Regular.ttf")
+    W, H = 3000, 1300
+    mask_img = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(mask_img)
+    lines = [("GORBINO'S", 400, 60, 0), ("QUEST", 470, 60, 470)]
+    line_of = np.zeros((H, W), np.int32)
+    bands = []
+    for i, (txt, size, x, y) in enumerate(lines):
+        f = ImageFont.truetype(font_path, size)
+        layer = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(layer).text((x, y), txt, font=f, fill=255)
+        bb = layer.getbbox()
+        bands.append((bb[1], bb[3]))
+        mask_img.paste(255, mask=layer)
+        line_of[np.asarray(layer) > 127] = i
+    mask = np.asarray(mask_img).astype(np.float32) / 255.0
+    inside = mask > 0.5
+    # puffy: height rises from the edges of each letter
+    dist = ndimage.distance_transform_edt(inside)
+    R = 28.0
+    k = np.clip(dist / R, 0, 1)
+    hf = np.sqrt(1 - (1 - k) ** 2) * R * 0.75
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    # scales: overlapping round scales on a staggered grid, each one lying
+    # over the one behind it, so their free edges make little scallops
+    sc = 26.0
+    i0 = np.floor(xx / sc)
+    arc = np.full((H, W), 2.0, np.float32)
+    for ic in (i0 + 1, i0):
+        off = np.mod(ic, 2) * 0.5
+        jc = np.round(yy / sc - off)
+        dmin = np.full((H, W), 9.0, np.float32)
+        for dj in (-1, 0, 1):
+            cy = (jc + dj + off) * sc
+            dd = np.sqrt((xx - ic * sc) ** 2 + (yy - cy) ** 2) / (sc * 0.82)
+            dmin = np.minimum(dmin, dd)
+        arc = np.where(arc < 1.0, arc, dmin)
+    hf = hf + np.clip(1 - arc, 0, 1) ** 0.7 * 2.0 * k
+    hf += 0.8 * noise((H, W), 60, seed, 2) * k
+    n = normals(hf, 1.0, 1.0)
+    # trout colouring down each line: olive back, pink stripe, silver, white belly
+    rel = np.zeros((H, W), np.float32)
+    for i, (t0, t1) in enumerate(bands):
+        r = (yy - t0) / max(t1 - t0, 1) * 2 - 1
+        rel = np.where(line_of == i, r, rel)
+    back = np.array([0.22, 0.3, 0.16])
+    side = np.array([0.78, 0.8, 0.76])
+    belly = np.array([0.95, 0.94, 0.9])
+    alb = mix(back, side, smooth(-0.7, 0.0, rel))
+    alb = mix(alb, belly, smooth(0.35, 0.85, rel))
+    band = np.exp(-((rel + 0.05) / 0.2) ** 2) * (0.75 + 0.25 * noise((H, W), 10, seed + 1, 2))
+    alb = mix(alb, np.array([0.86, 0.38, 0.45]), band * 0.7)
+    alb = mix(alb, alb * 0.75, smooth(0.75, 1.0, arc) * 0.5)
+    r = np.random.default_rng(seed + 2)
+    spots = np.zeros((H, W), np.float32)
+    for _ in range(700):
+        sx, sy, rad = r.uniform(0, W), r.uniform(0, H), r.uniform(6, 13)
+        x0, x1, y0, y1 = int(max(sx - 16, 0)), int(min(sx + 16, W)), int(max(sy - 16, 0)), int(min(sy + 16, H))
+        dd = np.sqrt((xx[y0:y1, x0:x1] - sx) ** 2 + (yy[y0:y1, x0:x1] - sy) ** 2)
+        spots[y0:y1, x0:x1] = np.maximum(spots[y0:y1, x0:x1], smooth(rad, rad * 0.5, dd))
+    alb = mix(alb, np.array([0.06, 0.05, 0.05]), spots * smooth(0.5, -0.2, rel) * 0.9)
+    hue = np.stack([0.5 + 0.5 * np.sin(xx * 0.01 + 0), 0.5 + 0.5 * np.sin(xx * 0.01 + 2), 0.5 + 0.5 * np.sin(xx * 0.01 + 4)], -1)
+    rgb = light(n, alb, wrap=0.25, ambient=0.22, spec=0.9, power=24, spec_map=0.5 + 0.7 * noise((H, W), 90, seed + 3, 1))
+    rgb *= ao(hf, 6, 0.08)[..., None]
+    rgb = rgb + (hue - 0.5) * 0.07 * k[..., None]
+    # a dark rim round the letters and a soft shadow under them
+    rim = ndimage.binary_dilation(inside, iterations=10)
+    rimf = ndimage.gaussian_filter(rim.astype(np.float32), 1.0)
+    sh = np.zeros_like(rimf)
+    sh[22:, 18:] = rimf[:-22, :-18]
+    sh = ndimage.gaussian_filter(sh, 7.0) * 0.65
+    out = np.zeros((H, W, 4), np.float32)
+    out[..., :3] = np.array([0.02, 0.03, 0.04])
+    out[..., 3] = np.maximum(sh, rimf)
+    edge = ndimage.gaussian_filter(inside.astype(np.float32), 0.7)
+    out[..., :3] = out[..., :3] * (1 - edge[..., None]) + np.clip(rgb, 0, 1) * edge[..., None]
+    out[..., 3] = np.maximum(out[..., 3], edge)
+    img = Image.fromarray((np.clip(out, 0, 1) * 255).astype(np.uint8), "RGBA")
+    img = img.crop(img.getbbox())
+    img = img.resize((img.width // 2, img.height // 2), Image.LANCZOS)
+    img.save(os.path.join(UI_OUT, "title_fish.png"))
+    print("wrote title_fish", img.size)
+
+
 if __name__ == "__main__":
     import sys
     which = sys.argv[1:] or ["all"]
@@ -614,3 +705,5 @@ if __name__ == "__main__":
         fish()
     if "hud" in which or "all" in which:
         hud_strips()
+    if "title" in which or "all" in which:
+        title_fish()
