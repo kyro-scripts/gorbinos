@@ -307,8 +307,12 @@ func _debug_pausetest() -> void:
 	open_pause()
 	for f in 3:
 		await get_tree().process_frame
+	await key.call(KEY_DOWN)
+	print("[pausetest] down -> sel %d (want 3, the row below)" % menu.sel)
+	ok = ok and menu.sel == 3
+	await key.call(KEY_UP)
 	await key.call(KEY_RIGHT)
-	print("[pausetest] right -> sel %d (want 1)" % menu.sel)
+	print("[pausetest] up, right -> sel %d (want 1)" % menu.sel)
 	ok = ok and menu.sel == 1
 	await key.call(KEY_ENTER)
 	print("[pausetest] enter -> page %s (want SAVE)" % String(menu.page().get("title", "")))
@@ -702,7 +706,6 @@ func open_pause() -> void:
 	menu.stack.clear()
 	menu.visible = true
 	menu_bg.visible = true
-	# PAUSED and its six buttons, centred as one block above the stats line
 	menu.top_y = 80.0
 	menu.push(_pause_page())
 	Audio.play("menu_select", -6.0)
@@ -710,7 +713,7 @@ func open_pause() -> void:
 
 func _pause_page() -> Dictionary:
 	var st := level.stats
-	return {"title": "PAUSED", "tiles": true, "cols": 3, "items": [
+	return {"title": "PAUSED", "tiles": true, "grid": true, "cols": 3, "top_y": 156.0, "items": [
 		{"label": "RESUME", "icon": "tile_resume", "cb": func(): _resume()},
 		{"label": "SAVE", "icon": "tile_save", "cb": func(): menu.push(MenuView.save_page(menu, func(slot): save_to(slot)))},
 		{"label": "LOAD", "icon": "tile_load", "cb": func(): menu.push(MenuView.load_page(menu, func(d): _load(d)))},

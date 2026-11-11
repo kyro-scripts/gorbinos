@@ -145,9 +145,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_UP, KEY_W:
-				_move(-1)
+				_move(-_grid_cols())
 			KEY_DOWN, KEY_S:
-				_move(1)
+				_move(_grid_cols())
 			KEY_LEFT, KEY_A:
 				if _is_tiles():
 					_move(-1)
@@ -325,7 +325,7 @@ func _draw() -> void:
 		return
 	var p := page()
 	var cx := size.x * 0.5 + (0.0 if p.get("wide", false) else center_offset)
-	var y := top_y
+	var y := float(p.get("top_y", top_y))
 	if show_title and p.has("title") and String(p["title"]) != "":
 		UI.text_centered(self, "big", cx, y - 56, String(p["title"]), Color.WHITE)
 	if _is_tiles():
@@ -349,18 +349,30 @@ func _draw_tiles(cx: float, y: float) -> void:
 	var items := _items()
 	if items.is_empty():
 		return
-	# even spacing: buttons as big as the room allows, up to a comfortable size
-	var gap := 8.0
+	# even spacing: buttons as big as the room allows, up to a comfortable
+	# size; a "grid" page lays them out in rows of `cols`
+	var cols := _grid_cols()
+	var rows := int(ceil(float(items.size()) / cols))
+	var gap := 8.0 if cols == 1 else 12.0
+	var gap_x := 26.0
 	var room := size.y - y - 40.0
-	var bh := clampf((room - gap * (items.size() - 1)) / items.size(), 26.0, 36.0)
+	var bh := clampf((room - gap * (rows - 1)) / rows, 26.0, 36.0 if cols == 1 else 34.0)
+	var aspect := 4.2
+	var t0 := _tex(String(items[0].get("icon", "")).replace("tile_", "btn_"))
+	if t0:
+		aspect = t0.get_width() / float(t0.get_height())
+	var bw := bh * aspect
 	for k in items.size():
 		var it: Dictionary = items[k]
 		var key := String(it.get("icon", "")).replace("tile_", "btn_")
 		var en := _selectable(it)
 		var is_sel := k == sel and en
 		var tex := _tex(key + ("_on" if is_sel else ""))
-		var bw := bh * (tex.get_width() / float(tex.get_height())) if tex else bh * 4.2
-		var rect := Rect2(cx - bw * 0.5, y + k * (bh + gap), bw, bh)
+		var r := k / cols
+		var c := k % cols
+		var in_row := mini(cols, items.size() - r * cols)
+		var row_w := in_row * bw + (in_row - 1) * gap_x
+		var rect := Rect2(cx - row_w * 0.5 + c * (bw + gap_x), y + r * (bh + gap), bw, bh)
 		_rows.append([rect, k])
 		var drawn := rect
 		if is_sel:
@@ -377,12 +389,17 @@ func _draw_tiles(cx: float, y: float) -> void:
 	if sel < items.size() and _selectable(items[sel]):
 		var desc := String(items[sel].get("desc", ""))
 		if desc != "":
-			var dy := y + items.size() * (bh + gap) - gap + 6.0
+			var dy := y + rows * (bh + gap) - gap + 6.0
 			for ln in UI.wrap("term", desc, 230.0, 16):
 				var dw := UI.text_width("term", ln, 16)
 				draw_rect(Rect2(cx - dw * 0.5 - 5, dy - 1, dw + 10, 17), Color(0, 0, 0, 0.6))
 				UI.text_centered(self, "term", cx, dy, ln, UI.BONE, 16)
 				dy += 16.0
+
+
+func _grid_cols() -> int:
+	var p := page()
+	return int(p.get("cols", 3)) if p.get("grid", false) else 1
 
 
 func _draw_list(p: Dictionary, cx: float, y: float) -> void:
@@ -445,6 +462,8 @@ func _draw_fish() -> void:
 	if not trout or _sel_rect.size.x <= 0.0 or _fish == null or waiting_bind != "":
 		return
 	var h := clampf(_sel_rect.size.y * 0.3, 16.0, 26.0) if _is_tiles() else clampf(_sel_rect.size.y * 1.1, 18.0, 30.0)
+	if _grid_cols() > 1:
+		h = 13.0
 	var w := h * _fish.get_width() / _fish.get_height()
 	var nib := sin(_sel_t * 9.0) * 2.0
 	var c := Vector2(_sel_rect.end.x + w * 0.5 - 6.0 + nib, _sel_rect.get_center().y + sin(_sel_t * 2.3) * 1.5)
