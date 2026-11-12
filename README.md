@@ -19,7 +19,7 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 | ![Locals](docs/screenshots/locals.png) | ![Collage look](docs/screenshots/collage.png) |
 | ![Tentacle whip](docs/screenshots/whip.png) | ![Flamethrower](docs/screenshots/flamethrower.png) |
 | ![Frenzy](docs/screenshots/frenzy.png) | ![Endless](docs/screenshots/endless.png) |
-| ![Health](docs/screenshots/health_card.png) | |
+| ![Health](docs/screenshots/health_card.png) | ![Trout launcher](docs/screenshots/trout_launcher.png) |
 
 ## Playing it
 
@@ -40,7 +40,7 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 | Slide | C |
 | Sprint | Shift |
 | Reload | R |
-| Weapons | 1-7, mouse wheel, Q = last weapon |
+| Weapons | 1-8, mouse wheel, Q = last weapon |
 | Automap | Tab |
 | Quick save / quick load | F5 / F9 |
 | Pause menu | Esc |
@@ -74,6 +74,8 @@ Press **C** while running to slide: you drop low and shoot along the floor, stee
 
 Each level has its own palette, architecture, music track and ambience, plus 3 secrets, keycards, monster-closet ambushes and checkpoints. The music changes genre from level to level: a music-box waltz in the village, industrial techno in the complex, a dark drone in the mines, bossa nova at headquarters, acid techno in the facility, jungle in the Snirby Dimension, and metal for the boss.
 
+Every level has a **par time**. The end-of-level tally shows your time against par and your **best time** for that level on that difficulty, with a clay medal for the run: gold for beating par, silver for coming within 40% of it, bronze otherwise. Beat your best and a NEW BEST! sticker gets slapped on. Pausing shows your time so far, the par and your best.
+
 Your health is in the top-left corner: a photo-real cut-out of your eye, your HP, and a strip of raw meat that tears shorter as you take damage. The eye flinches and looks toward whatever just hit you, blinks, goes bloodshot and puffy as you weaken, can barely stay open and weeps blood when you're nearly dead, and rolls back when you die. Under the meat, armor is a strip of bone (its count sits beside your HP) and the frenzy meter is a strip of fish skin that fills as you kill and shimmers through every colour as it burns down during a frenzy.
 
 Ammo pickups are proper objects: trays of brass cartridges, olive ammo cans with a belt hanging off, red shotgun shells on brass heads, finned rockets on a crate, batteries with a glowing band. The HUD shows the ammo of the weapon you're holding.
@@ -103,6 +105,7 @@ Not every Gorbino wants to kill you. Every level has a few pairs of little paste
 | 5 | Rocket launcher | rockets | splash damage; rocket jumping works. Shark face painted on the tube |
 | 6 | Plasma rifle | cells | plasma bolts; no mag but it overheats (press R to vent). A specimen jar on top, something floating in it |
 | 7 | Flamethrower | fuel | a short cone of fire. Anything caught in it catches, runs about screaming, sets its friends alight and dies charred and smoking. A red gas canister with a Gorbino sticker; found in the industrial complex's armory, fuel cans after that |
+| 8 | Trout launcher | trout | lobs a live, photo-real trout that tumbles end over end. A direct hit slaps whatever it meets and bursts in guts and silver scales; a miss bounces, flops about on the floor for a second and then bursts, slapping anything close. A green tackle tube with a red bait-bucket cap, a fishing reel and a bobber, the next trout lying in a cradle on top; found in the Gorbino Mines, with buckets and crates of trout after that (and as an ENDLESS reward from wave 3) |
 
 Recoil, muzzle flashes, dynamic muzzle lighting, ejected casings, viewmodel sway and bob, and procedural reload animations are all included. Hits flash a small white marker on the crosshair; kills flash a bigger red one, with a beat of hit-stop. Point-blank shots land even when something is pressed right up against you.
 
@@ -177,7 +180,7 @@ python3 tools/gen_music.py      # 10 music tracks (needs ffmpeg with libvorbis);
 python3 tools/gen_creatures.py  # Snotling skin, eyes and mouths; the Gorbino's attack maw
 python3 tools/import_user_models.py  # supplied Gorbino texture -> 6 colour variants, Snirby face
 godot --headless --path . -s scripts/tools/import_gorbino.gd  # supplied Gorbino mesh -> body + feet
-python3 tools/gen_clay.py       # "pre-rendered clay" UI: DEATH, menu buttons, logo, cursor, icon
+python3 tools/gen_clay.py       # "pre-rendered clay" UI: DEATH, menu buttons, par-time medals, logo, cursor, icon
 python3 tools/import_user_audio.py  # weapon sounds, voice lines, enemy shot (idk.wav) from tools/user_audio/
 python3 tools/import_user_art.py    # the supplied grinning face (tools/user_art/) for the NEW QUEST button, backdrop cut away
 python3 tools/gen_gore.py       # wound, guts and butterfly-knife textures
@@ -206,6 +209,7 @@ godot --path . -- --level=1 --guttest=snirby                # gut a creature and
 godot --path . -- --level=4 --civshot                       # go and listen to the locals
 godot --path . -- --level=1 --whiptest=green                # whip a creature in and gut it
 godot --path . -- --level=1 --flametest                     # set three Gorbinos on fire
+godot --path . -- --level=1 --trouttest                     # lob trout at three Gorbinos
 godot --path . -- --level=1 --frenzy                        # start in a frenzy
 godot --path . -- --level=1 --lineup --lineup-near=0.5      # every creature type, up close
 godot --path . -- --level=2 --hp=22 --armor=60              # start hurt (watch the eye suffer)

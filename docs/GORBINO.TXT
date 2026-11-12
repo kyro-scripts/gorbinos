@@ -13,7 +13,7 @@
    W A S D ........ MOVE              MOUSE ........... LOOK
    LEFT CLICK ..... FIRE              E / RIGHT CLICK . USE (DOORS, SWITCHES, LIFTS)
    SPACE .......... JUMP              SHIFT ........... SPRINT
-   R .............. RELOAD / VENT     1-7 / WHEEL ..... WEAPONS
+   R .............. RELOAD / VENT     1-8 / WHEEL ..... WEAPONS
    F / MIDDLE ..... KNIFE: SLASH, GUT UP CLOSE, OR WHIP ONE IN FROM AFAR
    C .............. SLIDE
    Q .............. LAST WEAPON       TAB ............. AUTOMAP
@@ -32,6 +32,8 @@
    * Kill fast to fill the FRENZY meter (the fish skin under your health).
    * That eye in the top-left corner is yours. It looks toward whatever hit you.
    * ENDLESS on the title screen: waves in the Gorb Pit until you drop.
+   * Beat a level's par time for a gold medal. Your best times are kept.
+   * The trout launcher is in the mines. Yes, it fires trout.
 
  DIFFICULTY
    MERCY .......... less damage taken, double ammo

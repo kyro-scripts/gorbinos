@@ -6,6 +6,7 @@
   creep_whisper_a/b/c                        the user's voice lines, reversed,
                                              slowed and drowned in reverb
   creep_drone, creep_knock, creep_breath, creep_scrape   dread stingers
+  trout_fire, trout_slap, trout_flop         the trout launcher
 
 Run: python3 tools/gen_audio_extra.py   (needs numpy + scipy)
 """
@@ -337,9 +338,35 @@ def toys():
     save("frenzy_on", mix(x, at(hit, 1.0)), 0.9)
 
 
+def trout():
+    """The trout launcher: a wet pneumatic thwoomp, the slap of a trout
+    across a face, and the soft flop of one landing on the floor."""
+    # fire: a hollow tube thump, a burst of air, a wet slither out
+    d = 0.5
+    tt = t_(d)
+    thump = np.sin(2 * np.pi * np.cumsum(55 + 140 * np.exp(-tt * 22)) / SR) * env(len(tt), 0.002, 0.12, 3)
+    air = bp(noise(d), 300, 2500) * env(len(tt), 0.004, 0.09, 4)
+    slither = squelch(0.22, 500, 31) * env(int(SR * 0.22), 0.01, 0.1, 3)
+    save("trout_fire", mix(thump * 1.1, air * 0.6, at(slither * 0.5, 0.05)), 0.9)
+    # slap: a sharp wet crack with a meaty body under it
+    d = 0.32
+    tt = t_(d)
+    crack = hp(noise(0.02), 1800) * env(int(SR * 0.02), 0.0002, 0.006, 5)
+    body = squelch(d, 260, 32) * env(len(tt), 0.001, 0.08, 4)
+    low = np.sin(2 * np.pi * np.cumsum(90 + 60 * np.exp(-tt * 30)) / SR) * env(len(tt), 0.001, 0.07, 4)
+    save("trout_slap", mix(crack * 1.6, body * 0.9, low * 0.7), 0.95)
+    # flop: a soft wet thud and a little wriggle
+    d = 0.22
+    tt = t_(d)
+    thud = lp(noise(d), 500) * env(len(tt), 0.002, 0.05, 4)
+    wrig = squelch(d, 700, 33) * env(len(tt), 0.01, 0.07, 3)
+    save("trout_flop", mix(thud, wrig * 0.5), 0.7)
+
+
 if __name__ == "__main__":
     knife()
     gore()
     dread()
     gorbino_talk()
     toys()
+    trout()

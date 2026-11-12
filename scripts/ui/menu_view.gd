@@ -333,6 +333,11 @@ func _draw() -> void:
 		_draw_tiles(cx, y)
 	else:
 		_draw_list(p, cx, y)
+	if String(p.get("footer2", "")) != "":
+		var f2 := String(p["footer2"])
+		var w2 := UI.text_width("term", f2, 16)
+		draw_rect(Rect2(cx - w2 * 0.5 - 6, size.y - 46, w2 + 12, 18), Color(0, 0, 0, 0.75))
+		UI.text_centered(self, "term", cx, size.y - 46, f2, UI.ACID, 16)
 	if p.has("footer"):
 		var fw := UI.text_width("term", String(p["footer"]), 16)
 		draw_rect(Rect2(cx - fw * 0.5 - 6, size.y - 26, fw + 12, 18), Color(0, 0, 0, 0.75))

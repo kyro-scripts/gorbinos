@@ -362,11 +362,14 @@ def clay_button(name, label, kind, icon_col, seed, hot):
     out[..., 3] = np.maximum(out[..., 3], slab)
     # the icon, sculpted on the left (or a supplied picture, pasted on)
     if kind.startswith("image:"):
-        pic = Image.open(os.path.join(UI, kind[6:])).convert("RGBA").resize((H + 6, H + 6), Image.LANCZOS)
+        # about the size of the sculpted icons, sitting inside the slab
+        S = 74
+        pic = Image.open(os.path.join(UI, kind[6:])).convert("RGBA").resize((S, S), Image.LANCZOS)
         pa = np.asarray(pic).astype(np.float32) / 255.0
         iw = np.zeros((H, W)); icn = np.zeros((H, W, 3))
-        iw[:, 8:8 + H] = pa[3:3 + H, 3:3 + H, 3]
-        icn[:, 8:8 + H] = pa[3:3 + H, 3:3 + H, :3]
+        x0, y0 = 26, (H - S) // 2 - 2
+        iw[y0:y0 + S, x0:x0 + S] = pa[..., 3]
+        icn[y0:y0 + S, x0:x0 + S] = pa[..., :3]
         ish = np.roll(np.roll((iw > 0.5).astype(np.float32), 4, 0), 4, 1) * slab
         out[..., :3] *= 1 - ish[..., None] * 0.45
         out[..., :3] = icn * iw[..., None] + out[..., :3] * (1 - iw[..., None])
@@ -442,6 +445,54 @@ def buttons():
     for k, (name, label, kind, col) in enumerate(BUTTONS):
         for hot in (False, True):
             clay_button(name, label, kind, col, 7600 + k * 10, hot)
+
+
+# ------------------------------------------------------------------ par-time medals
+def medal(name, stops, ribbon, seed):
+    """A lumpy clay medal on two ribbon tails, a Gorbino pressed into it."""
+    W, H = 150, 190
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    cx, cy, R = W / 2, 112, 56
+    # ribbon tails behind it
+    rib = np.zeros((H, W), np.float32)
+    for sx in (-1, 1):
+        m = Image.new("L", (W, H), 0)
+        x0 = cx + sx * 6
+        ImageDraw.Draw(m).polygon([(x0, 8), (x0 + sx * 34, 8), (x0 + sx * 46, 92), (x0 + sx * 12, 92)], fill=255)
+        rib = np.maximum(rib, np.asarray(m).astype(np.float32) / 255.0)
+    rh = bevel(rib, 3) * 2 + (np.sin(yy * 0.6) * 0.3 + 0.3) * rib
+    rbase = flesh_base(W, H, seed, [(0, tuple(int(c * 0.5) for c in ribbon)), (1, ribbon)])
+    rib_img = shade_height(rh, rbase, mask=rib, spec=0.5, shin=20)
+    # the disc: lumpy edge, raised rim, a Gorbino pressed into the middle
+    r = np.hypot(xx - cx, yy - cy)
+    lump = (value_noise(max(W, H), 10, seed + 1, 3)[:H, :W] - 0.5) * 6
+    disc = (r < R + lump).astype(np.float32)
+    h = bevel(disc, 10) * 3
+    h += np.exp(-((r - (R - 9)) / 3.0) ** 2) * 3 * disc
+    g = metaballs(W, H, [(cx, cy - 6, 22), (cx - 11, cy + 18, 7), (cx + 11, cy + 18, 7)], 0.1, seed + 2)
+    h += np.clip(g, 0, 6) * 2.6 * disc
+    h *= 1 + (value_noise(max(W, H), 24, seed + 3, 3)[:H, :W] - 0.5) * 0.3
+    base = flesh_base(W, H, seed + 4, stops)
+    body = shade_height(h, base, mask=disc, spec=1.1, shin=40)
+    # the Gorbino's two eyes
+    for ex in (-8, 8):
+        e = np.hypot(xx - (cx + ex), yy - (cy - 10))
+        body[e < 4.5, :3] = (0.05, 0.03, 0.02)
+        body[np.hypot(xx - (cx + ex - 1.5), yy - (cy - 11.5)) < 1.4, :3] = (1, 1, 1)
+    out = np.zeros((H, W, 4), np.float32)
+    sh = np.roll(np.roll(np.maximum(disc, rib), 4, 0), 4, 1)
+    out[..., 3] = sh * 0.6
+    out[..., :3] = rib_img[..., :3] * rib[..., None]
+    out[..., 3] = np.maximum(out[..., 3], rib)
+    out[..., :3] = body[..., :3] * disc[..., None] + out[..., :3] * (1 - disc[..., None])
+    out[..., 3] = np.maximum(out[..., 3], disc)
+    save(out, "medal_%s.png" % name)
+
+
+def medals():
+    medal("gold", [(0, (120, 70, 0)), (0.5, (240, 180, 30)), (1, (255, 245, 170))], (230, 40, 90), 7700)
+    medal("silver", [(0, (70, 75, 85)), (0.5, (180, 190, 200)), (1, (250, 252, 255))], (60, 120, 230), 7710)
+    medal("bronze", [(0, (80, 35, 10)), (0.5, (190, 110, 50)), (1, (255, 200, 150))], (120, 200, 50), 7720)
 
 
 # ------------------------------------------------------------------ backgrounds, border
@@ -588,6 +639,7 @@ if __name__ == "__main__":
     logo()
     tiles()
     buttons()
+    medals()
     menu_bg()
     border()
     cursor()

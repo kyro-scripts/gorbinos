@@ -26,12 +26,15 @@ const INFO := {
 	"w_flamer": {"msg": "FLAMETHROWER", "snd": "pickup_weapon", "item": false},
 	"fuel": {"msg": "FUEL", "snd": "pickup_ammo", "item": false},
 	"fuel_box": {"msg": "FUEL CANS", "snd": "pickup_ammo", "item": false},
+	"w_trout": {"msg": "TROUT LAUNCHER", "snd": "pickup_weapon", "item": false},
+	"trout": {"msg": "TROUT", "snd": "pickup_ammo", "item": false},
+	"trout_box": {"msg": "CRATE OF TROUT", "snd": "pickup_ammo", "item": false},
 	"key_red": {"msg": "RED KEYCARD", "snd": "pickup_key", "item": false},
 	"key_blue": {"msg": "BLUE KEYCARD", "snd": "pickup_key", "item": false},
 	"key_yellow": {"msg": "YELLOW KEYCARD", "snd": "pickup_key", "item": false},
 }
 
-const AMMO := ["bullets", "bullets_box", "shells", "shells_box", "rocket", "rockets_box", "cells", "cells_box", "fuel", "fuel_box"]
+const AMMO := ["bullets", "bullets_box", "shells", "shells_box", "rocket", "rockets_box", "cells", "cells_box", "fuel", "fuel_box", "trout", "trout_box"]
 
 var ptype := ""
 var spawn_id := -1
@@ -48,7 +51,7 @@ func setup(t: String, pos: Vector3) -> void:
 	model = Models.pickup(t)
 	if t in AMMO:
 		# small real objects: blown up so they read from across a room
-		model.scale = Vector3.ONE * (2.0 if t in ["bullets", "shells", "cells"] else (1.2 if t.begins_with("fuel") else 1.5))
+		model.scale = Vector3.ONE * (2.0 if t in ["bullets", "shells", "cells"] else (1.2 if t.begins_with("fuel") or t.begins_with("trout") else 1.5))
 	add_child(model)
 	Collage.outline(model)
 	global_position = pos

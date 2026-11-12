@@ -599,6 +599,10 @@ func try_pickup(pk: Pickup) -> bool:
 			took = weapons.give_ammo("fuel", int(25 * amult))
 		"fuel_box":
 			took = weapons.give_ammo("fuel", int(80 * amult))
+		"trout":
+			took = weapons.give_ammo("trout", int(3 * amult))
+		"trout_box":
+			took = weapons.give_ammo("trout", int(10 * amult))
 		"backpack":
 			inv["backpack"] = true
 			weapons.give_ammo("bullets", 10)
@@ -606,6 +610,7 @@ func try_pickup(pk: Pickup) -> bool:
 			weapons.give_ammo("rockets", 1)
 			weapons.give_ammo("cells", 20)
 			weapons.give_ammo("fuel", 25)
+			weapons.give_ammo("trout", 2)
 			took = true
 		"key_red", "key_blue", "key_yellow":
 			keys[t.substr(4)] = true

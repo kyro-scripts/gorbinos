@@ -1,5 +1,6 @@
 extends Control
-## End-of-level tally with counting numbers and a rank stamp.
+## End-of-level tally with counting numbers, a rank stamp, your time against
+## par with a clay medal, and your best time (NEW BEST! when you beat it).
 
 var level_index := 0
 var stats := {}
@@ -12,6 +13,10 @@ var rank := "C"
 var rank_tex: Texture2D
 var stamp_tex: Texture2D        # loaded once: re-loading it every draw came out as a white box
 var bg: Texture2D
+var medal := ""
+var medal_tex: Texture2D
+var best := -1.0                 # your best before this run
+var new_best := false
 var _tick := 0.0
 var _rank_t := -1.0
 
@@ -47,6 +52,12 @@ func _ready() -> void:
 	else:
 		rank = "D"
 	rank_tex = load("res://assets/ui/rank_%s.png" % rank)
+	medal = Game.medal_for(targets[3], par)
+	if medal != "":
+		medal_tex = load("res://assets/ui/medal_%s.png" % medal)
+	var lname := Game.level_name(level_index)
+	best = Game.best_time(lname)
+	new_best = Game.record_finish(lname, targets[3], rank) and best >= 0.0
 	stamp_tex = load("res://assets/ui/stamp_cleared.png")
 	Audio.play_music("intermission")
 
@@ -58,7 +69,7 @@ func _process(delta: float) -> void:
 	t += delta
 	if Game.autoplay and t > 0.5 and not _auto_done:
 		_auto_done = true
-		print("[bot] intermission: ", Game.level_name(level_index), " stats=", stats, " rank=", rank)
+		print("[bot] intermission: ", Game.level_name(level_index), " stats=", stats, " rank=", rank, " medal=", medal)
 		Game.after_intermission()
 		return
 	if phase < 4 and t > 0.6:
@@ -108,24 +119,49 @@ func _draw() -> void:
 	draw_texture_rect(stamp_tex, Rect2(Vector2(cx - ss.x * 0.5, 62), ss), false, Color(1, 1, 1, 1))
 	var labels := ["KILLS", "ITEMS", "SECRETS", "TIME"]
 	var y := 118.0
+	var lx := cx - 230
+	var vx := cx - 10
 	for k in 4:
 		if k > phase:
 			break
-		UI.text(self, "menu", Vector2(cx - 200, y), labels[k], Color.WHITE)
+		UI.text(self, "menu", Vector2(lx, y), labels[k], Color.WHITE)
 		var v: String
 		if k < 3:
 			v = "%d%%" % int(shown[k])
 		else:
 			v = Game.format_time(shown[k])
-		UI.text(self, "menu", Vector2(cx + 30, y), v, Color.WHITE)
-		if k == 3:
-			UI.text(self, "term", Vector2(cx + 100, y + 6), "PAR %s" % Game.format_time(par), UI.BONE, 16)
+		UI.text(self, "menu", Vector2(vx, y), v, Color.WHITE)
 		y += 30
+	# par and best, under the time
+	if phase >= 3:
+		var pb := "PAR %s" % Game.format_time(par)
+		if new_best:
+			pb += "    BEST %s  (WAS %s)" % [Game.format_time(targets[3]), Game.format_time(best)]
+		elif best >= 0.0:
+			pb += "    BEST %s" % Game.format_time(best)
+		else:
+			pb += "    BEST %s  (FIRST CLEAR)" % Game.format_time(targets[3])
+		UI.text(self, "term", Vector2(lx, y + 2), pb, UI.BONE, 16)
 	if _rank_t >= 0.0:
 		var k := clampf(_rank_t * 5.0, 0.0, 1.0)
-		var s := rank_tex.get_size() * lerpf(2.5, 1.0, k)
-		var c := Vector2(cx + 170, 150)
+		# the rank, and beside it the medal your time earned
+		var s := rank_tex.get_size() * lerpf(2.5, 1.0, k) * 0.85
+		var c := Vector2(cx + 140, 150)
 		draw_texture_rect(rank_tex, Rect2(c - s * 0.5, s), false, Color(1, 1, 1, k))
-		UI.text_centered(self, "term", c.x, 208, "RANK", UI.ACID, 16)
+		UI.text_centered(self, "term", c.x, 204, "RANK", UI.ACID, 16)
+		if medal_tex:
+			var mk := clampf((_rank_t - 0.35) * 5.0, 0.0, 1.0)
+			if mk > 0.0:
+				var ms := medal_tex.get_size() * lerpf(1.6, 0.62, mk)
+				var mc := Vector2(cx + 238, 146)
+				draw_texture_rect(medal_tex, Rect2(mc - ms * 0.5, ms), false, Color(1, 1, 1, mk))
+				UI.text_centered(self, "term", mc.x, 204, medal.to_upper(), UI.ACID, 16)
+		# a new best, slapped on in cut-out letters
+		if new_best and _rank_t > 0.6:
+			# the cut-out letters twitch by themselves
+			if Collage.enabled():
+				UI.ransom(self, cx - 120, y + 30, "NEW BEST!", 24.0)
+			else:
+				UI.text_centered(self, "menu_hi", cx - 120, y + 30, "NEW BEST!", UI.ACID)
 	if phase >= 4 and fmod(t, 1.0) < 0.7:
 		UI.text_centered(self, "term", cx, size.y - 34, "PRESS ANY KEY", UI.BONE, 18)

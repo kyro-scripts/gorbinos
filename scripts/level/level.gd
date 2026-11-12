@@ -635,6 +635,7 @@ func _spawn_extras() -> void:
 		extra_id += 1
 		_extra_pickup(String(ex[0]), Vector2i(int(ex[1]), int(ex[2])), extra_id)
 		taken[idx_of(Vector2i(int(ex[1]), int(ex[2])))] = true
+	_spawn_trout(name, taken)
 	if not name in FUEL_FROM:
 		return
 	var rng := RandomNumberGenerator.new()
@@ -652,6 +653,44 @@ func _spawn_extras() -> void:
 				continue
 			extra_id += 1
 			_extra_pickup("fuel", n, extra_id)
+			taken[ni] = true
+			break
+
+
+## The trout launcher (in the mines) and trout to feed it: a can of trout
+## now and then beside the big ammo boxes from the mines on. Their own ids,
+## so older saves' pickups keep theirs.
+const TROUT_EXTRAS := {
+	"THE GORBINO MINES": [["w_trout", 12, 32], ["trout_box", 13, 32]],
+}
+const TROUT_FROM := ["THE GORBINO MINES", "CONSUMER HEADQUARTERS", "THE ENDLESS GORBINO FACILITY", "SNIRBY DIMENSION"]
+
+
+func _spawn_trout(name: String, taken: Dictionary) -> void:
+	var id := 820000
+	for ex in TROUT_EXTRAS.get(name, []):
+		id += 1
+		var c := Vector2i(int(ex[1]), int(ex[2]))
+		_extra_pickup(String(ex[0]), c, id)
+		taken[idx_of(c)] = true
+	if not name in TROUT_FROM:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(name + "trout")
+	id = 830000
+	for e in entity_specs:
+		if not String(e["type"]) in ["shells_box", "cells_box", "rockets_box", "bullets_box"] or rng.randf() > 0.35:
+			continue
+		var c: Vector2i = e["cell"]
+		for dv in DIRS4:
+			var n: Vector2i = c + dv
+			var ni := idx_of(n)
+			if ni < 0 or solid[ni] != 0 or movers.has(ni) or taken.has(ni) or absf(floor_h[ni] - floor_h[idx_of(c)]) > 0.05:
+				continue
+			if String(cells[ni].get("liquid", "")) != "":
+				continue
+			id += 1
+			_extra_pickup("trout", n, id)
 			taken[ni] = true
 			break
 

@@ -2,7 +2,7 @@ class_name Weapons
 extends Node3D
 ## Weapon inventory, firing, reloading and the first-person viewmodel.
 
-const ORDER := ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma", "flamer"]
+const ORDER := ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma", "flamer", "trout"]
 const DATA := {
 	"pistol": {"slot": 1, "name": "PISTOL", "ammo": "bullets", "mag": 12, "use": 1, "auto": false, "rate": 0.14,
 		"dmg": 18.0, "pellets": 1, "spread": 0.010, "reload": 0.75, "style": "mag", "snd": "pistol_fire", "kick": 1.2, "vkick": 0.05},
@@ -19,8 +19,12 @@ const DATA := {
 		"dmg": 21.0, "proj": "plasma", "speed": 80.0, "heat": 5.5, "style": "heat", "snd": "plasma_fire", "kick": 0.7, "vkick": 0.025},
 	"flamer": {"slot": 7, "name": "FLAMETHROWER", "ammo": "fuel", "mag": 0, "use": 1, "auto": true, "rate": 0.05,
 		"dmg": 4.5, "range": 8.5, "style": "flame", "snd": "", "kick": 0.15, "vkick": 0.004},
+	# lobs a live trout in an arc: a slap on a direct hit, otherwise it
+	# flops about where it lands and then bursts
+	"trout": {"slot": 8, "name": "TROUT LAUNCHER", "ammo": "trout", "mag": 0, "use": 1, "auto": false, "rate": 0.55,
+		"dmg": 70.0, "splash": 40.0, "splash_r": 3.0, "speed": 24.0, "style": "lob", "snd": "trout_fire", "kick": 4.0, "vkick": 0.1},
 }
-const MAX_AMMO := {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300, "fuel": 200}
+const MAX_AMMO := {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300, "fuel": 200, "trout": 40}
 const BASE_POS := Vector3(0.07, -0.082, -0.19)
 const VM_SCALE := 0.36
 
@@ -28,7 +32,7 @@ var player: Player
 var owned := ["pistol"]
 var current := "pistol"
 var last := "pistol"
-var ammo := {"bullets": 40, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0}
+var ammo := {"bullets": 40, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0, "trout": 0}
 var mags := {"pistol": 12}
 var backpack := false
 var cooldown := 0.0
@@ -80,6 +84,10 @@ func load_from(inv: Dictionary) -> void:
 		current = owned[0]
 	last = current
 	ammo = inv.get("ammo", ammo).duplicate()
+	# saves from before an ammo type existed just have none of it
+	for t in MAX_AMMO.keys():
+		if not ammo.has(t):
+			ammo[t] = 0
 	mags = inv.get("mags", {}).duplicate()
 	backpack = bool(inv.get("backpack", false))
 	for w in owned:
@@ -109,7 +117,7 @@ func give_ammo(t: String, n: int) -> bool:
 func give_weapon(w: String, dropped := false) -> bool:
 	var d: Dictionary = DATA[w]
 	var t: String = d["ammo"]
-	var gave_ammo := give_ammo(t, {"bullets": 20, "shells": 8, "rockets": 2, "cells": 40, "fuel": 60}[t])
+	var gave_ammo := give_ammo(t, {"bullets": 20, "shells": 8, "rockets": 2, "cells": 40, "fuel": 60, "trout": 8}[t])
 	if owned.has(w):
 		return gave_ammo
 	owned.append(w)
@@ -348,6 +356,17 @@ func _try_fire() -> void:
 		cooldown = float(d["rate"]) * (0.75 if player.frenzy > 0.0 else 1.0)
 		_flame(d)
 		return
+	if style == "lob":
+		# no magazine: each shot is a fish pulled straight from the bucket
+		if int(ammo.get(t, 0)) < int(d["use"]):
+			Audio.play("dryfire", -4.0)
+			cooldown = 0.35
+			_auto_switch_empty()
+			return
+		ammo[t] -= int(d["use"])
+		cooldown = float(d["rate"]) * (0.65 if player.frenzy > 0.0 else 1.0)
+		_fire(d)
+		return
 	if style == "heat":
 		if overheat:
 			return
@@ -449,8 +468,8 @@ func _auto_switch_empty() -> void:
 		if w == current or not owned.has(w):
 			continue
 		var dd: Dictionary = DATA[w]
-		if int(mags.get(w, 0)) > 0 or int(ammo[dd["ammo"]]) > 0:
-			if w == "rocket":
+		if int(mags.get(w, 0)) > 0 or int(ammo.get(dd["ammo"], 0)) > 0:
+			if w in ["rocket", "trout"]:
 				continue
 			switch_to(w)
 			return
@@ -473,6 +492,9 @@ func _fire(d: Dictionary) -> void:
 	if current == "mg":
 		spread_bloom = minf(spread_bloom + 0.004, float(d["spread_max"]) - float(d["spread"]))
 		_spin_speed = 40.0
+	if current == "trout":
+		_fire_trout(d, origin, basis)
+		return
 	if d.has("proj"):
 		var muzzle: Marker3D = vm_parts["muzzle"]
 		# spawn from camera, offset toward the gun so it looks right but aims true
@@ -520,6 +542,22 @@ func _fire(d: Dictionary) -> void:
 				Audio.play_at("hit_flesh", e[0].center_point(), -4.0, randf_range(0.9, 1.2))
 	if current in ["shotgun", "ssg", "pistol", "mg"]:
 		_eject_casing()
+
+
+## Out goes a trout, lobbed a little upward so it arcs.
+func _fire_trout(d: Dictionary, origin: Vector3, basis: Basis) -> void:
+	var fwd := -basis.z
+	var start := origin + fwd * 0.5 + basis.x * 0.1 - basis.y * 0.08
+	if not player.level.ray(origin, start, 1, [player.get_rid()]).is_empty():
+		start = origin
+	var dir := (fwd + Vector3.UP * 0.04).normalized()
+	var t := TroutShot.new()
+	player.level.fx_root().add_child(t)
+	t.launch(player.level, player, start, dir * float(d["speed"]) + player.velocity * 0.3, float(d["dmg"]))
+	t.splash = float(d["splash"])
+	t.splash_r = float(d["splash_r"])
+	if vm_parts.has("fish"):
+		vm_parts["fish"].visible = false
 
 
 func _eject_casing() -> void:
@@ -577,6 +615,9 @@ func _animate(delta: float) -> void:
 		vm_parts["mag"].visible = true
 	if current == "rocket" and state != "reload" and vm_parts.has("rocket"):
 		vm_parts["rocket"].visible = mag_count() > 0
+	# the next trout slides back into the muzzle once the last one's gone
+	if current == "trout" and vm_parts.has("fish"):
+		vm_parts["fish"].visible = reserve() > 0 and cooldown < float(d["rate"]) * 0.45
 	# moving parts
 	if vm_parts.has("slide"):
 		vm_parts["slide"].position.z = recoil * 0.25 if mag_count() > 0 or state == "reload" else 0.05

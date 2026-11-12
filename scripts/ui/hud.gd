@@ -477,7 +477,7 @@ func _draw_ammo(W: float, H: float) -> void:
 	var right := W - 14.0
 	var big := ""
 	var small := ""
-	var no_mag := String(d["style"]) in ["heat", "flame"]
+	var no_mag := String(d["style"]) in ["heat", "flame", "lob"]
 	if no_mag:
 		big = str(wp.reserve())
 	else:

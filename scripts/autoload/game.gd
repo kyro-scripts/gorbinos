@@ -72,7 +72,7 @@ func new_inventory() -> Dictionary:
 	return {
 		"health": 100, "armor": 0, "armor_type": 0,
 		"weapons": ["pistol"], "current": "pistol",
-		"ammo": {"bullets": 40, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0},
+		"ammo": {"bullets": 40, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0, "trout": 0},
 		"mags": {"pistol": 12},
 		"backpack": false,
 	}
@@ -87,7 +87,7 @@ func start_endless(diff_index: int) -> void:
 	inventory = new_inventory()
 	inventory["weapons"] = ["pistol", "shotgun", "mg"]
 	inventory["current"] = "shotgun"
-	inventory["ammo"] = {"bullets": 120, "shells": 24, "rockets": 0, "cells": 0, "fuel": 0}
+	inventory["ammo"] = {"bullets": 120, "shells": 24, "rockets": 0, "cells": 0, "fuel": 0, "trout": 0}
 	inventory["mags"] = {"pistol": 12, "shotgun": 6, "mg": 60}
 	total_stats = {"kills": 0, "kills_total": 0, "items": 0, "items_total": 0, "secrets": 0, "secrets_total": 0, "time": 0.0}
 	level_index = 0
@@ -235,7 +235,7 @@ func _fix_inventory(inv: Dictionary) -> Dictionary:
 		out[k] = inv[k]
 	for k in ["health", "armor", "armor_type"]:
 		out[k] = int(out[k])
-	var ammo := {"bullets": 0, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0}
+	var ammo := {"bullets": 0, "shells": 0, "rockets": 0, "cells": 0, "fuel": 0, "trout": 0}
 	for k in out["ammo"].keys():
 		ammo[k] = int(out["ammo"][k])
 	out["ammo"] = ammo
@@ -248,6 +248,59 @@ func _fix_inventory(inv: Dictionary) -> Dictionary:
 		w.append(str(x))
 	out["weapons"] = w
 	return out
+
+
+# ------------------------------------------------------------------ best times
+const RECORDS_PATH := "user://records.json"
+var _records := {}
+var _records_loaded := false
+
+
+func _record_key(level_name_s: String, diff: int) -> String:
+	return "%s|%d" % [level_name_s, diff]
+
+
+func _load_records() -> void:
+	if _records_loaded:
+		return
+	_records_loaded = true
+	if FileAccess.file_exists(RECORDS_PATH):
+		var d = JSON.parse_string(FileAccess.open(RECORDS_PATH, FileAccess.READ).get_as_text())
+		if d is Dictionary:
+			_records = d
+
+
+## Your best time on a level at a difficulty, or -1 if you've never finished it.
+func best_time(level_name_s: String, diff := -1) -> float:
+	_load_records()
+	var r = _records.get(_record_key(level_name_s, difficulty if diff < 0 else diff), {})
+	return float(r.get("time", -1.0)) if r is Dictionary else -1.0
+
+
+## Record a finish; returns true if it's a new best. The bot's runs don't count.
+func record_finish(level_name_s: String, time: float, rank: String) -> bool:
+	_load_records()
+	var key := _record_key(level_name_s, difficulty)
+	var prev := best_time(level_name_s)
+	var better := prev < 0.0 or time < prev
+	if better and not autoplay and not OS.get_cmdline_user_args().has("--uitest"):
+		_records[key] = {"time": time, "rank": rank}
+		var f := FileAccess.open(RECORDS_PATH, FileAccess.WRITE)
+		if f:
+			f.store_string(JSON.stringify(_records))
+	return better
+
+
+## The medal a time earns against a level's par: beat it for gold, within
+## 40% of it for silver, anything else bronze.
+static func medal_for(time: float, par: float) -> String:
+	if par <= 0.0:
+		return ""
+	if time <= par:
+		return "gold"
+	if time <= par * 1.4:
+		return "silver"
+	return "bronze"
 
 
 func format_time(t: float) -> String:

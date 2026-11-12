@@ -307,6 +307,44 @@ static func weapon(wname: String, with_hands := true) -> Node3D:
 			muzzle.position = Vector3(0, 0.03, -0.55)
 			if with_hands:
 				root.add_child(mi(box(0.075, 0.09, 0.1), glove, Vector3(0.0, -0.11, 0.21), Vector3(-15, 0, 0)))
+		"trout":
+			# a green tackle tube with a flared mouth, a red bait-bucket cap on
+			# the back, a fishing reel on the side, line guides and a bobber
+			# hanging off it. The next trout lies in a cradle on top, head
+			# forward, ready to be shoved down the tube.
+			root.add_child(mi(cyl(0.06, 0.06, 0.5, 14), green, Vector3(0, 0.02, -0.15), Vector3(90, 0, 0)))
+			root.add_child(mi(cyl(0.085, 0.062, 0.08, 14), green, Vector3(0, 0.02, -0.43), Vector3(90, 0, 0)))
+			root.add_child(mi(cyl(0.07, 0.07, 0.004, 14), black, Vector3(0, 0.02, -0.472), Vector3(90, 0, 0)))
+			# the back: a brass ring and a red cap with a white band
+			root.add_child(mi(cyl(0.064, 0.064, 0.02, 14), brass, Vector3(0, 0.02, 0.09), Vector3(90, 0, 0)))
+			root.add_child(mi(cyl(0.066, 0.06, 0.05, 14), red, Vector3(0, 0.02, 0.125), Vector3(90, 0, 0)))
+			root.add_child(mi(cyl(0.0665, 0.0665, 0.012, 14), white, Vector3(0, 0.02, 0.12), Vector3(90, 0, 0)))
+			for z in [-0.33, -0.05]:
+				root.add_child(mi(cyl(0.062, 0.062, 0.016, 14), brass, Vector3(0, 0.02, z), Vector3(90, 0, 0)))
+			# the reel and its crank, on the side that faces you
+			root.add_child(mi(cyl(0.045, 0.045, 0.025, 12), brass, Vector3(-0.08, -0.02, -0.02), Vector3(0, 0, 90)))
+			root.add_child(mi(cyl(0.018, 0.018, 0.03, 8), metal, Vector3(-0.1, -0.02, -0.02), Vector3(0, 0, 90)))
+			var crank := mi(box(0.01, 0.055, 0.01), dark, Vector3(-0.105, 0.005, -0.02))
+			root.add_child(crank)
+			parts["crank"] = crank
+			# line guides along the top
+			for z in [-0.4, -0.3]:
+				root.add_child(mi(cyl(0.012, 0.012, 0.005, 8), brass, Vector3(0, 0.088, z), Vector3(90, 0, 0)))
+			# a red and white bobber on a bit of line
+			root.add_child(mi(cyl(0.002, 0.002, 0.06, 4), white, Vector3(-0.03, -0.07, -0.32)))
+			root.add_child(mi(sphere(0.02, 8, 6), red, Vector3(-0.03, -0.115, -0.32)))
+			root.add_child(mi(sphere(0.0195, 8, 6), white, Vector3(-0.03, -0.104, -0.32)))
+			root.add_child(mi(box(0.04, 0.12, 0.05), dark, Vector3(0, -0.07, 0.04), Vector3(-15, 0, 0)))
+			# the cradle on top, and the trout in it
+			root.add_child(mi(box(0.07, 0.012, 0.24), metal, Vector3(0, 0.085, -0.12)))
+			var fish := Hyper.quad("hr_fish", 0.3)
+			fish.basis = Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)).rotated(Vector3(0, 0, 1), 0.5)
+			fish.position = Vector3(0, 0.1, -0.14)
+			root.add_child(fish)
+			parts["fish"] = fish
+			muzzle.position = Vector3(0, 0.02, -0.49)
+			if with_hands:
+				root.add_child(mi(box(0.075, 0.09, 0.1), glove, Vector3(0.0, -0.1, 0.06), Vector3(-15, 0, 0)))
 	root.set_meta("parts", parts)
 	return root
 
@@ -424,6 +462,21 @@ static func pickup(ptype: String) -> Node3D:
 			var lan := Mat.world("pk_" + ptype, {"origin": true, "tint": Color(0.7, 0.7, 0.7)})
 			for sx in [-1.0, 1.0]:
 				root.add_child(mi(box(0.02, 0.3, 0.008), lan, Vector3(0.08 * sx, 0.88, 0), Vector3(0, 0, -15 * sx)))
+		"trout", "trout_box":
+			# a bucket of trout, or a crate of them, heads up
+			var n := 2 if ptype == "trout" else 4
+			if ptype == "trout":
+				root.add_child(mi(cyl(0.16, 0.12, 0.22, 10), Mat.world("gun_metal", o), Vector3(0, 0.11, 0)))
+				root.add_child(mi(cyl(0.165, 0.165, 0.02, 10), Mat.world("gun_dark", o), Vector3(0, 0.22, 0)))
+			else:
+				root.add_child(mi(box(0.6, 0.26, 0.4), Mat.world("crate", o), Vector3(0, 0.13, 0)))
+			for k in n:
+				var f := Hyper.quad("hr_fish", 0.42)
+				# head up, tail down into the bucket, each turned a different way
+				f.basis = Basis(Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)).rotated(Vector3.UP, k * PI / n + 0.3)
+				var off := Vector3(0, 0, 0) if ptype == "trout" else Vector3((k % 2 - 0.5) * 0.25, 0, (k / 2 - 0.5) * 0.18)
+				f.position = off + Vector3(0, 0.36, 0)
+				root.add_child(f)
 		"fuel", "fuel_box":
 			# red jerry cans with a spout
 			var can := Mat.world("gun_red", o)

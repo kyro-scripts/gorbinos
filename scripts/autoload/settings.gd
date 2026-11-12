@@ -9,7 +9,7 @@ const ACTIONS := [
 	["use", "USE / OPEN"], ["melee", "KNIFE / GUT"], ["reload", "RELOAD"], ["weapon_next", "NEXT WEAPON"],
 	["weapon_prev", "PREV WEAPON"], ["weapon_last", "LAST WEAPON"], ["weapon_1", "PISTOL"],
 	["weapon_2", "SHOTGUN"], ["weapon_3", "DOUBLE SHOTGUN"], ["weapon_4", "MACHINE GUN"],
-	["weapon_5", "ROCKET LAUNCHER"], ["weapon_6", "PLASMA"], ["weapon_7", "FLAMETHROWER"], ["slide", "SLIDE"], ["automap", "AUTOMAP"],
+	["weapon_5", "ROCKET LAUNCHER"], ["weapon_6", "PLASMA"], ["weapon_7", "FLAMETHROWER"], ["weapon_8", "TROUT LAUNCHER"], ["slide", "SLIDE"], ["automap", "AUTOMAP"],
 	["quicksave", "QUICK SAVE"], ["quickload", "QUICK LOAD"], ["pause", "PAUSE MENU"],
 ]
 
@@ -35,6 +35,7 @@ const DEFAULT_BINDS := {
 	"weapon_5": ["k:%d" % KEY_5],
 	"weapon_6": ["k:%d" % KEY_6],
 	"weapon_7": ["k:%d" % KEY_7],
+	"weapon_8": ["k:%d" % KEY_8],
 	"slide": ["k:%d" % KEY_C],
 	"automap": ["k:%d" % KEY_TAB],
 	"quicksave": ["k:%d" % KEY_F5],

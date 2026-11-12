@@ -8,7 +8,7 @@ extends Node
 const BEST_PATH := "user://endless.json"
 const REST := 6.0
 const SPAWN_GAP := 0.45
-const WEAPON_REWARDS := {2: "w_ssg", 4: "w_rocket", 6: "w_flamer", 8: "w_plasma"}
+const WEAPON_REWARDS := {2: "w_ssg", 3: "w_trout", 4: "w_rocket", 6: "w_flamer", 8: "w_plasma"}
 
 var world: Node
 var level: Level
@@ -162,7 +162,7 @@ func _wave_cleared() -> void:
 func _rewards() -> void:
 	var drops := []
 	var w: Weapons = player.weapons
-	var ammo_of := {"bullets": "bullets_box", "shells": "shells_box", "rockets": "rockets_box", "cells": "cells_box", "fuel": "fuel_box"}
+	var ammo_of := {"bullets": "bullets_box", "shells": "shells_box", "rockets": "rockets_box", "cells": "cells_box", "fuel": "fuel_box", "trout": "trout_box"}
 	var kinds := {}
 	for wn in w.owned:
 		kinds[String(Weapons.DATA[wn]["ammo"])] = true

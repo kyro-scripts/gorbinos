@@ -145,6 +145,8 @@ func _ready() -> void:
 			get_tree().create_timer(0.5).timeout.connect(func(): player._start_frenzy())
 		elif a == "--flametest":
 			_debug_flametest()
+		elif a == "--trouttest":
+			_debug_trouttest()
 		elif a.begins_with("--whiptest"):
 			_debug_whiptest(a.substr(11) if a.length() > 11 else "green")
 		elif a.begins_with("--hp="):
@@ -209,6 +211,57 @@ func _debug_guttest(etype: String) -> void:
 
 
 ## Debug: three Gorbinos down the hall, hold the flamethrower on them.
+## Debug: three Gorbinos in a row, lob trout at them, screenshot it, and
+## report what got slapped. The first shot is aimed high to land and flop.
+func _debug_trouttest() -> void:
+	Game.cheats["god"] = true
+	var yaw := level.start_yaw
+	var fwd := Vector3(-sin(yaw), 0, -cos(yaw))
+	var right := Vector3(cos(yaw), 0, -sin(yaw))
+	var targets := []
+	for k in 3:
+		var p: Vector3 = level.player_start + fwd * (6.0 + k * 0.8) + right * (k - 1) * 1.6
+		p.y = level.floor_at(p)
+		var en := Enemy.new()
+		level.entity_root().add_child(en)
+		en.setup(["green", "yellow", "red"][k], level, p, yaw + PI)
+		level.enemies.append(en)
+		en.set_physics_process(false)
+		targets.append(en)
+	player.weapons.owned.append("trout")
+	player.weapons.ammo["trout"] = 12
+	player.weapons.switch_to("trout")
+	hud.center("", 0.0)
+	await get_tree().create_timer(0.8).timeout
+	var hp0 := 0.0
+	for e in targets:
+		hp0 += e.hp
+	DirAccess.make_dir_recursive_absolute("user://shots")
+	var shots := [0.05, 0.25, 0.6, 1.0, 1.6, 2.4, 3.2]
+	var t := 0.0
+	var si := 0
+	var fired := 0
+	while si < shots.size():
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		player.pitch = 0.3 if fired == 0 else -0.05
+		if t > 0.1 and fired < 4 and player.weapons.cooldown <= 0.0 and player.weapons.state == "idle":
+			player.weapons._try_fire()
+			fired += 1
+		if t >= shots[si]:
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png("user://shots/trout_%d.png" % si)
+			si += 1
+	var dead := 0
+	var hp := 0.0
+	for e in targets:
+		if is_instance_valid(e):
+			dead += 1 if e.dead else 0
+			hp += maxf(e.hp, 0.0) if not e.dead else 0.0
+	print("TROUT fired=%d dead=%d damage=%.0f trout_left=%d" % [fired, dead, hp0 - hp, int(player.weapons.ammo["trout"])])
+	get_tree().quit()
+
+
 func _debug_flametest() -> void:
 	Game.cheats["god"] = true
 	var yaw := level.start_yaw
@@ -720,7 +773,19 @@ func _pause_page() -> Dictionary:
 		{"label": "OPTIONS", "icon": "tile_options", "cb": func(): menu.push(MenuView.options_page(menu, _apply_settings))},
 		{"label": "RESTART LEVEL", "icon": "tile_retry", "cb": func(): _unpause(); Game.restart_level()},
 		{"label": "QUIT TO MENU", "icon": "tile_quit", "cb": func(): _unpause(); Game.goto_menu()},
-	], "footer": "%s   KILLS %d/%d   SECRETS %d/%d   %s" % [String(level.data.get("name", "")), st["kills"], st["kills_total"], st["secrets"], st["secrets_total"], Game.diff()["name"]]}
+	], "footer": "%s   KILLS %d/%d   SECRETS %d/%d   %s" % [String(level.data.get("name", "")), st["kills"], st["kills_total"], st["secrets"], st["secrets_total"], Game.diff()["name"]],
+		"footer2": _time_line()}
+
+
+## The pause screen's clock: how long you've been, against par and your best.
+func _time_line() -> String:
+	var par := float(level.data.get("par", 0))
+	if endless or par <= 0.0:
+		return ""
+	var line := "TIME %s   PAR %s" % [Game.format_time(float(level.stats["time"])), Game.format_time(par)]
+	var b := Game.best_time(String(level.data.get("name", "")))
+	line += "   BEST %s" % (Game.format_time(b) if b >= 0.0 else "--:--")
+	return line
 
 
 func _resume() -> void:

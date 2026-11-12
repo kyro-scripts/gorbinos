@@ -30,8 +30,8 @@ func _ready() -> void:
 			Game.difficulty = 1
 			Game.inventory = Game.new_inventory()
 			if args.has("--arsenal"):
-				Game.inventory["weapons"] = ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma", "flamer"]
-				Game.inventory["ammo"] = {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300, "fuel": 200}
+				Game.inventory["weapons"] = ["pistol", "shotgun", "ssg", "mg", "rocket", "plasma", "flamer", "trout"]
+				Game.inventory["ammo"] = {"bullets": 200, "shells": 50, "rockets": 30, "cells": 300, "fuel": 200, "trout": 40}
 				Game.inventory["mags"] = {"pistol": 12, "shotgun": 6, "ssg": 2, "mg": 60, "rocket": 4}
 			if args.has("--lowammo"):
 				Game.inventory["ammo"] = {"bullets": 0, "shells": 0, "rockets": 0, "cells": 0}

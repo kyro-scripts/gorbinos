@@ -1,8 +1,8 @@
 class_name Hyper
 extends RefCounted
 ## FISH-style hyperreal bits in the world: photo-real trout cut out of a
-## magazine and pasted on the walls round every level. Tied to the COLLAGE
-## FX option.
+## magazine and pasted on the walls round every level (tied to the COLLAGE
+## FX option), and the trout the trout launcher fires.
 
 const WALL_SKIP := ["window", "sign", "poster", "exit", "switch", "elevator", "computer", "logo", "lantern", "stencil",
 	"alert", "warning", "panel", "vat", "static", "void", "snirbface", "eyes", "glyph", "swirl"]
@@ -11,7 +11,7 @@ static var _shader: Shader
 
 
 ## A flat photo quad of the given width (height follows the picture).
-static func quad(name: String, width: float) -> MeshInstance3D:
+static func quad(name: String, width: float, billboard := false) -> MeshInstance3D:
 	if _shader == null:
 		_shader = load("res://shaders/hyperreal.gdshader")
 	var t: Texture2D = Collage.texture(name)
@@ -22,6 +22,7 @@ static func quad(name: String, width: float) -> MeshInstance3D:
 	var m := ShaderMaterial.new()
 	m.shader = _shader
 	m.set_shader_parameter("tex", t)
+	m.set_shader_parameter("billboard", 1.0 if billboard else 0.0)
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return mi
