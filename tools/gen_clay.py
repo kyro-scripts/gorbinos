@@ -233,6 +233,10 @@ def icon_height(kind, W, H):
     if kind == "disk":
         mk = ((np.abs(xx - cx) < 28) & (np.abs(yy - cy) < 28)).astype(np.float32)
         return bevel(mk, 6) * 3, mk
+    if kind == "gorbino":
+        # a little Gorbino: a glossy ball on two round feet
+        h = metaballs(W, H, [(cx, cy - 2, 27), (cx - 13, cy + 27, 9), (cx + 13, cy + 27, 9)], 0.12, 7410) * 8
+        return h, (h > 0).astype(np.float32)
     if kind == "face":
         # a lumpy grimacing face
         h = metaballs(W, H, [(cx, cy, 30), (cx - 16, cy - 10, 12), (cx + 16, cy - 10, 12), (cx, cy + 16, 14)], 0.3, 7400) * 8
@@ -303,7 +307,7 @@ def tiles():
 
 # ------------------------------------------------------------------ menu buttons
 BUTTONS = [
-    ("new", "NEW QUEST", "face", (255, 140, 40)),
+    ("new", "NEW QUEST", "gorbino", (110, 190, 60)),
     ("continue", "CONTINUE", "arrow", (120, 255, 60)),
     ("endless", "ENDLESS", "ring", (230, 80, 255)),
     ("options", "OPTIONS", "gear", (120, 180, 255)),
@@ -369,6 +373,20 @@ def clay_button(name, label, kind, icon_col, seed, hot):
         r = np.hypot(xx - H / 2, yy - (H / 2 - 6))
         icn[:, 14:14 + H][r < 10] = (0.05, 0.0, 0.0)
         icn[:, 14:14 + H][(r < 14) & (r >= 10)] = (0.8, 0.5, 0.0)
+    if kind == "gorbino":
+        # big glassy eyes and a little mouth
+        yy, xx = np.mgrid[0:H, 0:H].astype(np.float32)
+        sub = icn[:, 14:14 + H]
+        ey = H / 2 - 14
+        for ex in (-10, 10):
+            r = np.hypot(xx - (H / 2 + ex), yy - ey)
+            sub[r < 8.5] = (0.03, 0.02, 0.02)
+            sub[r < 7] = (0.95, 0.93, 0.85)
+            rp = np.hypot(xx - (H / 2 + ex + 1.5), yy - (ey + 1))
+            sub[rp < 3.6] = (0.02, 0.02, 0.03)
+            sub[np.hypot(xx - (H / 2 + ex - 2), yy - (ey - 3)) < 1.6] = (1, 1, 1)
+        my = H / 2 + 4
+        sub[(np.abs(yy - my) < 1.6) & (np.abs(xx - H / 2) < 7)] = (0.12, 0.02, 0.04)
     if kind == "face":
         yy, xx = np.mgrid[0:H, 0:H].astype(np.float32)
         sub = icn[:, 14:14 + H]

@@ -174,4 +174,4 @@ func _draw_title() -> void:
 
 ## Centre line of the title-and-buttons column.
 func _column_x() -> float:
-	return maxf(150.0, size.x * 0.25)
+	return maxf(124.0, size.x * 0.25 - 26.0)
