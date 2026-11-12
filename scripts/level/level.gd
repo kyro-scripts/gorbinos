@@ -620,9 +620,10 @@ func _spawn_entities() -> void:
 ## to the big ammo boxes from then on.
 const EXTRAS := {
 	"SNIRBY INDUSTRIAL COMPLEX": [["w_flamer", 60, 27], ["fuel_box", 59, 26]],
+	"WHITE HEAT": [["w_flamer", 3, 14], ["fuel_box", 3, 15]],
 }
 const FUEL_FROM := ["SNIRBY INDUSTRIAL COMPLEX", "THE GORBINO MINES", "CONSUMER HEADQUARTERS",
-	"THE ENDLESS GORBINO FACILITY", "SNIRBY DIMENSION"]
+	"THE ENDLESS GORBINO FACILITY", "SNIRBY DIMENSION", "WHITE HEAT"]
 
 
 func _spawn_extras() -> void:
@@ -662,8 +663,11 @@ func _spawn_extras() -> void:
 ## so older saves' pickups keep theirs.
 const TROUT_EXTRAS := {
 	"THE GORBINO MINES": [["w_trout", 12, 32], ["trout_box", 13, 32]],
+	"SPIRAL OF TEETH": [["w_trout", 42, 22], ["trout_box", 42, 23]],
+	"WHITE HEAT": [["trout_box", 50, 31]],
 }
-const TROUT_FROM := ["THE GORBINO MINES", "CONSUMER HEADQUARTERS", "THE ENDLESS GORBINO FACILITY", "SNIRBY DIMENSION"]
+const TROUT_FROM := ["THE GORBINO MINES", "CONSUMER HEADQUARTERS", "THE ENDLESS GORBINO FACILITY", "SNIRBY DIMENSION",
+	"FEVER CORRIDORS", "THE MAGENTA THROAT", "SPIRAL OF TEETH", "WHITE HEAT"]
 
 
 func _spawn_trout(name: String, taken: Dictionary) -> void:

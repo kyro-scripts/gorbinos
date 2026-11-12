@@ -4,6 +4,9 @@
 //    halftone dots in the shadows, cream paper in the highlights, paper
 //    grain and punched-up colour
 //  - frenzy (0..1): hue cycling, strobing, wilder misregistration
+//  - fever (episode 2): a hard two-tone colour grade per level, and the
+//    view bulging out and the colour plates splitting apart toward the
+//    edges the faster you go
 //  - colour depth reduction with ordered dithering, damage / pickup
 //    flashes, vignette, dread, crawling film grain
 shader_type canvas_item;
@@ -18,6 +21,11 @@ uniform float dread = 0.0;         // 0..1: drains colour and pulls the dark in
 uniform float grain = 0.05;
 uniform float zine = 1.0;
 uniform float frenzy = 0.0;
+uniform vec4 grade_lo : source_color = vec4(0.0, 0.0, 0.0, 1.0);
+uniform vec4 grade_hi : source_color = vec4(1.0);
+uniform float grade = 0.0;       // 0..1: how hard the two-tone grade bites
+uniform float warp = 0.0;        // barrel bulge at rest
+uniform float speed = 0.0;       // 0..1: how fast the player is moving
 
 const vec3 INK = vec3(0.13, 0.02, 0.16);
 const vec3 PAPER = vec3(0.98, 0.94, 0.84);
@@ -46,14 +54,28 @@ vec3 hue_rotate(vec3 c, float a) {
 
 void fragment() {
 	vec2 texel = 1.0 / src_size;
+	vec2 uv = UV;
+	// fever: the picture bulges out from the middle, more at speed, and the
+	// red and blue plates slide apart toward the edges
+	float bulge = warp * (0.55 + 0.9 * speed);
+	vec2 cc = uv - 0.5;
+	float rr = dot(cc, cc);
+	if (bulge > 0.0) {
+		uv = 0.5 + cc * (1.0 - bulge * 0.35 + bulge * rr * 1.2);
+	}
+	vec2 split = cc * rr * (warp * 0.05 + speed * warp * 0.11);
 	// cheap print: the colour plates never quite line up, and they shift a
 	// few times a second
 	float step_t = floor(TIME * 6.0);
 	vec2 jit = vec2(hash(vec2(step_t, 1.3)), hash(vec2(step_t, 7.1))) - 0.5;
 	vec2 off = texel * (vec2(0.9, 0.35) + jit * 0.8) * (zine + frenzy * 2.5);
-	vec4 c = texture(TEXTURE, UV);
-	c.r = mix(c.r, texture(TEXTURE, UV + off).r, min(zine + frenzy, 1.0));
-	c.b = mix(c.b, texture(TEXTURE, UV - off).b, min(zine + frenzy, 1.0));
+	vec4 c = texture(TEXTURE, uv);
+	c.r = mix(c.r, texture(TEXTURE, uv + off).r, min(zine + frenzy, 1.0));
+	c.b = mix(c.b, texture(TEXTURE, uv - off).b, min(zine + frenzy, 1.0));
+	if (warp > 0.0) {
+		c.r = texture(TEXTURE, uv + split).r;
+		c.b = texture(TEXTURE, uv - split).b;
+	}
 	c.rgb = pow(max(c.rgb, vec3(0.0)), vec3(1.0 / gamma));
 	if (invuln > 0.0) {
 		float g = luma(c.rgb);
@@ -65,8 +87,8 @@ void fragment() {
 		c.rgb = mix(vec3(l), c.rgb, 1.0 + 0.35 * zine);
 		c.rgb = mix(c.rgb, c.rgb * c.rgb * (3.0 - 2.0 * c.rgb), 0.45 * zine);
 		// ink lines where the picture breaks hard (like a cut-out's edge)
-		float lx = luma(texture(TEXTURE, UV + vec2(texel.x, 0.0)).rgb) - luma(texture(TEXTURE, UV - vec2(texel.x, 0.0)).rgb);
-		float ly = luma(texture(TEXTURE, UV + vec2(0.0, texel.y)).rgb) - luma(texture(TEXTURE, UV - vec2(0.0, texel.y)).rgb);
+		float lx = luma(texture(TEXTURE, uv + vec2(texel.x, 0.0)).rgb) - luma(texture(TEXTURE, uv - vec2(texel.x, 0.0)).rgb);
+		float ly = luma(texture(TEXTURE, uv + vec2(0.0, texel.y)).rgb) - luma(texture(TEXTURE, uv - vec2(0.0, texel.y)).rgb);
 		float edge = smoothstep(0.22, 0.5, length(vec2(lx, ly)));
 		c.rgb = mix(c.rgb, INK, edge * 0.5 * zine);
 		// halftone dots in the shadows, on a 45 degree screen in real pixels
@@ -83,6 +105,15 @@ void fragment() {
 		float fibre = hash(pp) * 0.6 + hash(floor(pp / 7.0)) * 0.4;
 		c.rgb *= 1.0 - (fibre - 0.5) * 0.08 * zine;
 	}
+	if (grade > 0.0) {
+		// two-tone: the shadows go one colour, the lights another, with a
+		// hard S-curve between so everything reads as flat bright shapes
+		float l = luma(c.rgb);
+		float k = smoothstep(0.08, 0.85, l);
+		vec3 duo = mix(grade_lo.rgb, grade_hi.rgb, k);
+		// keep a little of the original hue so things stay readable
+		c.rgb = mix(c.rgb, duo * (0.55 + 0.6 * k) + c.rgb * 0.25, grade);
+	}
 	if (frenzy > 0.0) {
 		c.rgb = mix(c.rgb, hue_rotate(c.rgb, TIME * 4.0), frenzy * 0.8);
 		float l = luma(c.rgb);
@@ -91,7 +122,7 @@ void fragment() {
 		c.rgb = mix(c.rgb, vec3(1.0) - c.rgb, strobe * 0.25);
 	}
 	// creeping dark at the edges, tighter when dread rises
-	vec2 dv = (UV - 0.5) * vec2(1.25, 1.0);
+	vec2 dv = (uv - 0.5) * vec2(1.25, 1.0);
 	float r = length(dv);
 	float v = vignette + dread * 0.35;
 	c.rgb *= 1.0 - v * smoothstep(0.28 - dread * 0.1, 0.78, r);

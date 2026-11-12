@@ -34,6 +34,7 @@
    * ENDLESS on the title screen: waves in the Gorb Pit until you drop.
    * Beat a level's par time for a gold medal. Your best times are kept.
    * The trout launcher is in the mines. Yes, it fires trout.
+   * NEW QUEST > EPISODE 2: GORB FEVER for four short, fast new levels.
 
  DIFFICULTY
    MERCY .......... less damage taken, double ammo

@@ -47,7 +47,7 @@ func _ready() -> void:
 
 func _root_page() -> Dictionary:
 	return {"title": "", "tiles": true, "cols": 3, "items": [
-		{"label": "NEW QUEST", "icon": "tile_new", "cb": func(): menu.push(_difficulty_page())},
+		{"label": "NEW QUEST", "icon": "tile_new", "cb": func(): menu.push(_episode_page())},
 		{"label": "CONTINUE QUEST", "icon": "tile_continue", "enabled": func(): return Game.has_any_save(),
 			"cb": func(): menu.push(MenuView.load_page(menu, func(d): Game.load_from_save(d)))},
 		{"label": "ENDLESS", "icon": "tile_endless", "desc": "THE GORB PIT. WAVE AFTER WAVE. HOW LONG CAN YOU LAST?",
@@ -57,12 +57,22 @@ func _root_page() -> Dictionary:
 	], "back": func(): menu.push(_quit_page())}
 
 
-func _difficulty_page(endless := false) -> Dictionary:
+func _episode_page() -> Dictionary:
+	var items := []
+	for e in Game.EPISODES.size():
+		var ep: Dictionary = Game.EPISODES[e]
+		var idx := e
+		items.append({"label": "EPISODE %d: %s" % [e + 1, ep["name"]], "desc": ep["desc"], "cb": func(): menu.push(_difficulty_page(false, idx))})
+	items.append({"label": "BACK", "cb": func(): menu.pop()})
+	return {"title": "EPISODE", "items": items}
+
+
+func _difficulty_page(endless := false, ep := 0) -> Dictionary:
 	var items := []
 	for i in Game.DIFFICULTIES.size():
 		var d: Dictionary = Game.DIFFICULTIES[i]
 		var idx := i
-		items.append({"label": d["name"], "desc": d["desc"], "cb": func(): (Game.start_endless(idx) if endless else Game.new_game(idx))})
+		items.append({"label": d["name"], "desc": d["desc"], "cb": func(): (Game.start_endless(idx) if endless else Game.new_game(idx, ep))})
 	items.append({"label": "BACK", "cb": func(): menu.pop()})
 	return {"title": "DIFFICULTY", "items": items}
 

@@ -763,6 +763,110 @@ def dimension():
     save("d_meat", rock(1008, [(0, (80, 0, 20)), (0.5, (200, 40, 60)), (1, (255, 160, 140))], cells=12))
 
 
+# ================================================================ fever (episode 2)
+def fever():
+    """GORB FEVER: loud, flat, high-contrast surfaces - glazed tiles, neon
+    grids, glowing light panels, walls running with sweat - meant to be
+    graded hard into one colour per level."""
+    r = rng(2000)
+    # glazed tiles: yellow, red, white; big squares, dark grout, a glint
+    for name, base, grout in [("fv_tile_y", (240, 210, 40), (60, 40, 0)), ("fv_tile_r", (220, 30, 40), (50, 0, 10)),
+                              ("fv_tile_w", (235, 232, 220), (40, 30, 40))]:
+        img = fill(base)
+        n = value_noise(N, 6, 2001 + len(name), 3)
+        img = shade(img, 0.88 + 0.2 * n)
+        for k in range(0, N, 16):
+            img[k:k + 2, :] = col(*grout)
+            img[:, k:k + 2] = col(*grout)
+        for ty in range(0, N, 16):
+            for tx in range(0, N, 16):
+                img[ty + 3:ty + 5, tx + 3:tx + 8] = np.clip(img[ty + 3:ty + 5, tx + 3:tx + 8] + 0.35, 0, 1)
+                if r.random() < 0.18:
+                    # a cracked tile
+                    cx = tx + int(r.integers(4, 12))
+                    for yy_ in range(ty + 2, ty + 15):
+                        cx = int(np.clip(cx + r.integers(-1, 2), tx + 2, tx + 14))
+                        img[yy_, cx] = col(*grout)
+        save(name, img)
+    # concrete: pale cream with heavy dither speckle and a stain or two
+    cc = gradmap(value_noise(N, 5, 2010, 5), [(0, (170, 160, 130)), (1, (235, 228, 200))])
+    sp = white(N, 2011)
+    cc[sp > 0.93] *= 0.7
+    cc[sp < 0.04] = np.clip(cc[sp < 0.04] + 0.15, 0, 1)
+    save("fv_concrete", cc)
+    # hazard stripes, yellow and black
+    save("fv_stripe", stripes_diag((250, 220, 20), (20, 16, 10), 8))
+    # neon grids on black
+    for name, c in [("fv_grid_c", (60, 240, 230)), ("fv_grid_m", (255, 70, 220))]:
+        img = fill((10, 6, 16))
+        g = ((XX % 16) < 1.5) | ((YY % 16) < 1.5)
+        img[g] = col(*c)
+        glow = ((XX % 16) < 3.5) | ((YY % 16) < 3.5)
+        img[glow & ~g] = col(*c) * 0.35
+        save(name, img)
+    # glowing light panels: a dark frame round a hot band (these light up)
+    for name, c in [("fv_glow_r", (255, 70, 40)), ("fv_glow_c", (80, 255, 240)), ("fv_glow_y", (255, 240, 90))]:
+        img = fill((26, 20, 30))
+        img[6:58, 8:56] = col(*c) * 0.55
+        img[12:52, 14:50] = col(*c)
+        img[24:40, 18:46] = np.clip(col(*c) + 0.3, 0, 1)
+        bevel_rect(img, 8, 6, 56, 58, 0.15, 0.4, 2)
+        save(name, img)
+    # ceiling with long light strips
+    cl = fill((30, 26, 34))
+    cl = shade(cl, 0.85 + 0.25 * value_noise(N, 8, 2020, 3))
+    cl[28:36, :] = col(255, 250, 220)
+    cl[26:28, :] = col(120, 110, 90)
+    cl[36:38, :] = col(120, 110, 90)
+    save("fv_ceil", cl)
+    # sweat: purple wall running with bright yellow-green drips
+    sw = gradmap(value_noise(N, 6, 2030, 4), [(0, (40, 0, 60)), (1, (120, 40, 150))])
+    for k in range(14):
+        x = int(r.integers(0, N))
+        y0 = int(r.integers(0, 20))
+        ln = int(r.integers(18, 60))
+        sw[y0:min(N, y0 + ln), x:x + 2] = col(200, 255, 40)
+        sw[min(N - 3, y0 + ln - 3):min(N, y0 + ln), max(0, x - 1):x + 3] = col(230, 255, 120)
+    save("fv_sweat", sw)
+    # metal mesh floor with something glowing underneath
+    mf = fill((40, 44, 52))
+    holes = ((XX % 8) > 2) & ((YY % 8) > 2)
+    mf[holes] = col(255, 90, 40) * (0.4 + 0.3 * value_noise(N, 4, 2040, 3)[holes][..., None])
+    save("fv_mesh", mf)
+    # floor checker, red and bone, big squares
+    ch = (((XX // 16) + (YY // 16)) % 2).astype(np.float32)
+    save("fv_check", lerp(fill((210, 20, 40)), fill((240, 232, 214)), ch))
+    # magenta bricks
+    save("fv_brick_m", bricks(2050, (200, 40, 170), (40, 0, 40), bw=16, bh=8, var=0.15))
+    # bone wall with gum-red grout
+    save("fv_bone", bricks(2060, (235, 225, 195), (150, 20, 50), bw=32, bh=10, var=0.08, noise=0.15))
+    # a door striped with chevrons
+    chev = ((np.abs(XX - 32) + YY) // 8 % 2).astype(np.float32)
+    dr = lerp(fill((250, 70, 40)), fill((26, 20, 30)), chev)
+    bevel_rect(dr, 0, 0, N, N, 0.2, 0.4, 3)
+    save("fv_door", dr)
+    # signs
+    save("fv_sign_down", text_panel("DOWN", "Anton-Regular.ttf", 26, (250, 220, 20), (20, 10, 10), shadow=(140, 90, 0)))
+    save("fv_sign_run", text_panel("KEEP\nGOING", "Anton-Regular.ttf", 20, (220, 20, 40), (250, 245, 230), spacing=-2))
+    save("fv_sign_gorb", text_panel("GORB", "Anton-Regular.ttf", 28, (20, 10, 30), (80, 255, 240), outline_c=(255, 70, 220)))
+    # skies: a red fever sky with a white-hot sun; a magenta and teal one
+    W, H = 256, 128
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    t = yy / H
+    sky = gradmap(t, [(0, (60, 0, 10)), (0.5, (230, 40, 30)), (0.8, (255, 170, 60)), (1, (255, 240, 160))])
+    bands = (np.sin(yy * 0.5) > 0.8) & (yy > 70)
+    sky[bands] *= 0.7
+    sun = np.hypot(xx - 160, (yy - 80) * 1.1) < 22
+    sky[sun] = col(255, 252, 235)
+    sky[(np.hypot(xx - 160, (yy - 80) * 1.1) < 24) & ~sun] = col(255, 200, 120)
+    to_image(sky).save(os.path.join(OUT, "sky_fever.png"))
+    n = value_noise(W, 6, 2070, 4)[:H, :]
+    sky = gradmap(t + (n - 0.5) * 0.4, [(0, (20, 0, 40)), (0.45, (220, 30, 200)), (0.7, (40, 220, 220)), (1, (240, 255, 250))])
+    st = white(W, 2071, H) > 0.985
+    sky[st & (yy < 60)] = col(255, 255, 255)
+    to_image(sky).save(os.path.join(OUT, "sky_fever2.png"))
+
+
 # ================================================================ skies (256x128)
 def skies():
     W, H = 256, 128
@@ -845,5 +949,6 @@ if __name__ == "__main__":
     hq()
     facility()
     dimension()
+    fever()
     skies()
     print("textures written:", _count[0] + 5)

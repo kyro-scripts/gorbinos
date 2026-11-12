@@ -33,7 +33,7 @@ func _process(delta: float) -> void:
 		get_tree().quit(0)
 		return
 	if lines.is_empty() and size.x > 0:
-		lines = UI.wrap("term", Game.ENDING, minf(size.x - 80, 460), 18)
+		lines = UI.wrap("term", Game.ending_text(), minf(size.x - 80, 460), 18)
 	queue_redraw()
 
 

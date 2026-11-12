@@ -44,7 +44,11 @@ func _ready() -> void:
 				Game.start_level(int(lv) - 1)
 			return
 	if Game.autoplay:
-		Game.new_game(1)
+		var ep := 0
+		for a in args:
+			if a.begins_with("--episode="):
+				ep = int(a.substr(10)) - 1
+		Game.new_game(1, ep)
 		return
 	if args.has("--uitest"):
 		_ui_test()
@@ -69,6 +73,9 @@ func _ui_test() -> void:
 	mm.menu.push(MenuView.binds_page(mm.menu))
 	await snap.call("binds")
 	mm.menu.pop(); mm.menu.pop(); mm.menu.pop()
+	mm.menu.push(mm._episode_page())
+	await snap.call("episode")
+	mm.menu.pop()
 	mm.menu.push(mm._difficulty_page())
 	await snap.call("difficulty")
 	show_story(Game.STORY[1], Game.level_name(1), func(): pass)

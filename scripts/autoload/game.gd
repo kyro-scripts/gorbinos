@@ -12,6 +12,19 @@ const LEVELS := [
 	"res://scripts/levels/level4_hq.gd",
 	"res://scripts/levels/level5_facility.gd",
 	"res://scripts/levels/level6_dimension.gd",
+	# episode 2: GORB FEVER
+	"res://scripts/levels/level7_fever.gd",
+	"res://scripts/levels/level8_throat.gd",
+	"res://scripts/levels/level9_spiral.gd",
+	"res://scripts/levels/level10_whiteheat.gd",
+]
+
+## The campaign is two episodes, each a run of LEVELS with its own ending.
+const EPISODES := [
+	{"name": "GORBINO'S QUEST", "first": 0, "last": 5,
+		"desc": "THE VILLAGE, THE PLANT, THE MINES, THE BOARD, THE VATS, THE HOLE."},
+	{"name": "GORB FEVER", "first": 6, "last": 9,
+		"desc": "FOUR SHORT, FAST, BURNING LEVELS. YOU START ARMED. DON'T STOP MOVING."},
 ]
 
 const DIFFICULTIES := [
@@ -29,8 +42,14 @@ const STORY := [
 	"EVERY SHIPMENT IS SIGNED OFF AT THE CONSUMER HEADQUARTERS.\n\nTHE BOARD IS IN SESSION.",
 	"THE BOARD TAKES ITS ORDERS FROM A FACILITY UNDER THE BASEMENT.\n\nIT GROWS THEM IN VATS. IT HAS NEVER STOPPED.\n\nSHUT IT DOWN.",
 	"THE VATS ARE FED THROUGH A HOLE IN THE WORLD.\n\nSOMETHING ON THE OTHER SIDE IS BREATHING.",
+	# episode 2
+	"THE LAST WARM VAT CRACKED AT 3 A.M.\n\nWHAT CAME OUT OF IT HAS A TEMPERATURE OF ONE HUNDRED AND SIX AND IT IS SPREADING.\n\nGO IN HOT. DON'T STOP MOVING.",
+	"THE FEVER HAS A THROAT. IT HAS BEEN SWALLOWING CORRIDORS.\n\nGO DOWN IT.",
+	"BELOW THE THROAT THE HALLS TURN IN ON THEMSELVES.\n\nKEEP TURNING. KEEP GOING DOWN.",
+	"AT THE BOTTOM OF THE SPIRAL THERE IS OPEN SKY, AND IT IS THE COLOUR OF A BURN.\n\nBREAK THE FEVER.",
 ]
 
+const ENDING_FEVER := "THE SKY COOLS FROM RED TO WHITE TO NOTHING AT ALL.\n\nTHE FEVER BREAKS. THE HALLS STOP MOVING.\n\nSOMEWHERE, A THERMOMETER READS NORMAL. FOR NOW."
 const ENDING := "THE GREAT SNIRBY IS DEAD.\n\nTHE HOLE CLOSES. THE VATS GO DARK. THE VILLAGE IS QUIET AGAIN.\n\nSOMEWHERE BELOW, ONE VAT IS STILL WARM."
 
 var main: Node = null            # scripts/main.gd root, owns screens
@@ -44,6 +63,7 @@ var level_override = null        # test harness: level data used instead of LEVE
 var autoplay := false            # test harness: bot plays the game
 var cheats := {"god": false}
 var endless := false             # playing ENDLESS in the Gorb Pit
+var episode := 0                 # which episode the current run belongs to
 
 
 func _ready() -> void:
@@ -94,14 +114,34 @@ func start_endless(diff_index: int) -> void:
 	start_level(0)
 
 
-func new_game(diff_index: int) -> void:
+func new_game(diff_index: int, ep := 0) -> void:
 	endless = false
 	level_override = null
 	difficulty = diff_index
+	episode = clampi(ep, 0, EPISODES.size() - 1)
 	inventory = new_inventory()
+	if episode == 1:
+		# episode 2 drops you in armed
+		inventory["weapons"] = ["pistol", "shotgun", "mg"]
+		inventory["current"] = "shotgun"
+		inventory["ammo"]["bullets"] = 120
+		inventory["ammo"]["shells"] = 24
+		inventory["mags"] = {"pistol": 12, "shotgun": 6, "mg": 60}
 	total_stats = {"kills": 0, "kills_total": 0, "items": 0, "items_total": 0, "secrets": 0, "secrets_total": 0, "time": 0.0}
-	level_index = 0
-	show_story(0)
+	level_index = int(EPISODES[episode]["first"])
+	show_story(level_index)
+
+
+## Which episode a level belongs to.
+func episode_of(i: int) -> int:
+	for e in EPISODES.size():
+		if i >= int(EPISODES[e]["first"]) and i <= int(EPISODES[e]["last"]):
+			return e
+	return 0
+
+
+func ending_text() -> String:
+	return ENDING_FEVER if episode == 1 else ENDING
 
 
 func show_story(i: int) -> void:
@@ -110,6 +150,8 @@ func show_story(i: int) -> void:
 
 func start_level(i: int, restore_state = null) -> void:
 	level_index = i
+	if level_override == null:
+		episode = episode_of(i)
 	if restore_state == null:
 		# entering fresh: clamp health like the classics (keep inventory)
 		inventory["health"] = clampi(int(inventory.get("health", 100)), 1, 200)
@@ -139,7 +181,7 @@ func level_finished(stats: Dictionary, inv: Dictionary) -> void:
 
 func after_intermission() -> void:
 	var nxt := level_index + 1
-	if nxt >= LEVELS.size():
+	if nxt > int(EPISODES[episode_of(level_index)]["last"]) or nxt >= LEVELS.size():
 		main.show_ending()
 	else:
 		level_index = nxt

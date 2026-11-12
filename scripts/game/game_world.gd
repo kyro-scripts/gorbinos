@@ -639,6 +639,15 @@ func _apply_settings() -> void:
 	post.set_shader_parameter("levels", Settings.color_levels())
 	post.set_shader_parameter("gamma", float(Settings.get_v("gamma")))
 	post.set_shader_parameter("zine", 1.0 if Collage.enabled() else 0.0)
+	# fever levels: a hard two-tone grade and a bulging, splitting view
+	var gr: Array = level.data.get("grade", []) if level else []
+	if gr.size() >= 3:
+		post.set_shader_parameter("grade_lo", gr[0])
+		post.set_shader_parameter("grade_hi", gr[1])
+		post.set_shader_parameter("grade", float(gr[2]))
+	else:
+		post.set_shader_parameter("grade", 0.0)
+	post.set_shader_parameter("warp", float(level.data.get("warp", 0.0)) if level else 0.0)
 	if level:
 		for e in level.enemies:
 			if is_instance_valid(e) and e.model:
@@ -670,6 +679,9 @@ func _process(delta: float) -> void:
 		post.set_shader_parameter("flash_color", _flash)
 		_frenzy_fx = move_toward(_frenzy_fx, 1.0 if player.frenzy > 0.0 else 0.0, delta * 3.0)
 		post.set_shader_parameter("frenzy", _frenzy_fx)
+		var hv := Vector2(player.velocity.x, player.velocity.z).length()
+		_speed_fx = lerpf(_speed_fx, clampf((hv - 4.0) / 10.0, 0.0, 1.0), clampf(delta * 6.0, 0.0, 1.0))
+		post.set_shader_parameter("speed", _speed_fx)
 	if player.dead:
 		dead_t += delta
 		if dead_t > 1.6 and not death_menu_shown:
@@ -840,6 +852,7 @@ func on_player_died() -> void:
 
 var _hitstop_token := 0
 var _frenzy_fx := 0.0
+var _speed_fx := 0.0
 var endless: Endless = null
 
 

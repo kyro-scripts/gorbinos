@@ -683,12 +683,109 @@ def t_ending():
     return s.render({"pad": {"gain": 0.7}, "lead": {"delay": (1.0, 0.5, 0.6)}})
 
 
+# ------------------------------------------------------------------ episode 2: GORB FEVER
+def t_fever1():
+    """'Fever Corridors': hard, fast breakbeat at 172, a gnarly reese, a
+    hot two-note stab that keeps nagging."""
+    s = Song(172, 32)
+    root = 45
+    prog = [0, 0, 3, 3, -2, -2, 1, 1]
+    kicks = ["x.....x...x.....", "x.x.......x..x.."]
+    snares = ["....x.......x...", "....x.....x.x..."]
+    for bar in range(32):
+        v = bar % 2
+        grid(s, "dr", kicks[v], bar, bar + 1, "k", 1.0)
+        grid(s, "dr", snares[v], bar, bar + 1, "s", 0.85)
+        grid(s, "dr", "x.xxx.xxx.xxx.xx", bar, bar + 1, "h", 0.22)
+        if bar >= 8:
+            grid(s, "dr", "..x.....x..x....", bar, bar + 1, "g", 0.5)
+        if bar % 8 == 0:
+            s.drum("dr", bar * 4, "x", 0.8, len=1.5)
+        if bar % 2 == 0:
+            s.note("reese", bar * 4, 7.8, root - 12 + prog[(bar // 2) % 8], "reese", 0.7, lfo=0.9)
+        if bar >= 4:
+            for b in (0, 0.75, 2.5):
+                s.note("stab", bar * 4 + b, 0.2, root + 12 + prog[(bar // 2) % 8], "power", 0.45, cut=3200, drive=5)
+                s.note("stab", bar * 4 + b, 0.2, root + 19 + prog[(bar // 2) % 8], "power", 0.3, cut=3200, drive=5)
+    for bar in range(16, 32, 2):
+        play(s, "lead", "sq", bar, [[(0, 0.5, 81), (0.5, 0.5, 79), (1, 1, 76), (2.5, 0.5, 79), (3, 1, 81)]], 0.35,
+             prog[(bar // 2) % 8])
+    return s.render({"reese": {"gain": 0.85}, "stab": {"gain": 0.6, "crush": 7}, "lead": {"delay": (0.75, 0.35, 0.35)},
+                     "dr": {"crush": 6}})
+
+
+def t_fever2():
+    """'Magenta Throat': rubbery acid at 150 over a four-on-the-floor that
+    keeps tripping, bells dripping off the top."""
+    s = Song(150, 32)
+    root, sc = 41, "phrygian"
+    prog = [0, 0, 1, 0, 3, 3, 1, 6]
+    pat = [0, 12, 0, 0, 13, 0, 12, 0, 0, 3, 0, 12, 0, 1, 0, 15]
+    for bar in range(32):
+        cd = prog[bar % len(prog)]
+        for i, semi in enumerate(pat):
+            vel = 0.95 if i % 4 == 0 else 0.6
+            s.note("acid", bar * 4 + i * 0.25, 0.2, deg(root, sc, cd, -1) + semi + 12, "acid", vel,
+                   cut=300 + 900 * (0.5 + 0.5 * np.sin(bar * 0.6)), q=9)
+        grid(s, "dr", "x...x...x...x..x" if bar % 4 == 3 else "x...x...x...x...", bar, bar + 1, "k", 1.0)
+        grid(s, "dr", "..x...x...x...x.", bar, bar + 1, "o", 0.45)
+        if bar >= 4:
+            grid(s, "dr", "....x.......x...", bar, bar + 1, "c", 0.65)
+            grid(s, "dr", "x.x.x.x.x.x.x.x.", bar, bar + 1, "a", 0.5)
+    for bar in range(8, 32, 4):
+        for (b, m) in [(0, 84), (1.5, 82), (2, 79), (3.5, 77)]:
+            s.note("bell", bar * 4 + b, 0.6, m, "bell", 0.25, ratio=2.01, index=2.5, decay=1.2)
+    return s.render({"acid": {"gain": 0.9, "crush": 7}, "bell": {"delay": (0.75, 0.5, 0.55)}, "dr": {"crush": 6}})
+
+
+def t_fever3():
+    """'Spiral of Teeth': a descending, never-ending loop. Industrial
+    clanks at 140, an organ line that keeps stepping down."""
+    s = Song(140, 32)
+    root = 50
+    for bar in range(32):
+        grid(s, "dr", "x..x..x...x..x..", bar, bar + 1, "k", 1.0)
+        grid(s, "dr", "....x.......x...", bar, bar + 1, "s", 0.8)
+        grid(s, "dr", "..x...x...x..x..", bar, bar + 1, "m", 0.45)
+        grid(s, "dr", "xxxxxxxxxxxxxxxx", bar, bar + 1, "h", 0.18)
+        drop = -(bar % 8)
+        for k, b in enumerate((0, 1.5, 3)):
+            s.note("org", bar * 4 + b, 1.2, root + drop + [0, 3, 7][k], "organ", 0.35)
+        if bar % 2 == 0:
+            s.note("bass", bar * 4, 3.6, root - 24 + drop, "bass", 0.8, cut=500)
+            s.note("bass", bar * 4 + 4, 3.6, root - 24 + drop - 1, "bass", 0.8, cut=500)
+    return s.render({"org": {"gain": 0.6, "delay": (0.5, 0.3, 0.3)}, "bass": {"gain": 0.9}, "dr": {"crush": 6}})
+
+
+def t_fever4():
+    """'White Heat': flat-out, 180. Double-time drums, power chords and a
+    screaming square lead."""
+    s = Song(180, 32)
+    root = 40
+    riff = [0, 0, 3, 0, 5, 0, 3, 6]
+    for bar in range(32):
+        part = (bar // 8) % 4
+        tr = [0, 3, -2, 5][part]
+        for i, semi in enumerate(riff):
+            s.note("gtr", bar * 4 + i * 0.5, 0.42, root + semi + tr, "power", 0.6, cut=2600, drive=4.5)
+        grid(s, "dr", "x.x.x.x.x.x.x.x.", bar, bar + 1, "k", 0.9)
+        grid(s, "dr", "....x.......x...", bar, bar + 1, "s", 0.9)
+        grid(s, "dr", "x.x.x.x.x.x.x.x.", bar, bar + 1, "o", 0.25)
+        if bar % 8 == 0:
+            s.drum("dr", bar * 4, "x", 0.95, len=1.8)
+    lead = [[(0, 1, 76), (1, 0.5, 79), (1.5, 0.5, 81), (2, 2, 83)], [(0, 1, 84), (1, 1, 83), (2, 1, 81), (3, 1, 79)]]
+    for bar in range(8, 32, 2):
+        play(s, "lead", "sq", bar, lead, 0.4, [0, 3, -2, 5][(bar // 8) % 4])
+    return s.render({"gtr": {"gain": 0.7}, "lead": {"delay": (0.75, 0.3, 0.3)}, "dr": {"crush": 6}}) * 0.75
+
+
 if __name__ == "__main__":
     import sys
     only = sys.argv[1:]
     for name, fn in [("menu", t_menu), ("village", t_village), ("industrial", t_industrial), ("mines", t_mines),
                      ("hq", t_hq), ("facility", t_facility), ("dimension", t_dimension), ("boss", t_boss),
-                     ("intermission", t_intermission), ("ending", t_ending)]:
+                     ("intermission", t_intermission), ("ending", t_ending),
+                     ("fever1", t_fever1), ("fever2", t_fever2), ("fever3", t_fever3), ("fever4", t_fever4)]:
         if only and name not in only:
             continue
         save(name, fn())

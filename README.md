@@ -20,6 +20,8 @@ There are three kinds of creature in the game. The **Gorbino** is a glossy round
 | ![Tentacle whip](docs/screenshots/whip.png) | ![Flamethrower](docs/screenshots/flamethrower.png) |
 | ![Frenzy](docs/screenshots/frenzy.png) | ![Endless](docs/screenshots/endless.png) |
 | ![Health](docs/screenshots/health_card.png) | ![Trout launcher](docs/screenshots/trout_launcher.png) |
+| ![Fever Corridors](docs/screenshots/fever_corridors.png) | ![The Magenta Throat](docs/screenshots/magenta_throat.png) |
+| ![Spiral of Teeth](docs/screenshots/spiral_of_teeth.png) | ![White Heat](docs/screenshots/white_heat.png) |
 
 ## Playing it
 
@@ -63,7 +65,11 @@ Press **C** while running to slide: you drop low and shoot along the floor, stee
 
 **ENDLESS** on the title screen drops you into THE GORB PIT, an arena with a sunken pit, raised corners and pillars, and four alcoves the waves pour out of. Every wave is bigger and nastier than the last, every fifth brings an elite, and between waves there's a short breather with ammo, health and armor; the double shotgun, rocket launcher, flamethrower and plasma rifle arrive as rewards along the way. Your best wave is kept.
 
-### Episode: six levels, one campaign
+### Two episodes
+
+NEW QUEST asks which episode first.
+
+#### Episode 1: Gorbino's Quest (six levels)
 
 1. **Gorbino Village**: an open village under a sickly sky, with a plaza, temple, barn, pond and a red-locked town gate.
 2. **Snirby Industrial Complex**: loading yards, a sludge-pit processing hall with catwalks, vats, a packaging line and a switch-operated armory.
@@ -81,6 +87,17 @@ Your health is in the top-left corner: a photo-real cut-out of your eye, your HP
 Ammo pickups are proper objects: trays of brass cartridges, olive ammo cans with a belt hanging off, red shotgun shells on brass heads, finned rockets on a crate, batteries with a glowing band. The HUD shows the ammo of the weapon you're holding.
 
 It is not a comfortable place. Corpses keep twitching, enemies whisper at you while they hunt you, the lights sometimes falter, and things breathe, knock and drag metal around just out of sight. Below 35 health you hear your heart. Between levels there's a story screen and a stats tally (kills, items, secrets, time vs. par) with an S/A/B/C/D rank. Finish level 6 for the ending and credits.
+
+#### Episode 2: Gorb Fever (four levels)
+
+The last warm vat cracked, and what came out of it runs a fever. Episode 2 takes its cue from the fast, neon run-and-gun shooters: four short, linear, flat-out levels you start already armed for (pistol, shotgun, machine gun), built from long corridors, rooms chained one into the next, closets that burst open as you pass, and stairs that keep taking you down. Each level is graded hard into its own two-tone palette, and the view bulges out from the middle and its colour plates split apart toward the edges the faster you move.
+
+7. **Fever Corridors**: yellow and red. A tiled start room, an alcoved corridor, a pillar hall that springs two closets, a stair hall dropping into a red pit room with a glowing grate floor.
+8. **The Magenta Throat**: magenta and cyan. A long switchback gullet stepping down at every turn into the stomach, a chamber round a pool of acid ooze.
+9. **Spiral of Teeth**: bile green and black. A square spiral of bone corridors winding inward and down, teeth at every corner, into a sunken arena with an altar that springs a trap. The trout launcher is in here.
+10. **White Heat**: white and blood red under a burning sky. Three open arenas linked by tight corridors; in the last, stepping onto the centre throws open four closets. The flamethrower is in the first arena.
+
+New surfaces for it (glazed fever tiles, neon grids, glowing light panels, walls running with sweat, bone, hazard stripes), two new skies, and four new tracks: breakbeat, acid, an industrial loop that keeps stepping down, and 180 bpm metal. Episode 2 has its own ending.
 
 ### The knife
 
@@ -161,7 +178,7 @@ scripts/
   test/          headless test runner + autopilot bot
   tools/         import_gorbino.gd: splits the supplied Gorbino model into body + feet
 shaders/         world (sector light + fog + dynamic lights), post (print/collage look,
-                 frenzy, dither), outline (paper cut-out borders), hyperreal (lit photo
+                 frenzy, fever grade and warp, dither), outline (paper cut-out borders), hyperreal (lit photo
                  cut-outs), sky
 tools/           asset generators (textures, sprites, fonts, SFX, music) + level kit
 ```
@@ -188,7 +205,7 @@ python3 tools/gen_collage.py    # ransom-note stickers and cut-out bursts
 python3 tools/gen_menu.py       # the title screen's scrolling Gorb Pit tile
 python3 tools/gen_hyperreal.py  # photo-real trout for the walls; the HUD's eye and its meat, bone and fish-skin strips; the fish-skin title
 python3 tools/gen_audio_extra.py  # knife, gore, heartbeat and dread sounds
-python3 tools/levels/level1_village.py   # ...and so on for each level
+python3 tools/levels/level1_village.py   # ...and so on for each level (episode 2: level7_fever ... level10_whiteheat)
 ```
 
 (The Python tools need numpy, scipy and Pillow.)
@@ -204,6 +221,7 @@ godot --headless --path . -- --test --savetest           # save/load round trip
 godot --headless --path . -- --test --mousetest          # mouse look through the real input path
 godot --headless --path . -- --test --steptest           # walking only: lists every ledge you have to jump
 godot --headless --fixed-fps 120 --path . -- --autoplay  # a bot plays the whole campaign
+godot --headless --fixed-fps 120 --path . -- --autoplay --episode=2  # ...or episode 2
 godot --headless --fixed-fps 120 --path . -- --autoplay --single --level=3 --arsenal
 godot --path . -- --level=1 --guttest=snirby                # gut a creature and screenshot each phase
 godot --path . -- --level=4 --civshot                       # go and listen to the locals
