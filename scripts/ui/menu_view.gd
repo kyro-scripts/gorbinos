@@ -16,6 +16,7 @@ var top_y := 70.0
 var allow_empty_back := true
 var show_title := true
 var center_offset := 0.0
+var tiles_left := -1.0           # >= 0: the clay buttons line up on the left at this x, not centred
 var _rows: Array = []            # [rect, item_index]
 var _flash := ""
 var _flash_t := 0.0
@@ -372,7 +373,11 @@ func _draw_tiles(cx: float, y: float) -> void:
 		var c := k % cols
 		var in_row := mini(cols, items.size() - r * cols)
 		var row_w := in_row * bw + (in_row - 1) * gap_x
-		var rect := Rect2(cx - row_w * 0.5 + c * (bw + gap_x), y + r * (bh + gap), bw, bh)
+		var x0 := cx - row_w * 0.5
+		if tiles_left >= 0.0:
+			# the slab starts a little inside its picture: line the slab itself up
+			x0 = tiles_left - bw * 12.0 / 440.0
+		var rect := Rect2(x0 + c * (bw + gap_x), y + r * (bh + gap), bw, bh)
 		_rows.append([rect, k])
 		var drawn := rect
 		if is_sel:

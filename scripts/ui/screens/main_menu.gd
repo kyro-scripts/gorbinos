@@ -6,6 +6,7 @@ extends Control
 
 const BG_SCALE := 2.0            # screen units per texel of the background tile
 const BG_SPEED := Vector2(14.0, 9.0)
+const TITLE_W := 178.0
 
 var bg: Texture2D
 var title_tex: Texture2D
@@ -127,6 +128,8 @@ func _process(delta: float) -> void:
 	# turntable sits in the right quarter
 	menu.top_y = 128.0 if tiles else 150.0
 	menu.center_offset = (_column_x() - size.x * 0.5) if tiles else -100.0
+	# the buttons' left edges line up with the title's
+	menu.tiles_left = (_column_x() - TITLE_W * 0.5) if tiles else -1.0
 	preview.visible = not menu.page().get("wide", false)
 	if tiles:
 		var side := minf(size.y * 0.8, size.x * 0.45)
@@ -162,7 +165,7 @@ func _draw() -> void:
 ## into the corner on the settings pages.
 func _draw_title() -> void:
 	var root: bool = menu.page().get("tiles", false)
-	var w := 178.0 if root else 104.0
+	var w := TITLE_W if root else 104.0
 	var ts := Vector2(w, w * title_tex.get_height() / title_tex.get_width())
 	var cx := _column_x() if root else 18.0 + w * 0.5
 	var p := Vector2(cx - ts.x * 0.5, 6.0 + sin(t * 1.3) * 1.5)
