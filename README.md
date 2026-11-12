@@ -179,6 +179,7 @@ python3 tools/import_user_models.py  # supplied Gorbino texture -> 6 colour vari
 godot --headless --path . -s scripts/tools/import_gorbino.gd  # supplied Gorbino mesh -> body + feet
 python3 tools/gen_clay.py       # "pre-rendered clay" UI: DEATH, menu buttons, logo, cursor, icon
 python3 tools/import_user_audio.py  # weapon sounds, voice lines, enemy shot (idk.wav) from tools/user_audio/
+python3 tools/import_user_art.py    # the supplied grinning face (tools/user_art/) for the NEW QUEST button, backdrop cut away
 python3 tools/gen_gore.py       # wound, guts and butterfly-knife textures
 python3 tools/gen_collage.py    # ransom-note stickers and cut-out bursts
 python3 tools/gen_menu.py       # the title screen's scrolling Gorb Pit tile
@@ -230,5 +231,5 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/Gorbi
 - Design, code, art, audio and levels: generated for this project. Fictional publisher: Glandcore Software.
 - Fonts (SIL Open Font License, licences in `assets/fonts/`): Silkscreen (Jason Kottke), Bungee (David Jonathan Ross), Anton (Vernon Adams), VT323 (Peter Hull).
 - Engine: [Godot Engine](https://godotengine.org) (MIT).
-- Gorbino model and texture, Snirby face texture, gun sounds and voice lines: supplied by the project owner.
+- Gorbino model and texture, Snirby face texture, the NEW QUEST button's grinning face, gun sounds and voice lines: supplied by the project owner.
 - This is an unofficial fan work inspired by Gorbino's Quest from the *Cruelty Squad* universe (Consumer Softproducts). It has no affiliation with them.

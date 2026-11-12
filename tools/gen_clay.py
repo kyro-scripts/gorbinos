@@ -307,7 +307,7 @@ def tiles():
 
 # ------------------------------------------------------------------ menu buttons
 BUTTONS = [
-    ("new", "NEW QUEST", "gorbino", (110, 190, 60)),
+    ("new", "NEW QUEST", "image:icon_new_face.png", (255, 60, 60)),
     ("continue", "CONTINUE", "arrow", (120, 255, 60)),
     ("endless", "ENDLESS", "ring", (230, 80, 255)),
     ("options", "OPTIONS", "gear", (120, 180, 255)),
@@ -360,7 +360,24 @@ def clay_button(name, label, kind, icon_col, seed, hot):
         out[..., 3] = np.maximum(out[..., 3], rim)
     out[..., :3] = body[..., :3] * slab[..., None] + out[..., :3] * (1 - slab[..., None])
     out[..., 3] = np.maximum(out[..., 3], slab)
-    # the icon, sculpted on the left
+    # the icon, sculpted on the left (or a supplied picture, pasted on)
+    if kind.startswith("image:"):
+        pic = Image.open(os.path.join(UI, kind[6:])).convert("RGBA").resize((H + 6, H + 6), Image.LANCZOS)
+        pa = np.asarray(pic).astype(np.float32) / 255.0
+        iw = np.zeros((H, W)); icn = np.zeros((H, W, 3))
+        iw[:, 8:8 + H] = pa[3:3 + H, 3:3 + H, 3]
+        icn[:, 8:8 + H] = pa[3:3 + H, 3:3 + H, :3]
+        ish = np.roll(np.roll((iw > 0.5).astype(np.float32), 4, 0), 4, 1) * slab
+        out[..., :3] *= 1 - ish[..., None] * 0.45
+        out[..., :3] = icn * iw[..., None] + out[..., :3] * (1 - iw[..., None])
+        out[..., 3] = np.maximum(out[..., 3], iw)
+    else:
+        _sculpt_icon(out, slab, kind, icon_col, seed, W, H)
+    _clay_label(out, label, seed, hot, W, H)
+    save(out, "btn_%s%s.png" % (name, "_on" if hot else ""))
+
+
+def _sculpt_icon(out, slab, kind, icon_col, seed, W, H):
     ih, imk = icon_height(kind, H, H)
     ibase = flesh_base(H, H, seed + 4, [(0, tuple(int(c * 0.45) for c in icon_col)), (1, icon_col)])
     ic = shade_height(ih, ibase, mask=imk, spec=1.0, shin=36)
@@ -397,6 +414,9 @@ def clay_button(name, label, kind, icon_col, seed, hot):
         my = H / 2 + 10
         sub[(np.abs(yy - my) < 6) & (np.abs(xx - H / 2) < 17)] = (0.18, 0.0, 0.03)
     out[..., :3] = icn * iw[..., None] + out[..., :3] * (1 - iw[..., None])
+
+
+def _clay_label(out, label, seed, hot, W, H):
     # the label, in the logo's clay letters
     f = font("Anton-Regular.ttf", 56)
     tmp = Image.new("L", (W, H), 0)
@@ -416,7 +436,6 @@ def clay_button(name, label, kind, icon_col, seed, hot):
     out[..., :3] = out[..., :3] * (1 - outl[..., None]) + np.array([0.06, 0.0, 0.02]) * outl[..., None]
     out[..., :3] = lab[..., :3] * a[..., None] + out[..., :3] * (1 - a[..., None])
     out[..., 3] = np.maximum(out[..., 3], outl)
-    save(out, "btn_%s%s.png" % (name, "_on" if hot else ""))
 
 
 def buttons():
